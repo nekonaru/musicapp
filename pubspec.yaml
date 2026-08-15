@@ -1,0 +1,53 @@
+name: offline_music_player
+description: Aplikasi pemutar musik offline dengan metadata otomatis, lirik, dan dashboard analitik pendengaran.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Audio playback (background-capable)
+  just_audio: ^0.9.40
+  audio_service: ^0.18.15
+  audio_session: ^0.1.21
+
+  # Scan file lokal & baca tag ID3 dari file musik
+  on_audio_query: ^2.9.0
+
+  # Database lokal (riwayat dengar, cache metadata, lirik)
+  sqflite: ^2.3.3
+  path_provider: ^2.1.4
+  path: ^1.9.0
+
+  # State management
+  provider: ^6.1.2
+
+  # HTTP untuk fetch metadata/album art/lirik dari API eksternal
+  http: ^1.2.2
+  dio: ^5.7.0
+
+  # Chart untuk dashboard
+  fl_chart: ^0.68.0
+
+  # Permission storage
+  permission_handler: ^11.3.1
+
+  # Cache gambar album
+  cached_network_image: ^3.4.1
+
+  # Format tanggal untuk dashboard
+  intl: ^0.19.0
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
