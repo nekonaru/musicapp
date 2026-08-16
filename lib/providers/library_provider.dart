@@ -17,7 +17,14 @@ class LibraryProvider extends ChangeNotifier {
   String searchQuery = '';
 
   Future<void> loadFromDb() async {
-    songs = await DBHelper.instance.getAllSongs();
+    final all = await DBHelper.instance.getAllSongs();
+    final excluded = await DBHelper.instance.getExcludedFolders();
+    songs = excluded.isEmpty
+        ? all
+        : all.where((s) {
+            final folder = s.filePath.substring(0, s.filePath.lastIndexOf('/'));
+            return !excluded.contains(folder);
+          }).toList();
     _applySort();
     notifyListeners();
   }
@@ -27,8 +34,11 @@ class LibraryProvider extends ChangeNotifier {
     scanError = null;
     notifyListeners();
     try {
-      songs = await LibraryScanner().scanAndSync();
-      _applySort();
+      await LibraryScanner().scanAndSync();
+      await loadFromDb();
+      isScanning = false;
+      notifyListeners();
+      return;
     } catch (e) {
       scanError = e.toString();
     }

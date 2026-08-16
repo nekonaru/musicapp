@@ -4,9 +4,8 @@ import '../models/song.dart';
 import '../providers/library_provider.dart';
 import '../providers/playlist_provider.dart';
 import '../services/player_service.dart';
+import '../widgets/az_scrollbar.dart';
 import 'edit_metadata_screen.dart';
-import 'player_screen.dart';
-import '../utils/page_transitions.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -15,6 +14,9 @@ class LibraryScreen extends StatefulWidget {
 }
 
 class _LibraryScreenState extends State<LibraryScreen> {
+  final ScrollController _scrollController = ScrollController();
+  static const double _itemHeight = 72;
+
   @override
   void initState() {
     super.initState();
@@ -24,8 +26,29 @@ class _LibraryScreenState extends State<LibraryScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   void _playSong(List<Song> queue, int index) {
     PlayerService.instance.setQueueAndPlay(queue, index);
+  }
+
+  void _jumpToLetter(String letter, List<Song> songs) {
+    int index;
+    if (letter == '#') {
+      index = songs.indexWhere((s) => !RegExp(r'^[a-zA-Z]').hasMatch(s.title));
+    } else {
+      index = songs.indexWhere((s) => s.title.toUpperCase().startsWith(letter));
+    }
+    if (index == -1) return;
+    _scrollController.animateTo(
+      index * _itemHeight,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
   }
 
   void _showSongOptions(Song song) {
@@ -36,6 +59,28 @@ class _LibraryScreenState extends State<LibraryScreen> {
       builder: (ctx) => SafeArea(
         child: Wrap(
           children: [
+            ListTile(
+              leading: const Icon(Icons.queue_music),
+              title: const Text('Putar Berikutnya'),
+              onTap: () {
+                PlayerService.instance.playNext(song);
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Ditambahkan untuk diputar berikutnya')),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.playlist_add_check),
+              title: const Text('Tambah ke Akhir Antrean'),
+              onTap: () {
+                PlayerService.instance.addToQueueEnd(song);
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Ditambahkan ke antrean')),
+                );
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.favorite_border),
               title: const Text('Tambah/Hapus dari Favorit'),
@@ -50,6 +95,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
               onTap: () async {
                 Navigator.pop(ctx);
                 _pickPlaylist(song, playlistProvider);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.drive_file_rename_outline),
+              title: const Text('Ganti Nama Lagu'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                _renameSong(song, lib);
               },
             ),
             ListTile(
@@ -83,6 +136,25 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _renameSong(Song song, LibraryProvider lib) async {
+    final controller = TextEditingController(text: song.title);
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Ganti Nama Lagu'),
+        content: TextField(controller: controller, autofocus: true),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, controller.text), child: const Text('Simpan')),
+        ],
+      ),
+    );
+    if (newName != null && newName.trim().isNotEmpty) {
+      song.title = newName.trim();
+      await lib.updateMetadata(song);
+    }
   }
 
   void _pickPlaylist(Song song, PlaylistProvider provider) {
@@ -157,6 +229,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
           );
         }
         final displayedSongs = lib.filteredSongs;
+        final showAzBar = lib.searchQuery.isEmpty && lib.sortOption == SortOption.titleAZ;
+        final availableLetters = <String>{
+          for (final s in displayedSongs)
+            RegExp(r'^[a-zA-Z]').hasMatch(s.title) ? s.title[0].toUpperCase() : '#'
+        };
+
         return Column(
           children: [
             Padding(
@@ -187,8 +265,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     ],
                   ),
                   if (lib.isBulkScanningMetadata)
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
+                    const Padding(
+                      padding: EdgeInsets.all(8.0),
                       child: SizedBox(
                         width: 20, height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
@@ -210,44 +288,92 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   value: lib.bulkScanTotal == 0 ? null : lib.bulkScanProgress / lib.bulkScanTotal,
                 ),
               ),
+            if (lib.searchQuery.isEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: displayedSongs.isEmpty ? null : () => _playSong(displayedSongs, 0),
+                        icon: const Icon(Icons.play_arrow),
+                        label: const Text('Mulai Putar'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: displayedSongs.isEmpty
+                            ? null
+                            : () {
+                                final shuffled = List<Song>.of(displayedSongs)..shuffle();
+                                _playSong(shuffled, 0);
+                                PlayerService.instance.toggleShuffle();
+                              },
+                        icon: const Icon(Icons.shuffle),
+                        label: const Text('Acak'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             Expanded(
               child: displayedSongs.isEmpty
                   ? const Center(child: Text('Lagu tidak ditemukan'))
-                  : RefreshIndicator(
-                      onRefresh: () => lib.scanDevice(),
-                      child: ListView.builder(
-                        itemCount: displayedSongs.length,
-                        itemBuilder: (context, i) {
-                          final song = displayedSongs[i];
-                          return TweenAnimationBuilder<double>(
-                            key: ValueKey('song_${song.id}'),
-                            tween: Tween(begin: 0.0, end: 1.0),
-                            duration: Duration(milliseconds: 220 + (i % 12) * 25),
-                            curve: Curves.easeOut,
-                            builder: (context, value, child) => Opacity(
-                              opacity: value,
-                              child: Transform.translate(
-                                offset: Offset(0, (1 - value) * 8),
-                                child: child,
-                              ),
+                  : Stack(
+                      children: [
+                        RefreshIndicator(
+                          onRefresh: () => lib.scanDevice(),
+                          child: ListView.builder(
+                            controller: _scrollController,
+                            itemCount: displayedSongs.length,
+                            itemExtent: _itemHeight,
+                            itemBuilder: (context, i) {
+                              final song = displayedSongs[i];
+                              return TweenAnimationBuilder<double>(
+                                key: ValueKey('song_${song.id}'),
+                                tween: Tween(begin: 0.0, end: 1.0),
+                                duration: Duration(milliseconds: 220 + (i % 12) * 25),
+                                curve: Curves.easeOut,
+                                builder: (context, value, child) => Opacity(
+                                  opacity: value,
+                                  child: Transform.translate(
+                                    offset: Offset(0, (1 - value) * 8),
+                                    child: child,
+                                  ),
+                                ),
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundImage: song.albumArtUrl != null ? NetworkImage(song.albumArtUrl!) : null,
+                                    child: song.albumArtUrl == null ? const Icon(Icons.music_note) : null,
+                                  ),
+                                  title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  subtitle: Text('${song.artist} · ${song.genre ?? "Genre ?"}',
+                                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  onTap: () => _playSong(displayedSongs, i),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.more_vert),
+                                    onPressed: () => _showSongOptions(song),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        if (showAzBar)
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            bottom: 0,
+                            child: AzScrollbar(
+                              letters: [
+                                for (final l in [...('#ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''))])
+                                  if (availableLetters.contains(l)) l,
+                              ],
+                              onLetterSelected: (letter) => _jumpToLetter(letter, displayedSongs),
                             ),
-                            child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundImage: song.albumArtUrl != null ? NetworkImage(song.albumArtUrl!) : null,
-                              child: song.albumArtUrl == null ? const Icon(Icons.music_note) : null,
-                            ),
-                            title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                            subtitle: Text('${song.artist} · ${song.genre ?? "Genre ?"}',
-                                maxLines: 1, overflow: TextOverflow.ellipsis),
-                            onTap: () => _playSong(displayedSongs, i),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.more_vert),
-                              onPressed: () => _showSongOptions(song),
-                            ),
-                            ),
-                          );
-                        },
-                      ),
+                          ),
+                      ],
                     ),
             ),
           ],

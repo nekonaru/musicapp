@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:audio_service/audio_service.dart' show MediaItem;
 import '../models/song.dart';
 import 'db_helper.dart';
 
@@ -26,6 +27,11 @@ class PlayerService extends ChangeNotifier {
   bool get isShuffle => _shuffle;
   RepeatMode get repeatMode => _repeatMode;
   List<Song> get queue => _queue;
+  int get currentIndex => _currentIndex;
+
+  /// Sisa antrean setelah lagu yang sedang diputar
+  List<Song> get upNext =>
+      _queue.isEmpty ? [] : _queue.sublist((_currentIndex + 1).clamp(0, _queue.length));
 
   Future<void> init() async {
     _player.playerStateStream.listen((state) {
@@ -38,7 +44,7 @@ class PlayerService extends ChangeNotifier {
 
   Future<void> setQueueAndPlay(List<Song> songs, int startIndex) async {
     _logListening(); // simpan sisa riwayat lagu sebelumnya kalau ada
-    _queue = songs;
+    _queue = List.of(songs);
     _currentIndex = startIndex;
     await _playCurrent();
     notifyListeners();
@@ -47,7 +53,17 @@ class PlayerService extends ChangeNotifier {
   Future<void> _playCurrent() async {
     final song = currentSong;
     if (song == null) return;
-    await _player.setFilePath(song.filePath);
+    final source = AudioSource.uri(
+      Uri.file(song.filePath),
+      tag: MediaItem(
+        id: song.id.toString(),
+        title: song.title,
+        artist: song.artist,
+        album: song.album,
+        artUri: song.albumArtUrl != null ? Uri.tryParse(song.albumArtUrl!) : null,
+      ),
+    );
+    await _player.setAudioSource(source);
     await _player.play();
     _playStartedAt = DateTime.now();
     _accumulatedListenedMs = 0;
@@ -80,6 +96,40 @@ class PlayerService extends ChangeNotifier {
       _currentIndex = _queue.length - 1;
     }
     await _playCurrent();
+  }
+
+  /// Putar lagu tertentu di dalam antrean (dipanggil dari halaman Antrean)
+  Future<void> playAtQueueIndex(int index) async {
+    if (index < 0 || index >= _queue.length) return;
+    _logListening();
+    _currentIndex = index;
+    await _playCurrent();
+  }
+
+  /// Tambahkan lagu supaya diputar setelah lagu yang sedang berjalan
+  void playNext(Song song) {
+    if (_queue.isEmpty) {
+      setQueueAndPlay([song], 0);
+      return;
+    }
+    _queue.insert(_currentIndex + 1, song);
+    notifyListeners();
+  }
+
+  /// Tambahkan lagu ke akhir antrean
+  void addToQueueEnd(Song song) {
+    if (_queue.isEmpty) {
+      setQueueAndPlay([song], 0);
+      return;
+    }
+    _queue.add(song);
+    notifyListeners();
+  }
+
+  void removeFromQueue(int index) {
+    if (index <= _currentIndex || index < 0 || index >= _queue.length) return;
+    _queue.removeAt(index);
+    notifyListeners();
   }
 
   void _onTrackFinished() {

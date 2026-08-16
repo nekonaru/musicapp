@@ -5,6 +5,7 @@ import '../services/metadata_service.dart';
 import '../providers/library_provider.dart';
 import 'package:provider/provider.dart';
 import 'edit_metadata_screen.dart';
+import 'queue_screen.dart';
 
 class PlayerScreen extends StatefulWidget {
   const PlayerScreen({super.key});
@@ -189,6 +190,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 child: Text(_showLyrics ? 'Lirik' : 'Sedang Diputar', key: ValueKey(_showLyrics)),
               ),
               actions: [
+                IconButton(
+                  icon: const Icon(Icons.queue_music_outlined),
+                  tooltip: 'Antrean Putar',
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QueueScreen())),
+                ),
                 IconButton(
                   icon: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 250),
