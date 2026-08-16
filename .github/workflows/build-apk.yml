@@ -24,6 +24,18 @@ jobs:
           flutter-version: '3.35.0'
           channel: 'stable'
 
+      - name: Regenerate folder android dari template resmi Flutter
+        run: |
+          rm -rf android
+          flutter create --platforms=android --org com.nikodwidharma --project-name offline_music_player .
+
+      - name: Tambahkan permission yang dibutuhkan (audio, internet, background playback)
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i 's#<manifest xmlns:android="http://schemas.android.com/apk/res/android">#<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />#' "$MANIFEST"
+          sed -i 's/android:label="offline_music_player"/android:label="Pemutar Musik Offline"/' "$MANIFEST"
+          cat "$MANIFEST"
+
       - name: Install dependency
         run: flutter pub get
 
