@@ -39,6 +39,29 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
+  Future<void> _pickPlaybackSpeed() async {
+    final options = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+    final speed = await showModalBottomSheet<double>(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(12),
+            child: Text('Kecepatan Putar', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          for (final s in options)
+            ListTile(
+              title: Text('${s}x'),
+              trailing: _player.playbackSpeed == s ? const Icon(Icons.check) : null,
+              onTap: () => Navigator.pop(ctx, s),
+            ),
+        ],
+      ),
+    );
+    if (speed != null) await _player.setPlaybackSpeed(speed);
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -56,10 +79,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget _buildScaffold(song) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_showLyrics ? 'Lirik' : 'Sedang Diputar'),
+        title: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 250),
+          child: Text(_showLyrics ? 'Lirik' : 'Sedang Diputar', key: ValueKey(_showLyrics)),
+        ),
         actions: [
           IconButton(
-            icon: Icon(_showLyrics ? Icons.album : Icons.lyrics_outlined),
+            icon: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              transitionBuilder: (child, anim) => RotationTransition(turns: anim, child: child),
+              child: Icon(_showLyrics ? Icons.album : Icons.lyrics_outlined, key: ValueKey(_showLyrics)),
+            ),
             onPressed: () => setState(() => _showLyrics = !_showLyrics),
           ),
         ],
@@ -67,40 +97,86 @@ class _PlayerScreenState extends State<PlayerScreen> {
       body: Column(
         children: [
           Expanded(
-            child: _showLyrics
-                ? SingleChildScrollView(
-                    padding: const EdgeInsets.all(20),
-                    child: Text(
-                      song.lyrics ?? 'Lirik belum tersedia. Bisa ditambahkan lewat menu Edit Metadata.',
-                      style: const TextStyle(fontSize: 16, height: 1.6),
-                    ),
-                  )
-                : Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: song.albumArtUrl != null
-                              ? Image.network(song.albumArtUrl!, width: 260, height: 260, fit: BoxFit.cover)
-                              : Container(
-                                  width: 260,
-                                  height: 260,
-                                  color: Colors.grey[300],
-                                  child: const Icon(Icons.music_note, size: 80),
-                                ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(song.title,
-                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                            textAlign: TextAlign.center),
-                        const SizedBox(height: 6),
-                        Text(song.artist, style: TextStyle(color: Colors.grey[600])),
-                      ],
-                    ),
-                  ),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              transitionBuilder: (child, anim) => FadeTransition(
+                opacity: anim,
+                child: SlideTransition(
+                  position: Tween<Offset>(begin: const Offset(0, 0.03), end: Offset.zero).animate(anim),
+                  child: child,
+                ),
+              ),
+              child: _showLyrics ? _buildLyricsView(song) : _buildArtView(song),
+            ),
           ),
           _buildControls(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLyricsView(song) {
+    return SingleChildScrollView(
+      key: ValueKey('lyrics_${song.id}'),
+      padding: const EdgeInsets.all(20),
+      child: Text(
+        song.lyrics ?? 'Lirik belum tersedia. Bisa ditambahkan lewat menu Edit Metadata.',
+        style: const TextStyle(fontSize: 16, height: 1.6),
+      ),
+    );
+  }
+
+  Widget _buildArtView(song) {
+    return Center(
+      key: ValueKey('art_${song.id}'),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          StreamBuilder(
+            stream: _player.player.playerStateStream,
+            builder: (context, snapshot) {
+              final playing = snapshot.data?.playing ?? false;
+              return AnimatedScale(
+                duration: const Duration(milliseconds: 350),
+                curve: Curves.easeOutCubic,
+                scale: playing ? 1.0 : 0.92,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 350),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: playing
+                        ? [
+                            BoxShadow(
+                              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.35),
+                              blurRadius: 28,
+                              spreadRadius: 2,
+                            )
+                          ]
+                        : [],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: song.albumArtUrl != null
+                        ? Image.network(song.albumArtUrl!, width: 260, height: 260, fit: BoxFit.cover)
+                        : Container(
+                            width: 260,
+                            height: 260,
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.music_note, size: 80),
+                          ),
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 24),
+          Text(song.title,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 6),
+          Text(song.artist, style: TextStyle(color: Colors.grey[600])),
         ],
       ),
     );
@@ -118,10 +194,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
               final dur = _player.player.duration ?? Duration.zero;
               return Column(
                 children: [
-                  Slider(
-                    value: pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble()),
-                    max: dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1,
-                    onChanged: (v) => _player.player.seek(Duration(milliseconds: v.toInt())),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 3,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                    ),
+                    child: Slider(
+                      value: pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble()),
+                      max: dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1,
+                      onChanged: (v) => _player.player.seek(Duration(milliseconds: v.toInt())),
+                    ),
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -152,7 +234,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   final playing = snapshot.data?.playing ?? false;
                   return IconButton(
                     iconSize: 48,
-                    icon: Icon(playing ? Icons.pause_circle_filled : Icons.play_circle_filled),
+                    icon: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+                      child: Icon(
+                        playing ? Icons.pause_circle_filled : Icons.play_circle_filled,
+                        key: ValueKey(playing),
+                      ),
+                    ),
                     onPressed: () async {
                       await _player.togglePlayPause();
                       setState(() {});
@@ -167,10 +256,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
               ),
             ],
           ),
-          TextButton.icon(
-            onPressed: _pickSleepTimer,
-            icon: const Icon(Icons.bedtime_outlined),
-            label: const Text('Timer Tidur'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextButton.icon(
+                onPressed: _pickSleepTimer,
+                icon: const Icon(Icons.bedtime_outlined),
+                label: const Text('Timer Tidur'),
+              ),
+              TextButton.icon(
+                onPressed: _pickPlaybackSpeed,
+                icon: const Icon(Icons.speed_outlined),
+                label: Text('${_player.playbackSpeed}x'),
+              ),
+            ],
           ),
         ],
       ),

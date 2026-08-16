@@ -7,6 +7,7 @@ import '../services/library_scanner.dart';
 import '../services/player_service.dart';
 import '../services/db_helper.dart';
 import 'player_screen.dart';
+import '../utils/page_transitions.dart';
 
 class FoldersScreen extends StatefulWidget {
   const FoldersScreen({super.key});
@@ -112,7 +113,7 @@ class _FolderSongsScreen extends StatelessWidget {
           onTap: () async {
             await PlayerService.instance.setQueueAndPlay(songs, i);
             if (context.mounted) {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerScreen()));
+              Navigator.push(context, SlideUpRoute(page: const PlayerScreen()));
             }
           },
         ),
@@ -155,7 +156,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           onTap: () async {
             await PlayerService.instance.setQueueAndPlay(_favs, i);
             if (context.mounted) {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerScreen()));
+              Navigator.push(context, SlideUpRoute(page: const PlayerScreen()));
             }
           },
         ),

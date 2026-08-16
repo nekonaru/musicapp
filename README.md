@@ -61,7 +61,7 @@ flutter pub get
 flutter run
 ```
 
-Build APK release otomatis tersedia lewat GitHub Actions - cek tab **Actions** untuk mengunduh hasil build terbaru.
+Build APK release otomatis tersedia lewat GitHub Actions — cek tab **Actions** untuk mengunduh hasil build terbaru.
 
 ### Permission Android yang dibutuhkan
 Aplikasi ini memerlukan izin akses musik (`READ_MEDIA_AUDIO`), internet (untuk fetch metadata & lirik), dan foreground service (untuk pemutaran latar belakang). Semua sudah dikonfigurasi otomatis di `AndroidManifest.xml`.
@@ -83,7 +83,7 @@ lib/
 
 ## 📄 Lisensi
 
-Project ini dilisensikan di bawah [MIT License](LICENSE) - bebas digunakan, dimodifikasi, dan didistribusikan ulang dengan tetap mencantumkan atribusi.
+Project ini dilisensikan di bawah [MIT License](LICENSE) — bebas digunakan, dimodifikasi, dan didistribusikan ulang dengan tetap mencantumkan atribusi.
 
 ---
 

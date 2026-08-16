@@ -6,6 +6,7 @@ import '../providers/playlist_provider.dart';
 import '../services/player_service.dart';
 import 'edit_metadata_screen.dart';
 import 'player_screen.dart';
+import '../utils/page_transitions.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -26,7 +27,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   void _playSong(List<Song> queue, int index) async {
     await PlayerService.instance.setQueueAndPlay(queue, index);
     if (mounted) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerScreen()));
+      Navigator.push(context, SlideUpRoute(page: const PlayerScreen()));
     }
   }
 
@@ -221,7 +222,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         itemCount: displayedSongs.length,
                         itemBuilder: (context, i) {
                           final song = displayedSongs[i];
-                          return ListTile(
+                          return TweenAnimationBuilder<double>(
+                            key: ValueKey('song_${song.id}'),
+                            tween: Tween(begin: 0.0, end: 1.0),
+                            duration: Duration(milliseconds: 220 + (i % 12) * 25),
+                            curve: Curves.easeOut,
+                            builder: (context, value, child) => Opacity(
+                              opacity: value,
+                              child: Transform.translate(
+                                offset: Offset(0, (1 - value) * 8),
+                                child: child,
+                              ),
+                            ),
+                            child: ListTile(
                             leading: CircleAvatar(
                               backgroundImage: song.albumArtUrl != null ? NetworkImage(song.albumArtUrl!) : null,
                               child: song.albumArtUrl == null ? const Icon(Icons.music_note) : null,
@@ -233,6 +246,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             trailing: IconButton(
                               icon: const Icon(Icons.more_vert),
                               onPressed: () => _showSongOptions(song),
+                            ),
                             ),
                           );
                         },

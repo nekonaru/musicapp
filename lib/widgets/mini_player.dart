@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/player_service.dart';
 import '../screens/player_screen.dart';
+import '../utils/page_transitions.dart';
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
@@ -13,10 +14,19 @@ class MiniPlayer extends StatelessWidget {
       builder: (context, _) {
         final song = player.currentSong;
         if (song == null) return const SizedBox.shrink();
-        return GestureDetector(
+        return TweenAnimationBuilder<double>(
+          key: ValueKey('mp_${song.id}'),
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+          builder: (context, value, child) => Transform.translate(
+            offset: Offset(0, (1 - value) * 12),
+            child: Opacity(opacity: value, child: child),
+          ),
+          child: GestureDetector(
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const PlayerScreen()),
+            SlideUpRoute(page: const PlayerScreen()),
           ),
           child: Container(
             height: 64,
@@ -69,6 +79,7 @@ class MiniPlayer extends StatelessWidget {
                 const SizedBox(width: 4),
               ],
             ),
+          ),
           ),
         );
       },

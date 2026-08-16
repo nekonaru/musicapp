@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/library_provider.dart';
 import 'providers/playlist_provider.dart';
+import 'providers/theme_provider.dart';
 import 'services/player_service.dart';
 import 'screens/home_screen.dart';
 
@@ -20,20 +21,24 @@ class MusicApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => LibraryProvider()),
         ChangeNotifierProvider(create: (_) => PlaylistProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
-      child: MaterialApp(
-        title: 'Pemutar Musik Offline',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorSchemeSeed: Colors.deepPurple,
-          useMaterial3: true,
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) => MaterialApp(
+          title: 'Pemutar Musik Offline',
+          debugShowCheckedModeBanner: false,
+          themeMode: themeProvider.themeMode,
+          theme: ThemeData(
+            colorSchemeSeed: Colors.deepPurple,
+            useMaterial3: true,
+          ),
+          darkTheme: ThemeData(
+            colorSchemeSeed: Colors.deepPurple,
+            brightness: Brightness.dark,
+            useMaterial3: true,
+          ),
+          home: const HomeScreen(),
         ),
-        darkTheme: ThemeData(
-          colorSchemeSeed: Colors.deepPurple,
-          brightness: Brightness.dark,
-          useMaterial3: true,
-        ),
-        home: const HomeScreen(),
       ),
     );
   }

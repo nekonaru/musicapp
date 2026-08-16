@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'library_screen.dart';
 import 'extra_screens.dart';
 import 'dashboard_screen.dart';
+import 'settings_screen.dart';
 import '../widgets/mini_player.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -26,8 +27,30 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_titles[_index])),
-      body: _pages[_index],
+      appBar: AppBar(
+        title: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: Text(_titles[_index], key: ValueKey(_index)),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => Navigator.push(
+              context,
+              PageRouteBuilder(
+                transitionDuration: const Duration(milliseconds: 220),
+                pageBuilder: (context, anim, __) => const SettingsScreen(),
+                transitionsBuilder: (context, anim, __, child) =>
+                    FadeTransition(opacity: anim, child: child),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: KeyedSubtree(key: ValueKey(_index), child: _pages[_index]),
+      ),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

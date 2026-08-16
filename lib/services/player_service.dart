@@ -103,6 +103,13 @@ class PlayerService extends ChangeNotifier {
     }
   }
 
+  double get playbackSpeed => _player.speed;
+
+  Future<void> setPlaybackSpeed(double speed) async {
+    await _player.setSpeed(speed);
+    notifyListeners();
+  }
+
   void toggleShuffle() {
     _shuffle = !_shuffle;
     notifyListeners();
