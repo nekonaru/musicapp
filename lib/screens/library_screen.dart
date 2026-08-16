@@ -24,11 +24,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
     });
   }
 
-  void _playSong(List<Song> queue, int index) async {
-    await PlayerService.instance.setQueueAndPlay(queue, index);
-    if (mounted) {
-      Navigator.push(context, SlideUpRoute(page: const PlayerScreen()));
-    }
+  void _playSong(List<Song> queue, int index) {
+    PlayerService.instance.setQueueAndPlay(queue, index);
   }
 
   void _showSongOptions(Song song) {

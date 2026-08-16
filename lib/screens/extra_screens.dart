@@ -110,12 +110,7 @@ class _FolderSongsScreen extends StatelessWidget {
           leading: const Icon(Icons.music_note),
           title: Text(songs[i].title),
           subtitle: Text(songs[i].artist),
-          onTap: () async {
-            await PlayerService.instance.setQueueAndPlay(songs, i);
-            if (context.mounted) {
-              Navigator.push(context, SlideUpRoute(page: const PlayerScreen()));
-            }
-          },
+          onTap: () => PlayerService.instance.setQueueAndPlay(songs, i),
         ),
       ),
     );
@@ -153,12 +148,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           leading: const Icon(Icons.favorite, color: Colors.red),
           title: Text(_favs[i].title),
           subtitle: Text(_favs[i].artist),
-          onTap: () async {
-            await PlayerService.instance.setQueueAndPlay(_favs, i);
-            if (context.mounted) {
-              Navigator.push(context, SlideUpRoute(page: const PlayerScreen()));
-            }
-          },
+          onTap: () => PlayerService.instance.setQueueAndPlay(_favs, i),
         ),
       ),
     );
