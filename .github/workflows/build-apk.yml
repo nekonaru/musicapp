@@ -42,18 +42,17 @@ jobs:
       - name: Patch namespace untuk plugin lama yang belum kompatibel AGP terbaru
         run: |
           cat >> android/build.gradle << 'EOF'
-
-subprojects {
-    afterEvaluate { project ->
-        if (project.hasProperty('android')) {
-            def androidExt = project.extensions.findByName('android')
-            if (androidExt != null && androidExt.hasProperty('namespace') && androidExt.namespace == null) {
-                androidExt.namespace project.group.toString()
-            }
-        }
-    }
-}
-EOF
+          subprojects {
+              afterEvaluate { project ->
+                  if (project.hasProperty('android')) {
+                      def androidExt = project.extensions.findByName('android')
+                      if (androidExt != null && androidExt.hasProperty('namespace') && androidExt.namespace == null) {
+                          androidExt.namespace project.group.toString()
+                      }
+                  }
+              }
+          }
+          EOF
 
       - name: Build APK
         run: flutter build apk --release
