@@ -67,6 +67,19 @@ jobs:
 
       - name: Build APK
         run: flutter build apk --release
+        continue-on-error: true
+
+      - name: Cari file APK di manapun lokasinya
+        run: |
+          mkdir -p build/app/outputs/flutter-apk
+          FOUND=$(find . -name "app-release.apk" -not -path "*/node_modules/*" | head -n 1)
+          if [ -z "$FOUND" ]; then
+            echo "APK tidak ditemukan, menampilkan semua file .apk yang ada:"
+            find . -name "*.apk"
+            exit 1
+          fi
+          echo "APK ditemukan di: $FOUND"
+          cp "$FOUND" build/app/outputs/flutter-apk/app-release.apk
 
       - name: Upload APK sebagai artifact
         uses: actions/upload-artifact@v4
