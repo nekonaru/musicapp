@@ -158,30 +158,110 @@ class _LibraryScreenState extends State<LibraryScreen> {
             ),
           );
         }
-        return RefreshIndicator(
-          onRefresh: () => lib.scanDevice(),
-          child: ListView.builder(
-            itemCount: lib.songs.length,
-            itemBuilder: (context, i) {
-              final song = lib.songs[i];
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundImage: song.albumArtUrl != null ? NetworkImage(song.albumArtUrl!) : null,
-                  child: song.albumArtUrl == null ? const Icon(Icons.music_note) : null,
+        final displayedSongs = lib.filteredSongs;
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      onChanged: (v) => lib.setSearchQuery(v),
+                      decoration: InputDecoration(
+                        hintText: 'Cari judul, artis, album...',
+                        prefixIcon: const Icon(Icons.search),
+                        isDense: true,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  PopupMenuButton<SortOption>(
+                    icon: const Icon(Icons.sort),
+                    onSelected: (v) => lib.setSortOption(v),
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(value: SortOption.titleAZ, child: Text('Judul A-Z')),
+                      PopupMenuItem(value: SortOption.titleZA, child: Text('Judul Z-A')),
+                      PopupMenuItem(value: SortOption.artistAZ, child: Text('Artis A-Z')),
+                      PopupMenuItem(value: SortOption.dateAddedNewest, child: Text('Baru ditambahkan')),
+                      PopupMenuItem(value: SortOption.genre, child: Text('Genre')),
+                    ],
+                  ),
+                  if (lib.isBulkScanningMetadata)
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: SizedBox(
+                        width: 20, height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  else
+                    IconButton(
+                      icon: const Icon(Icons.cloud_sync_outlined),
+                      tooltip: 'Scan ulang semua metadata',
+                      onPressed: () => _confirmBulkScan(context, lib),
+                    ),
+                ],
+              ),
+            ),
+            if (lib.isBulkScanningMetadata)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: LinearProgressIndicator(
+                  value: lib.bulkScanTotal == 0 ? null : lib.bulkScanProgress / lib.bulkScanTotal,
                 ),
-                title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text('${song.artist} · ${song.genre ?? "Genre ?"}',
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                onTap: () => _playSong(lib.songs, i),
-                trailing: IconButton(
-                  icon: const Icon(Icons.more_vert),
-                  onPressed: () => _showSongOptions(song),
-                ),
-              );
-            },
-          ),
+              ),
+            Expanded(
+              child: displayedSongs.isEmpty
+                  ? const Center(child: Text('Lagu tidak ditemukan'))
+                  : RefreshIndicator(
+                      onRefresh: () => lib.scanDevice(),
+                      child: ListView.builder(
+                        itemCount: displayedSongs.length,
+                        itemBuilder: (context, i) {
+                          final song = displayedSongs[i];
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundImage: song.albumArtUrl != null ? NetworkImage(song.albumArtUrl!) : null,
+                              child: song.albumArtUrl == null ? const Icon(Icons.music_note) : null,
+                            ),
+                            title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                            subtitle: Text('${song.artist} · ${song.genre ?? "Genre ?"}',
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                            onTap: () => _playSong(displayedSongs, i),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.more_vert),
+                              onPressed: () => _showSongOptions(song),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+            ),
+          ],
         );
       },
+    );
+  }
+
+  void _confirmBulkScan(BuildContext context, LibraryProvider lib) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Scan Ulang Semua Metadata'),
+        content: Text('Ini akan mengambil ulang judul, artis, album art, genre, dan lirik untuk semua ${lib.songs.length} lagu dari internet. Proses ini butuh koneksi internet dan bisa memakan waktu.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              lib.bulkScanMetadata();
+            },
+            child: const Text('Mulai Scan'),
+          ),
+        ],
+      ),
     );
   }
 }

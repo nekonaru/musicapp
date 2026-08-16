@@ -41,11 +41,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final song = _player.currentSong;
-    if (song == null) {
-      return const Scaffold(body: Center(child: Text('Belum ada lagu diputar')));
-    }
+    return AnimatedBuilder(
+      animation: _player,
+      builder: (context, _) {
+        final song = _player.currentSong;
+        if (song == null) {
+          return const Scaffold(body: Center(child: Text('Belum ada lagu diputar')));
+        }
+        return _buildScaffold(song);
+      },
+    );
+  }
 
+  Widget _buildScaffold(song) {
     return Scaffold(
       appBar: AppBar(
         title: Text(_showLyrics ? 'Lirik' : 'Sedang Diputar'),

@@ -1,11 +1,12 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import '../models/song.dart';
 import 'db_helper.dart';
 
 enum RepeatMode { off, all, one }
 
-class PlayerService {
+class PlayerService extends ChangeNotifier {
   PlayerService._();
   static final PlayerService instance = PlayerService._();
 
@@ -40,6 +41,7 @@ class PlayerService {
     _queue = songs;
     _currentIndex = startIndex;
     await _playCurrent();
+    notifyListeners();
   }
 
   Future<void> _playCurrent() async {
@@ -50,6 +52,7 @@ class PlayerService {
     _playStartedAt = DateTime.now();
     _accumulatedListenedMs = 0;
     await DBHelper.instance.markPlayed(song.id);
+    notifyListeners();
   }
 
   Future<void> togglePlayPause() async {
@@ -60,6 +63,7 @@ class PlayerService {
       _playStartedAt = DateTime.now();
       await _player.play();
     }
+    notifyListeners();
   }
 
   Future<void> next() async {
@@ -99,10 +103,14 @@ class PlayerService {
     }
   }
 
-  void toggleShuffle() => _shuffle = !_shuffle;
+  void toggleShuffle() {
+    _shuffle = !_shuffle;
+    notifyListeners();
+  }
 
   void cycleRepeatMode() {
     _repeatMode = RepeatMode.values[(_repeatMode.index + 1) % RepeatMode.values.length];
+    notifyListeners();
   }
 
   /// Timer untuk berhenti otomatis setelah durasi tertentu

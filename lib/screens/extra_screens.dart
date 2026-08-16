@@ -16,6 +16,8 @@ class FoldersScreen extends StatefulWidget {
 
 class _FoldersScreenState extends State<FoldersScreen> {
   List<String> _folders = [];
+  Set<String> _excluded = {};
+  bool _showHidden = false;
 
   @override
   void initState() {
@@ -25,32 +27,69 @@ class _FoldersScreenState extends State<FoldersScreen> {
 
   Future<void> _load() async {
     final folders = await LibraryScanner().listMusicFolders();
-    setState(() => _folders = folders);
+    final excluded = await DBHelper.instance.getExcludedFolders();
+    setState(() {
+      _folders = folders;
+      _excluded = excluded;
+    });
+  }
+
+  Future<void> _toggleHideFolder(String folder) async {
+    final isHidden = _excluded.contains(folder);
+    await DBHelper.instance.setFolderIncluded(folder, isHidden);
+    await _load();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(isHidden ? 'Folder ditampilkan lagi' : 'Folder disembunyikan dari library')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final visibleFolders = _showHidden
+        ? _folders
+        : _folders.where((f) => !_excluded.contains(f)).toList();
+
     if (_folders.isEmpty) {
       return const Center(child: Text('Belum ada folder musik terdeteksi.'));
     }
-    return ListView.builder(
-      itemCount: _folders.length,
-      itemBuilder: (context, i) {
-        final folder = _folders[i];
-        return ListTile(
-          leading: const Icon(Icons.folder),
-          title: Text(folder.split('/').last),
-          subtitle: Text(folder, maxLines: 1, overflow: TextOverflow.ellipsis),
-          onTap: () async {
-            final songs = await LibraryScanner().getSongsInFolder(folder);
-            if (context.mounted) {
-              Navigator.push(context, MaterialPageRoute(
-                builder: (_) => _FolderSongsScreen(folderName: folder.split('/').last, songs: songs),
-              ));
-            }
-          },
-        );
-      },
+    return Column(
+      children: [
+        SwitchListTile(
+          title: const Text('Tampilkan folder tersembunyi'),
+          value: _showHidden,
+          onChanged: (v) => setState(() => _showHidden = v),
+        ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: visibleFolders.length,
+            itemBuilder: (context, i) {
+              final folder = visibleFolders[i];
+              final isHidden = _excluded.contains(folder);
+              return ListTile(
+                leading: Icon(Icons.folder, color: isHidden ? Colors.grey : null),
+                title: Text(folder.split('/').last,
+                    style: isHidden ? const TextStyle(color: Colors.grey) : null),
+                subtitle: Text(folder, maxLines: 1, overflow: TextOverflow.ellipsis),
+                trailing: IconButton(
+                  icon: Icon(isHidden ? Icons.visibility_off : Icons.visibility_outlined),
+                  tooltip: isHidden ? 'Tampilkan folder ini' : 'Sembunyikan folder ini',
+                  onPressed: () => _toggleHideFolder(folder),
+                ),
+                onTap: () async {
+                  final songs = await LibraryScanner().getSongsInFolder(folder);
+                  if (context.mounted) {
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => _FolderSongsScreen(folderName: folder.split('/').last, songs: songs),
+                    ));
+                  }
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

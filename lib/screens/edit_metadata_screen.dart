@@ -18,6 +18,7 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
   late TextEditingController _genre;
   late TextEditingController _region;
   late TextEditingController _lyrics;
+  bool _isScanning = false;
 
   @override
   void initState() {
@@ -44,6 +45,25 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
     if (mounted) Navigator.pop(context);
   }
 
+  Future<void> _rescanFromInternet() async {
+    setState(() => _isScanning = true);
+    await context.read<LibraryProvider>().rescanSingleMetadata(widget.song);
+    setState(() {
+      _isScanning = false;
+      _title.text = widget.song.title;
+      _artist.text = widget.song.artist;
+      _album.text = widget.song.album;
+      _genre.text = widget.song.genre ?? '';
+      _region.text = widget.song.region ?? '';
+      _lyrics.text = widget.song.lyrics ?? '';
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Metadata berhasil diperbarui dari internet')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -56,6 +76,14 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          FilledButton.tonalIcon(
+            onPressed: _isScanning ? null : _rescanFromInternet,
+            icon: _isScanning
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.cloud_sync_outlined),
+            label: Text(_isScanning ? 'Mengambil data...' : 'Scan Ulang dari Internet'),
+          ),
+          const SizedBox(height: 16),
           TextField(controller: _title, decoration: const InputDecoration(labelText: 'Judul')),
           const SizedBox(height: 12),
           TextField(controller: _artist, decoration: const InputDecoration(labelText: 'Artis')),
