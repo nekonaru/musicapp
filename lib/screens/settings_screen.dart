@@ -40,7 +40,7 @@ class SettingsScreen extends StatelessWidget {
             child: Text('Tentang', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
           ),
           const ListTile(
-            title: Text('Pemutar Musik Offline'),
+            title: Text('Swara'),
             subtitle: Text('v1.1.0'),
           ),
         ],

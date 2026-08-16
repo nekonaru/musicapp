@@ -1,21 +1,32 @@
-MIT License
+Copyright (c) 2026 Nicolas Dwi Dharma. All Rights Reserved.
 
-Copyright (c) 2026 Nicolas Dwi Dharma
+This software, "Swara", including its source code, design, and all
+associated assets (collectively, the "Software"), is the exclusive
+property of Nicolas Dwi Dharma.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+The source code in this repository is made publicly viewable for
+portfolio and demonstration purposes only.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Without explicit prior written permission from the copyright holder,
+no person is permitted to:
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+  1. Copy, reproduce, or redistribute the source code, in whole or in
+     part, in any form.
+  2. Modify, adapt, translate, or create derivative works based on the
+     Software.
+  3. Sublicense, sell, rent, lease, or otherwise commercially exploit
+     the Software or any derivative of it.
+  4. Publish or distribute the Software, or any derivative of it,
+     under a different name or as part of another product.
+
+The compiled application (APK) made available through this
+repository's Releases page may be freely downloaded and used by
+end users for personal, non-commercial purposes.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM,
+DAMAGES, OR OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+
+For permission requests, please contact the copyright holder directly.
