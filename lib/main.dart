@@ -9,12 +9,16 @@ import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.nikodwidharma.swara.channel.audio',
-    androidNotificationChannelName: 'Swara Playback',
-    androidNotificationOngoing: true,
-    androidStopForegroundOnPause: false,
-  );
+  try {
+    await JustAudioBackground.init(
+      androidNotificationChannelId: 'com.nikodwidharma.swara.channel.audio',
+      androidNotificationChannelName: 'Swara Playback',
+      androidNotificationOngoing: true,
+      androidStopForegroundOnPause: false,
+    ).timeout(const Duration(seconds: 5));
+  } catch (e) {
+    debugPrint('JustAudioBackground gagal diinisialisasi, lanjut tanpa background service: $e');
+  }
   await PlayerService.instance.init();
   runApp(const MusicApp());
 }

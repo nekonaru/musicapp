@@ -13,8 +13,7 @@ dependencies:
   # Audio playback (background-capable)
   just_audio: ^0.9.40
   just_audio_background: ^0.0.1-beta.13
-  audio_service: ^0.18.15
-  audio_session: ^0.1.21
+  audio_service: any
 
   # Scan file lokal & baca tag ID3 dari file musik
   on_audio_query: ^2.9.0
