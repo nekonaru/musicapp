@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:audio_service/audio_service.dart' show MediaItem;
 import '../models/song.dart';
 import 'db_helper.dart';
 
@@ -55,29 +54,12 @@ class PlayerService extends ChangeNotifier {
     final song = currentSong;
     if (song == null) return;
     try {
-      final source = AudioSource.uri(
-        Uri.file(song.filePath),
-        tag: MediaItem(
-          id: song.id.toString(),
-          title: song.title,
-          artist: song.artist,
-          album: song.album,
-          artUri: (song.albumArtUrl != null && song.albumArtUrl!.startsWith('http'))
-              ? Uri.tryParse(song.albumArtUrl!)
-              : null,
-        ),
-      );
-      await _player.setAudioSource(source);
+      await _player.setFilePath(song.filePath);
     } catch (e) {
-      debugPrint('Gagal setAudioSource dengan MediaItem ($e), fallback ke setFilePath biasa');
-      try {
-        await _player.setFilePath(song.filePath);
-      } catch (e2) {
-        debugPrint('Fallback setFilePath juga gagal: $e2');
-        lastError = 'Gagal memutar "${song.title}": $e2';
-        notifyListeners();
-        return;
-      }
+      debugPrint('Gagal memutar lagu: $e');
+      lastError = 'Gagal memutar "${song.title}": $e';
+      notifyListeners();
+      return;
     }
     await _player.play();
     _playStartedAt = DateTime.now();

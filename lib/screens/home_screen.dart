@@ -29,8 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<bool> _onBackPressed() async {
     final now = DateTime.now();
-    // Tombol kembali TIDAK menghentikan musik - hanya menutup aplikasi ke background.
-    // Musik (lewat just_audio_background) tetap berjalan sampai benar-benar ditutup/di-swipe dari recent apps.
+    // Tombol kembali TIDAK menghentikan musik selama aplikasi masih berjalan di background biasa (belum foreground service).
     if (_lastBackPress == null || now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
       _lastBackPress = now;
       ScaffoldMessenger.of(context).showSnackBar(
