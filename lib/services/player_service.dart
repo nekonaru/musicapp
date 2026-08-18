@@ -17,6 +17,7 @@ class PlayerService extends ChangeNotifier {
   bool _shuffle = false;
   RepeatMode _repeatMode = RepeatMode.off;
   Timer? _sleepTimer;
+  String? lastError;
 
   // Untuk mencatat berapa lama lagu benar-benar didengar
   DateTime? _playStartedAt;
@@ -53,21 +54,36 @@ class PlayerService extends ChangeNotifier {
   Future<void> _playCurrent() async {
     final song = currentSong;
     if (song == null) return;
-    final source = AudioSource.uri(
-      Uri.file(song.filePath),
-      tag: MediaItem(
-        id: song.id.toString(),
-        title: song.title,
-        artist: song.artist,
-        album: song.album,
-        artUri: song.albumArtUrl != null ? Uri.tryParse(song.albumArtUrl!) : null,
-      ),
-    );
-    await _player.setAudioSource(source);
+    try {
+      final source = AudioSource.uri(
+        Uri.file(song.filePath),
+        tag: MediaItem(
+          id: song.id.toString(),
+          title: song.title,
+          artist: song.artist,
+          album: song.album,
+          artUri: (song.albumArtUrl != null && song.albumArtUrl!.startsWith('http'))
+              ? Uri.tryParse(song.albumArtUrl!)
+              : null,
+        ),
+      );
+      await _player.setAudioSource(source);
+    } catch (e) {
+      debugPrint('Gagal setAudioSource dengan MediaItem ($e), fallback ke setFilePath biasa');
+      try {
+        await _player.setFilePath(song.filePath);
+      } catch (e2) {
+        debugPrint('Fallback setFilePath juga gagal: $e2');
+        lastError = 'Gagal memutar "${song.title}": $e2';
+        notifyListeners();
+        return;
+      }
+    }
     await _player.play();
     _playStartedAt = DateTime.now();
     _accumulatedListenedMs = 0;
     await DBHelper.instance.markPlayed(song.id);
+    lastError = null;
     notifyListeners();
   }
 

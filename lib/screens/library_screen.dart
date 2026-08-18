@@ -32,8 +32,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
     super.dispose();
   }
 
-  void _playSong(List<Song> queue, int index) {
-    PlayerService.instance.setQueueAndPlay(queue, index);
+  void _playSong(List<Song> queue, int index) async {
+    await PlayerService.instance.setQueueAndPlay(queue, index);
+    final error = PlayerService.instance.lastError;
+    if (error != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.red, duration: const Duration(seconds: 5)),
+      );
+    }
   }
 
   void _jumpToLetter(String letter, List<Song> songs) {
