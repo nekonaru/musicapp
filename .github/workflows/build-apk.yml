@@ -56,6 +56,9 @@ jobs:
                               coreLibraryDesugaringEnabled true
                           }
                           project.dependencies.add('coreLibraryDesugaring', 'com.android.tools:desugar_jdk_libs:2.1.4')
+                          if (androidExt.hasProperty('defaultConfig')) {
+                              androidExt.defaultConfig.multiDexEnabled = true
+                          }
                       }
                       project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
                           kotlinOptions {
