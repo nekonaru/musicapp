@@ -372,10 +372,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             top: 0,
                             bottom: 0,
                             child: AzScrollbar(
-                              letters: [
-                                for (final l in [...('#ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''))])
-                                  if (availableLetters.contains(l)) l,
-                              ],
+                              availableLetters: availableLetters,
                               onLetterSelected: (letter) => _jumpToLetter(letter, displayedSongs),
                             ),
                           ),

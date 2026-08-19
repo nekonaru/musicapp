@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
-/// Strip huruf A-Z di sisi kanan layar. Seret jari di atasnya untuk
-/// langsung lompat ke lagu yang judulnya diawali huruf tersebut.
+const List<String> kAllLetters = ['#', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',
+  'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+
+/// Strip huruf A-Z (selalu penuh 27 slot: # + A-Z) di sisi kanan layar.
+/// Huruf yang tidak ada lagunya ditampilkan pudar, tapi tetap bisa di-tap -
+/// akan otomatis lompat ke huruf terdekat yang tersedia.
 class AzScrollbar extends StatefulWidget {
-  final List<String> letters;
+  final Set<String> availableLetters;
   final void Function(String letter) onLetterSelected;
 
-  const AzScrollbar({super.key, required this.letters, required this.onLetterSelected});
+  const AzScrollbar({super.key, required this.availableLetters, required this.onLetterSelected});
 
   @override
   State<AzScrollbar> createState() => _AzScrollbarState();
@@ -15,13 +19,25 @@ class AzScrollbar extends StatefulWidget {
 class _AzScrollbarState extends State<AzScrollbar> {
   String? _activeLetter;
 
+  String? _nearestAvailable(int index) {
+    // Cari maju dulu, kalau tidak ada baru mundur
+    for (int i = index; i < kAllLetters.length; i++) {
+      if (widget.availableLetters.contains(kAllLetters[i])) return kAllLetters[i];
+    }
+    for (int i = index; i >= 0; i--) {
+      if (widget.availableLetters.contains(kAllLetters[i])) return kAllLetters[i];
+    }
+    return null;
+  }
+
   void _handleTouch(Offset localPosition, double height) {
-    final itemHeight = height / widget.letters.length;
-    final index = (localPosition.dy / itemHeight).floor().clamp(0, widget.letters.length - 1);
-    final letter = widget.letters[index];
-    if (letter != _activeLetter) {
-      setState(() => _activeLetter = letter);
-      widget.onLetterSelected(letter);
+    final itemHeight = height / kAllLetters.length;
+    final index = (localPosition.dy / itemHeight).floor().clamp(0, kAllLetters.length - 1);
+    final target = _nearestAvailable(index);
+    if (target == null) return;
+    if (target != _activeLetter) {
+      setState(() => _activeLetter = target);
+      widget.onLetterSelected(target);
     }
   }
 
@@ -30,16 +46,20 @@ class _AzScrollbarState extends State<AzScrollbar> {
     return LayoutBuilder(
       builder: (context, constraints) {
         return GestureDetector(
+          behavior: HitTestBehavior.translucent,
           onVerticalDragUpdate: (details) => _handleTouch(details.localPosition, constraints.maxHeight),
           onVerticalDragStart: (details) => _handleTouch(details.localPosition, constraints.maxHeight),
           onVerticalDragEnd: (_) => setState(() => _activeLetter = null),
+          onTapDown: (details) => _handleTouch(details.localPosition, constraints.maxHeight),
+          onTapUp: (_) => setState(() => _activeLetter = null),
           child: Container(
-            width: 22,
+            width: 24,
             color: Colors.transparent,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: widget.letters.map((l) {
+              mainAxisSize: MainAxisSize.max,
+              children: kAllLetters.map((l) {
                 final isActive = l == _activeLetter;
+                final isAvailable = widget.availableLetters.contains(l);
                 return Expanded(
                   child: AnimatedDefaultTextStyle(
                     duration: const Duration(milliseconds: 120),
@@ -48,7 +68,7 @@ class _AzScrollbarState extends State<AzScrollbar> {
                       fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
                       color: isActive
                           ? Theme.of(context).colorScheme.primary
-                          : Colors.grey[500],
+                          : (isAvailable ? Colors.grey[500] : Colors.grey[800]),
                     ),
                     child: Center(child: Text(l)),
                   ),

@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'player_service.dart';
 
 /// Menampilkan notifikasi kontrol musik (judul lagu + tombol play/pause/next/prev)
@@ -15,6 +16,8 @@ class NotificationService {
   Future<void> init() async {
     if (_initialized) return;
     try {
+      // Android 13+ mewajibkan izin notifikasi diminta secara aktif saat runtime
+      await Permission.notification.request();
       const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
       const initSettings = InitializationSettings(android: androidInit);
       await _plugin.initialize(

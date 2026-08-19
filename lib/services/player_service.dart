@@ -143,6 +143,26 @@ class PlayerService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Pindahkan posisi lagu di antrean (drag reorder), otomatis
+  /// menyesuaikan currentIndex kalau posisi lagu yang sedang diputar ikut bergeser.
+  void reorderQueue(int oldIndex, int newIndex) {
+    if (oldIndex < 0 || oldIndex >= _queue.length) return;
+    if (newIndex > oldIndex) newIndex -= 1;
+    if (newIndex < 0 || newIndex >= _queue.length) return;
+
+    final movedSong = _queue.removeAt(oldIndex);
+    _queue.insert(newIndex, movedSong);
+
+    if (oldIndex == _currentIndex) {
+      _currentIndex = newIndex;
+    } else if (oldIndex < _currentIndex && newIndex >= _currentIndex) {
+      _currentIndex--;
+    } else if (oldIndex > _currentIndex && newIndex <= _currentIndex) {
+      _currentIndex++;
+    }
+    notifyListeners();
+  }
+
   void _onTrackFinished() {
     if (_repeatMode == RepeatMode.one) {
       _playCurrent();
