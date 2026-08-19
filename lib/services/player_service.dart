@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import '../models/song.dart';
 import 'db_helper.dart';
+import 'notification_service.dart';
 
 enum RepeatMode { off, all, one }
 
@@ -66,7 +67,18 @@ class PlayerService extends ChangeNotifier {
     _accumulatedListenedMs = 0;
     await DBHelper.instance.markPlayed(song.id);
     lastError = null;
+    _updateNotification();
     notifyListeners();
+  }
+
+  void _updateNotification() {
+    final song = currentSong;
+    if (song == null) return;
+    NotificationService.instance.showOrUpdate(
+      title: song.title,
+      artist: song.artist,
+      isPlaying: _player.playing,
+    );
   }
 
   Future<void> togglePlayPause() async {
@@ -77,6 +89,7 @@ class PlayerService extends ChangeNotifier {
       _playStartedAt = DateTime.now();
       await _player.play();
     }
+    _updateNotification();
     notifyListeners();
   }
 

@@ -13,6 +13,9 @@ dependencies:
   # Audio playback
   just_audio: ^0.9.40
 
+  # Notifikasi kontrol musik (play/pause/next/prev)
+  flutter_local_notifications: ^18.0.1
+
   # Scan file lokal & baca tag ID3 dari file musik
   on_audio_query: ^2.9.0
 
