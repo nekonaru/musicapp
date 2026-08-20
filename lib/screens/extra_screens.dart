@@ -107,18 +107,51 @@ class _FolderSongsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(folderName)),
-      body: ListView.builder(
-        itemCount: songs.length,
-        itemBuilder: (context, i) => ListTile(
-          leading: const Icon(Icons.music_note),
-          title: Text(songs[i].title, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(songs[i].artist, maxLines: 1, overflow: TextOverflow.ellipsis),
-          onTap: () => PlayerService.instance.setQueueAndPlay(songs, i),
-          trailing: IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () => showSongOptions(context, songs[i]),
+      body: Column(
+        children: [
+          if (songs.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () => PlayerService.instance.setQueueAndPlay(songs, 0),
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text('Mulai Putar'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        final shuffled = List<Song>.of(songs)..shuffle();
+                        PlayerService.instance.setQueueAndPlay(shuffled, 0);
+                        PlayerService.instance.toggleShuffle();
+                      },
+                      icon: const Icon(Icons.shuffle),
+                      label: const Text('Acak'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: songs.length,
+              itemBuilder: (context, i) => ListTile(
+                leading: const Icon(Icons.music_note),
+                title: Text(songs[i].title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text(songs[i].artist, maxLines: 1, overflow: TextOverflow.ellipsis),
+                onTap: () => PlayerService.instance.setQueueAndPlay(songs, i),
+                trailing: IconButton(
+                  icon: const Icon(Icons.more_vert),
+                  onPressed: () => showSongOptions(context, songs[i]),
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
       // Layar ini di-push sebagai route terpisah, jadi butuh mini player sendiri
       // supaya kontrol musik tetap terlihat walau lagi buka folder/playlist.
@@ -152,18 +185,50 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     if (_favs.isEmpty) return const Center(child: Text('Belum ada lagu favorit.'));
     return RefreshIndicator(
       onRefresh: _load,
-      child: ListView.builder(
-        itemCount: _favs.length,
-        itemBuilder: (context, i) => ListTile(
-          leading: const Icon(Icons.favorite, color: Colors.red),
-          title: Text(_favs[i].title, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(_favs[i].artist, maxLines: 1, overflow: TextOverflow.ellipsis),
-          onTap: () => PlayerService.instance.setQueueAndPlay(_favs, i),
-          trailing: IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () => showSongOptions(context, _favs[i]),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => PlayerService.instance.setQueueAndPlay(_favs, 0),
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('Mulai Putar'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      final shuffled = List<Song>.of(_favs)..shuffle();
+                      PlayerService.instance.setQueueAndPlay(shuffled, 0);
+                      PlayerService.instance.toggleShuffle();
+                    },
+                    icon: const Icon(Icons.shuffle),
+                    label: const Text('Acak'),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _favs.length,
+              itemBuilder: (context, i) => ListTile(
+                leading: const Icon(Icons.favorite, color: Colors.red),
+                title: Text(_favs[i].title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text(_favs[i].artist, maxLines: 1, overflow: TextOverflow.ellipsis),
+                onTap: () => PlayerService.instance.setQueueAndPlay(_favs, i),
+                trailing: IconButton(
+                  icon: const Icon(Icons.more_vert),
+                  onPressed: () => showSongOptions(context, _favs[i]),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

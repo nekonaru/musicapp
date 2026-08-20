@@ -1,75 +1,91 @@
 import 'package:flutter/material.dart';
 
-/// Teks yang otomatis bergeser (marquee) kalau kepanjangan untuk muat di layar.
-/// Kalau teksnya cukup pendek, tampil diam seperti Text biasa.
+/// Teks yang tampil center diam kalau muat, dan otomatis bergeser (marquee)
+/// bolak-balik kalau kepanjangan untuk lebar yang tersedia.
 class MarqueeText extends StatefulWidget {
   final String text;
   final TextStyle? style;
-  final TextAlign textAlign;
 
-  const MarqueeText(this.text, {super.key, this.style, this.textAlign = TextAlign.center});
+  const MarqueeText(this.text, {super.key, this.style});
 
   @override
   State<MarqueeText> createState() => _MarqueeTextState();
 }
 
-class _MarqueeTextState extends State<MarqueeText> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+class _MarqueeTextState extends State<MarqueeText> {
   final ScrollController _scrollController = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 1));
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeStartMarquee());
-  }
+  bool _isRunning = false;
 
   @override
   void didUpdateWidget(covariant MarqueeText oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.text != widget.text) {
+    if (oldWidget.text != widget.text && _scrollController.hasClients) {
       _scrollController.jumpTo(0);
-      WidgetsBinding.instance.addPostFrameCallback((_) => _maybeStartMarquee());
+      _isRunning = false;
     }
   }
 
-  Future<void> _maybeStartMarquee() async {
-    if (!_scrollController.hasClients) return;
-    final maxScroll = _scrollController.position.maxScrollExtent;
-    if (maxScroll <= 0) return; // teks muat, tidak perlu bergerak
-
-    while (mounted) {
+  Future<void> _runMarquee(double maxScroll) async {
+    if (_isRunning) return;
+    _isRunning = true;
+    while (mounted && _scrollController.hasClients) {
       await Future.delayed(const Duration(seconds: 1));
-      if (!mounted || !_scrollController.hasClients) return;
+      if (!mounted || !_scrollController.hasClients) break;
       await _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+        maxScroll,
         duration: Duration(milliseconds: (maxScroll * 30).clamp(1500, 8000).toInt()),
         curve: Curves.linear,
       );
       await Future.delayed(const Duration(seconds: 1));
-      if (!mounted || !_scrollController.hasClients) return;
+      if (!mounted || !_scrollController.hasClients) break;
       await _scrollController.animateTo(
         0,
         duration: Duration(milliseconds: (maxScroll * 30).clamp(1500, 8000).toInt()),
         curve: Curves.linear,
       );
     }
+    _isRunning = false;
   }
 
   @override
   void dispose() {
-    _controller.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      controller: _scrollController,
-      scrollDirection: Axis.horizontal,
-      physics: const NeverScrollableScrollPhysics(),
-      child: Text(widget.text, style: widget.style, maxLines: 1, softWrap: false),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textPainter = TextPainter(
+          text: TextSpan(text: widget.text, style: widget.style),
+          maxLines: 1,
+          textDirection: TextDirection.ltr,
+        )..layout();
+
+        final overflows = textPainter.width > constraints.maxWidth;
+
+        if (!overflows) {
+          // Teks muat: tampil diam, center seperti biasa
+          return Center(
+            child: Text(widget.text, style: widget.style, maxLines: 1, overflow: TextOverflow.ellipsis),
+          );
+        }
+
+        // Teks kepanjangan: mulai animasi marquee setelah frame ini selesai
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _runMarquee(_scrollController.position.maxScrollExtent);
+          }
+        });
+
+        return SingleChildScrollView(
+          controller: _scrollController,
+          scrollDirection: Axis.horizontal,
+          physics: const NeverScrollableScrollPhysics(),
+          child: Text(widget.text, style: widget.style, maxLines: 1, softWrap: false),
+        );
+      },
     );
   }
 }

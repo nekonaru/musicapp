@@ -81,9 +81,21 @@ class NotificationService {
         enableVibration: false,
         showWhen: false,
         actions: [
-          const AndroidNotificationAction('previous', 'Sebelumnya', showsUserInterface: false),
-          AndroidNotificationAction('play_pause', isPlaying ? 'Jeda' : 'Putar', showsUserInterface: false),
-          const AndroidNotificationAction('next', 'Berikutnya', showsUserInterface: false),
+          const AndroidNotificationAction(
+            'previous', 'Sebelumnya',
+            icon: DrawableResourceAndroidBitmap('ic_notif_previous'),
+            showsUserInterface: false,
+          ),
+          AndroidNotificationAction(
+            'play_pause', isPlaying ? 'Jeda' : 'Putar',
+            icon: DrawableResourceAndroidBitmap(isPlaying ? 'ic_notif_pause' : 'ic_notif_play'),
+            showsUserInterface: false,
+          ),
+          const AndroidNotificationAction(
+            'next', 'Berikutnya',
+            icon: DrawableResourceAndroidBitmap('ic_notif_next'),
+            showsUserInterface: false,
+          ),
         ],
       );
       final details = NotificationDetails(android: androidDetails);
