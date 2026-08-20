@@ -6,6 +6,7 @@ import '../providers/library_provider.dart';
 import 'package:provider/provider.dart';
 import 'edit_metadata_screen.dart';
 import 'queue_screen.dart';
+import '../widgets/marquee_text.dart';
 
 class PlayerScreen extends StatefulWidget {
   const PlayerScreen({super.key});
@@ -195,6 +196,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   tooltip: 'Antrean Putar',
                   onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QueueScreen())),
                 ),
+                if (_showLyrics)
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined),
+                    tooltip: 'Edit Lirik',
+                    onPressed: () => _addLyricsManually(song),
+                  ),
                 IconButton(
                   icon: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 250),
@@ -332,9 +339,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
           const SizedBox(height: 8),
           Text('Ketuk cover untuk lihat lirik', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
           const SizedBox(height: 16),
-          Text(song.title,
+          SizedBox(
+            width: 280,
+            child: MarqueeText(
+              song.title,
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center),
+            ),
+          ),
           const SizedBox(height: 6),
           Text(song.artist, style: TextStyle(color: Colors.grey[600])),
         ],

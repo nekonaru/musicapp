@@ -2,6 +2,21 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'player_service.dart';
 
+@pragma('vm:entry-point')
+void _onBackgroundNotificationResponse(NotificationResponse response) {
+  switch (response.actionId) {
+    case 'play_pause':
+      PlayerService.instance.togglePlayPause();
+      break;
+    case 'next':
+      PlayerService.instance.next();
+      break;
+    case 'previous':
+      PlayerService.instance.previous();
+      break;
+  }
+}
+
 /// Menampilkan notifikasi kontrol musik (judul lagu + tombol play/pause/next/prev)
 /// selama aplikasi masih hidup di background (belum di-swipe dari recent apps).
 /// Pendekatan ini lebih ringan dan stabil dibanding audio_service/foreground service penuh.
@@ -23,6 +38,7 @@ class NotificationService {
       await _plugin.initialize(
         initSettings,
         onDidReceiveNotificationResponse: _onNotificationTapped,
+        onDidReceiveBackgroundNotificationResponse: _onBackgroundNotificationResponse,
       );
       _initialized = true;
     } catch (e) {
@@ -56,16 +72,18 @@ class NotificationService {
         'swara_playback_channel',
         'Kontrol Musik Swara',
         channelDescription: 'Kontrol putar musik dari notifikasi',
-        importance: Importance.low,
-        priority: Priority.low,
+        importance: Importance.high,
+        priority: Priority.high,
+        category: AndroidNotificationCategory.transport,
         ongoing: isPlaying,
         onlyAlertOnce: true,
         playSound: false,
         enableVibration: false,
+        showWhen: false,
         actions: [
-          const AndroidNotificationAction('previous', 'Sebelumnya'),
-          AndroidNotificationAction('play_pause', isPlaying ? 'Jeda' : 'Putar'),
-          const AndroidNotificationAction('next', 'Berikutnya'),
+          const AndroidNotificationAction('previous', 'Sebelumnya', showsUserInterface: false),
+          AndroidNotificationAction('play_pause', isPlaying ? 'Jeda' : 'Putar', showsUserInterface: false),
+          const AndroidNotificationAction('next', 'Berikutnya', showsUserInterface: false),
         ],
       );
       final details = NotificationDetails(android: androidDetails);

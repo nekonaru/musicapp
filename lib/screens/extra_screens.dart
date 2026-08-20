@@ -6,8 +6,8 @@ import '../providers/playlist_provider.dart';
 import '../services/library_scanner.dart';
 import '../services/player_service.dart';
 import '../services/db_helper.dart';
-import 'player_screen.dart';
-import '../utils/page_transitions.dart';
+import '../utils/song_options.dart';
+import '../widgets/mini_player.dart';
 
 class FoldersScreen extends StatefulWidget {
   const FoldersScreen({super.key});
@@ -39,7 +39,10 @@ class _FoldersScreenState extends State<FoldersScreen> {
     final isHidden = _excluded.contains(folder);
     await DBHelper.instance.setFolderIncluded(folder, isHidden);
     await _load();
+    // Sinkronkan juga ke halaman Semua Lagu supaya lagu dari folder
+    // yang disembunyikan langsung hilang dari daftar utama.
     if (mounted) {
+      await context.read<LibraryProvider>().loadFromDb();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(isHidden ? 'Folder ditampilkan lagi' : 'Folder disembunyikan dari library')),
       );
@@ -108,11 +111,18 @@ class _FolderSongsScreen extends StatelessWidget {
         itemCount: songs.length,
         itemBuilder: (context, i) => ListTile(
           leading: const Icon(Icons.music_note),
-          title: Text(songs[i].title),
-          subtitle: Text(songs[i].artist),
+          title: Text(songs[i].title, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(songs[i].artist, maxLines: 1, overflow: TextOverflow.ellipsis),
           onTap: () => PlayerService.instance.setQueueAndPlay(songs, i),
+          trailing: IconButton(
+            icon: const Icon(Icons.more_vert),
+            onPressed: () => showSongOptions(context, songs[i]),
+          ),
         ),
       ),
+      // Layar ini di-push sebagai route terpisah, jadi butuh mini player sendiri
+      // supaya kontrol musik tetap terlihat walau lagi buka folder/playlist.
+      bottomNavigationBar: const MiniPlayer(),
     );
   }
 }
@@ -146,9 +156,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         itemCount: _favs.length,
         itemBuilder: (context, i) => ListTile(
           leading: const Icon(Icons.favorite, color: Colors.red),
-          title: Text(_favs[i].title),
-          subtitle: Text(_favs[i].artist),
+          title: Text(_favs[i].title, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(_favs[i].artist, maxLines: 1, overflow: TextOverflow.ellipsis),
           onTap: () => PlayerService.instance.setQueueAndPlay(_favs, i),
+          trailing: IconButton(
+            icon: const Icon(Icons.more_vert),
+            onPressed: () => showSongOptions(context, _favs[i]),
+          ),
         ),
       ),
     );

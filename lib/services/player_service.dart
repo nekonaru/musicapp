@@ -47,6 +47,9 @@ class PlayerService extends ChangeNotifier {
     _logListening(); // simpan sisa riwayat lagu sebelumnya kalau ada
     _queue = List.of(songs);
     _currentIndex = startIndex;
+    // Notify SEGERA supaya mini-player langsung muncul menampilkan lagu yang
+    // dipilih, tidak perlu menunggu proses loading file audio selesai dulu.
+    notifyListeners();
     await _playCurrent();
     notifyListeners();
   }
