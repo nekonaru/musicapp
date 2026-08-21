@@ -16,7 +16,7 @@ Aplikasi pemutar musik offline berbasis Flutter, dengan metadata otomatis, lirik
 
 ### Pemutaran
 - Scan dan putar musik offline langsung dari penyimpanan HP
-- Musik tetap berjalan di latar belakang, tidak berhenti saat tombol kembali ditekan
+- Musik tetap berjalan sesaat setelah tombol kembali ditekan (belum pakai foreground service penuh, jadi bisa terhenti sistem pada beberapa perangkat setelah beberapa saat di background)
 - Shuffle, repeat (mati, semua, satu lagu), dan sleep timer dengan durasi kustom
 - Mini player persisten yang selalu terlihat di semua halaman
 - Kontrol kecepatan putar, dari 0.5x sampai 2x
@@ -60,7 +60,8 @@ Aplikasi bisa langsung diunduh dari halaman [Releases](https://github.com/nekona
 
 | Kategori | Package |
 |---|---|
-| Audio playback | just_audio, just_audio_background |
+| Audio playback | just_audio |
+| Notifikasi kontrol | flutter_local_notifications |
 | Scan file lokal | on_audio_query |
 | Database lokal | sqflite |
 | State management | provider |

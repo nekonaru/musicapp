@@ -3,6 +3,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../models/song.dart';
 import 'db_helper.dart';
 import 'metadata_service.dart';
+import '../utils/format.dart';
 
 class LibraryScanner {
   final OnAudioQuery _audioQuery = OnAudioQuery();
@@ -32,7 +33,7 @@ class LibraryScanner {
 
     final List<Song> result = [];
     for (final track in tracks) {
-      final folder = track.data.substring(0, track.data.lastIndexOf('/'));
+      final folder = folderOf(track.data);
       if (excluded.contains(folder)) continue;
 
       final song = Song(
@@ -67,7 +68,7 @@ class LibraryScanner {
     final all = await DBHelper.instance.getAllSongs();
     final folders = <String>{};
     for (final s in all) {
-      folders.add(s.filePath.substring(0, s.filePath.lastIndexOf('/')));
+      folders.add(folderOf(s.filePath));
     }
     return folders.toList()..sort();
   }

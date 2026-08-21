@@ -11,6 +11,7 @@ class Song {
   String? lyrics;
   int durationMs;
   bool isFavorite;
+  DateTime? addedAt;
 
   Song({
     required this.id,
@@ -25,6 +26,7 @@ class Song {
     this.lyrics,
     this.durationMs = 0,
     this.isFavorite = false,
+    this.addedAt,
   });
 
   Map<String, dynamic> toMap() => {
@@ -55,6 +57,7 @@ class Song {
         lyrics: map['lyrics'],
         durationMs: map['durationMs'] ?? 0,
         isFavorite: (map['isFavorite'] ?? 0) == 1,
+        addedAt: map['addedAt'] != null ? DateTime.tryParse(map['addedAt']) : null,
       );
 }
 

@@ -3,6 +3,7 @@ import '../models/song.dart';
 import '../services/db_helper.dart';
 import '../services/library_scanner.dart';
 import '../services/metadata_service.dart';
+import '../utils/format.dart';
 
 enum SortOption { titleAZ, titleZA, artistAZ, dateAddedNewest, genre }
 
@@ -22,7 +23,7 @@ class LibraryProvider extends ChangeNotifier {
     songs = excluded.isEmpty
         ? all
         : all.where((s) {
-            final folder = s.filePath.substring(0, s.filePath.lastIndexOf('/'));
+            final folder = folderOf(s.filePath);
             return !excluded.contains(folder);
           }).toList();
     _applySort();
@@ -46,17 +47,23 @@ class LibraryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Scan ulang metadata untuk SEMUA lagu di library (dipanggil dari tombol bulk scan)
+  /// Scan ulang metadata untuk SEMUA lagu di library (dipanggil dari tombol bulk scan).
+  /// Diproses per-batch (5 lagu sekaligus) supaya lebih cepat dibanding satu-satu,
+  /// tapi tidak terlalu agresif membombardir API gratis (rawan kena rate-limit).
   Future<void> bulkScanMetadata() async {
     isBulkScanningMetadata = true;
     bulkScanTotal = songs.length;
     bulkScanProgress = 0;
     notifyListeners();
-    for (final song in songs) {
-      await MetadataService.instance.enrichSong(song);
-      bulkScanProgress++;
+
+    const batchSize = 5;
+    for (int i = 0; i < songs.length; i += batchSize) {
+      final batch = songs.skip(i).take(batchSize);
+      await Future.wait(batch.map((song) => MetadataService.instance.enrichSong(song)));
+      bulkScanProgress += batch.length;
       notifyListeners();
     }
+
     isBulkScanningMetadata = false;
     await loadFromDb();
   }
@@ -90,7 +97,14 @@ class LibraryProvider extends ChangeNotifier {
         songs.sort((a, b) => a.artist.toLowerCase().compareTo(b.artist.toLowerCase()));
         break;
       case SortOption.dateAddedNewest:
-        songs = songs.reversed.toList();
+        songs.sort((a, b) {
+          final da = a.addedAt;
+          final db = b.addedAt;
+          if (da == null && db == null) return 0;
+          if (da == null) return 1;
+          if (db == null) return -1;
+          return db.compareTo(da); // terbaru duluan
+        });
         break;
       case SortOption.genre:
         songs.sort((a, b) => (a.genre ?? '').compareTo(b.genre ?? ''));

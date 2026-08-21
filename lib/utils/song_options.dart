@@ -48,10 +48,10 @@ Future<void> showSongOptions(BuildContext context, Song song) async {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.favorite_border),
-            title: const Text('Tambah/Hapus dari Favorit'),
+            leading: Icon(song.isFavorite ? Icons.favorite : Icons.favorite_border),
+            title: Text(song.isFavorite ? 'Hapus dari Favorit' : 'Tambah ke Favorit'),
             onTap: () {
-              lib.toggleFavorite(song, true);
+              lib.toggleFavorite(song, !song.isFavorite);
               Navigator.pop(ctx);
             },
           ),

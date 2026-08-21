@@ -178,6 +178,10 @@ class PlayerService extends ChangeNotifier {
     await DBHelper.instance.markPlayed(song.id);
     lastError = null;
     _updateNotification();
+    // Pasang ulang listener posisi ke player yang sekarang aktif, supaya
+    // crossfade tetap terpicu untuk lagu-lagu berikutnya juga (bukan cuma sekali).
+    _positionSub?.cancel();
+    _positionSub = player.positionStream.listen(_maybeStartCrossfade);
     notifyListeners();
   }
 
@@ -305,7 +309,13 @@ class PlayerService extends ChangeNotifier {
   /// menyusun ulang urutan lagu-lagu SETELAHNYA (kalau ON) atau
   /// mengembalikan ke urutan asli (kalau OFF).
   void toggleShuffle() {
-    _shuffle = !_shuffle;
+    setShuffle(!_shuffle);
+  }
+
+  /// Set status shuffle secara eksplisit (bukan toggle) - dipakai tombol
+  /// "Acak" supaya selalu MENGAKTIFKAN shuffle, tidak pernah mematikannya.
+  void setShuffle(bool value) {
+    _shuffle = value;
     final song = currentSong;
     if (song == null) {
       notifyListeners();

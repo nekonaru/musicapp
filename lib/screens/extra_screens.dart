@@ -143,10 +143,10 @@ class _FolderSongsScreen extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () {
+                      onPressed: () async {
                         final shuffled = List<Song>.of(songs)..shuffle();
-                        PlayerService.instance.setQueueAndPlay(shuffled, 0);
-                        PlayerService.instance.toggleShuffle();
+                        await PlayerService.instance.setQueueAndPlay(shuffled, 0);
+                        PlayerService.instance.setShuffle(true);
                       },
                       icon: const Icon(Icons.shuffle),
                       label: const Text('Acak'),
@@ -236,10 +236,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () {
+                    onPressed: () async {
                       final shuffled = List<Song>.of(_favs)..shuffle();
-                      PlayerService.instance.setQueueAndPlay(shuffled, 0);
-                      PlayerService.instance.toggleShuffle();
+                        await PlayerService.instance.setQueueAndPlay(shuffled, 0);
+                        PlayerService.instance.setShuffle(true);
                     },
                     icon: const Icon(Icons.shuffle),
                     label: const Text('Acak'),

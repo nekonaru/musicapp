@@ -75,10 +75,10 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () {
+                          onPressed: () async {
                             final shuffled = List<Song>.of(_songs)..shuffle();
-                            PlayerService.instance.setQueueAndPlay(shuffled, 0);
-                            PlayerService.instance.toggleShuffle();
+                        await PlayerService.instance.setQueueAndPlay(shuffled, 0);
+                        PlayerService.instance.setShuffle(true);
                           },
                           icon: const Icon(Icons.shuffle),
                           label: const Text('Acak'),

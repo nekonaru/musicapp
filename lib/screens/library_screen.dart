@@ -6,6 +6,7 @@ import '../providers/playlist_provider.dart';
 import '../services/player_service.dart';
 import '../widgets/az_scrollbar.dart';
 import '../widgets/playing_indicator.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../utils/song_options.dart';
 import '../utils/format.dart';
 
@@ -167,10 +168,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       child: OutlinedButton.icon(
                         onPressed: displayedSongs.isEmpty
                             ? null
-                            : () {
+                            : () async {
                                 final shuffled = List<Song>.of(displayedSongs)..shuffle();
-                                _playSong(shuffled, 0);
-                                PlayerService.instance.toggleShuffle();
+                                await _playSong(shuffled, 0);
+                                PlayerService.instance.setShuffle(true);
                               },
                         icon: const Icon(Icons.shuffle),
                         label: const Text('Acak'),
@@ -226,7 +227,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                           ),
                                         )
                                       : CircleAvatar(
-                                          backgroundImage: song.albumArtUrl != null ? NetworkImage(song.albumArtUrl!) : null,
+                                          backgroundImage: song.albumArtUrl != null ? CachedNetworkImageProvider(song.albumArtUrl!) : null,
                                           child: song.albumArtUrl == null ? const Icon(Icons.music_note) : null,
                                         ),
                                   title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis,

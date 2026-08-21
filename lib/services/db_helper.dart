@@ -17,7 +17,7 @@ class DBHelper {
     final path = p.join(dbPath, 'music_app.db');
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE songs(
@@ -33,7 +33,8 @@ class DBHelper {
             lyrics TEXT,
             durationMs INTEGER,
             isFavorite INTEGER DEFAULT 0,
-            lastPlayedAt TEXT
+            lastPlayedAt TEXT,
+            addedAt TEXT
           )
         ''');
         await db.execute('''
@@ -76,6 +77,15 @@ class DBHelper {
             // Kolom mungkin sudah ada, abaikan
           }
         }
+        if (oldVersion < 3) {
+          // Tambahkan kolom addedAt supaya sort "Baru ditambahkan" benar-benar
+          // berdasarkan waktu insert, bukan cuma membalik urutan list
+          try {
+            await db.execute('ALTER TABLE songs ADD COLUMN addedAt TEXT');
+          } catch (_) {
+            // Kolom mungkin sudah ada, abaikan
+          }
+        }
       },
     );
   }
@@ -83,13 +93,16 @@ class DBHelper {
   // ---------- Songs ----------
   Future<void> upsertSong(Song s) async {
     final database = await db;
-    // Pertahankan status favorit & lastPlayedAt yang sudah ada,
+    // Pertahankan status favorit, lastPlayedAt, dan addedAt yang sudah ada,
     // supaya tidak ke-reset tiap kali library di-scan ulang.
     final existing = await database.query('songs', where: 'id = ?', whereArgs: [s.id], limit: 1);
     final map = s.toMap();
     if (existing.isNotEmpty) {
       map['isFavorite'] = existing.first['isFavorite'];
       map['lastPlayedAt'] = existing.first['lastPlayedAt'];
+      map['addedAt'] = existing.first['addedAt'];
+    } else {
+      map['addedAt'] = DateTime.now().toIso8601String();
     }
     await database.insert('songs', map, conflictAlgorithm: ConflictAlgorithm.replace);
   }
@@ -97,6 +110,14 @@ class DBHelper {
   Future<List<Song>> getAllSongs() async {
     final database = await db;
     final rows = await database.query('songs', orderBy: 'title ASC');
+    return rows.map((r) => Song.fromMap(r)).toList();
+  }
+
+  /// Lagu diurutkan berdasarkan waktu benar-benar ditambahkan ke library,
+  /// bukan sekadar membalik urutan list saat ini.
+  Future<List<Song>> getAllSongsByDateAdded() async {
+    final database = await db;
+    final rows = await database.query('songs', orderBy: 'addedAt DESC');
     return rows.map((r) => Song.fromMap(r)).toList();
   }
 

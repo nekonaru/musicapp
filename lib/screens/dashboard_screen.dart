@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
 import '../services/db_helper.dart';
 import '../models/song.dart';
 
@@ -138,7 +137,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               getTitlesWidget: (value, meta) {
                 final idx = value.toInt();
                 if (idx < 0 || idx >= days.length) return const SizedBox();
-                return Text(DateFormat('EEE', 'id_ID').format(days[idx]),
+                const hariSingkat = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+                return Text(hariSingkat[days[idx].weekday % 7],
                     style: const TextStyle(fontSize: 11));
               },
             ),

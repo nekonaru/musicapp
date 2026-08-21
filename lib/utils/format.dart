@@ -1,4 +1,9 @@
-/// Format durasi milidetik jadi "mm:ss" atau "h:mm:ss" kalau lebih dari 1 jam.
+/// Ambil path folder dari path file secara aman - kalau tidak ada '/'
+/// sama sekali (edge case), kembalikan string kosong alih-alih crash RangeError.
+String folderOf(String filePath) {
+  final idx = filePath.lastIndexOf('/');
+  return idx == -1 ? '' : filePath.substring(0, idx);
+}
 String formatDuration(int ms) {
   final totalSeconds = (ms / 1000).round();
   final hours = totalSeconds ~/ 3600;
