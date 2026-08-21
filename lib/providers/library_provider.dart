@@ -108,6 +108,9 @@ class LibraryProvider extends ChangeNotifier {
         s.album.toLowerCase().contains(q)).toList();
   }
 
+  int get totalCount => songs.length;
+  int get totalDurationMs => songs.fold(0, (sum, s) => sum + s.durationMs);
+
   Future<void> toggleFavorite(Song song, bool value) async {
     await DBHelper.instance.setFavorite(song.id, value);
     await loadFromDb();

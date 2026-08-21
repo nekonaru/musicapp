@@ -17,7 +17,7 @@ class DBHelper {
     final path = p.join(dbPath, 'music_app.db');
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE songs(
@@ -56,6 +56,7 @@ class DBHelper {
             playlistId INTEGER,
             songId INTEGER,
             addedAt TEXT,
+            position INTEGER DEFAULT 0,
             PRIMARY KEY (playlistId, songId)
           )
         ''');
@@ -66,14 +67,31 @@ class DBHelper {
           )
         ''');
       },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          // Tambahkan kolom position untuk fitur reorder playlist
+          try {
+            await db.execute('ALTER TABLE playlist_songs ADD COLUMN position INTEGER DEFAULT 0');
+          } catch (_) {
+            // Kolom mungkin sudah ada, abaikan
+          }
+        }
+      },
     );
   }
 
   // ---------- Songs ----------
   Future<void> upsertSong(Song s) async {
     final database = await db;
-    await database.insert('songs', s.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace);
+    // Pertahankan status favorit & lastPlayedAt yang sudah ada,
+    // supaya tidak ke-reset tiap kali library di-scan ulang.
+    final existing = await database.query('songs', where: 'id = ?', whereArgs: [s.id], limit: 1);
+    final map = s.toMap();
+    if (existing.isNotEmpty) {
+      map['isFavorite'] = existing.first['isFavorite'];
+      map['lastPlayedAt'] = existing.first['lastPlayedAt'];
+    }
+    await database.insert('songs', map, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<Song>> getAllSongs() async {
@@ -117,7 +135,7 @@ class DBHelper {
         where: 'id = ?', whereArgs: [songId]);
   }
 
-  Future<List<Song>> getRecentlyPlayed({int limit = 30}) async {
+  Future<List<Song>> getRecentlyPlayed({int limit = 50}) async {
     final database = await db;
     final rows = await database.query('songs',
         where: 'lastPlayedAt IS NOT NULL',
@@ -230,12 +248,15 @@ class DBHelper {
 
   Future<void> addSongToPlaylist(int playlistId, int songId) async {
     final database = await db;
+    final maxPos = Sqflite.firstIntValue(await database.rawQuery(
+        'SELECT MAX(position) as m FROM playlist_songs WHERE playlistId = ?', [playlistId])) ?? 0;
     await database.insert(
       'playlist_songs',
       {
         'playlistId': playlistId,
         'songId': songId,
         'addedAt': DateTime.now().toIso8601String(),
+        'position': maxPos + 1,
       },
       conflictAlgorithm: ConflictAlgorithm.ignore,
     );
@@ -253,9 +274,24 @@ class DBHelper {
       SELECT s.* FROM songs s
       JOIN playlist_songs ps ON ps.songId = s.id
       WHERE ps.playlistId = ?
-      ORDER BY ps.addedAt ASC
+      ORDER BY ps.position ASC, ps.addedAt ASC
     ''', [playlistId]);
     return rows.map((r) => Song.fromMap(r)).toList();
+  }
+
+  /// Simpan ulang urutan lagu dalam playlist (dipanggil setelah drag reorder)
+  Future<void> reorderPlaylistSongs(int playlistId, List<int> songIdsInOrder) async {
+    final database = await db;
+    final batch = database.batch();
+    for (int i = 0; i < songIdsInOrder.length; i++) {
+      batch.update(
+        'playlist_songs',
+        {'position': i},
+        where: 'playlistId = ? AND songId = ?',
+        whereArgs: [playlistId, songIdsInOrder[i]],
+      );
+    }
+    await batch.commit(noResult: true);
   }
 
   // ---------- Folders ----------

@@ -60,7 +60,7 @@ Future<void> showSongOptions(BuildContext context, Song song) async {
             title: const Text('Tambah ke Playlist'),
             onTap: () async {
               Navigator.pop(ctx);
-              _pickPlaylist(context, song, playlistProvider);
+              pickPlaylist(context, song, playlistProvider);
             },
           ),
           ListTile(
@@ -123,8 +123,8 @@ Future<void> _renameSong(BuildContext context, Song song, LibraryProvider lib) a
   }
 }
 
-void _pickPlaylist(BuildContext context, Song song, PlaylistProvider provider) {
-  showModalBottomSheet(
+Future<void> pickPlaylist(BuildContext context, Song song, PlaylistProvider provider) {
+  return showModalBottomSheet(
     context: context,
     builder: (ctx) => SafeArea(
       child: Column(

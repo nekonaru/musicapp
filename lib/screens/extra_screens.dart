@@ -7,7 +7,9 @@ import '../services/library_scanner.dart';
 import '../services/player_service.dart';
 import '../services/db_helper.dart';
 import '../utils/song_options.dart';
+import '../utils/format.dart';
 import '../widgets/mini_player.dart';
+import 'playlist_detail_screen.dart';
 
 class FoldersScreen extends StatefulWidget {
   const FoldersScreen({super.key});
@@ -19,6 +21,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
   List<String> _folders = [];
   Set<String> _excluded = {};
   bool _showHidden = false;
+  Map<String, List<Song>> _songsByFolder = {};
 
   @override
   void initState() {
@@ -29,9 +32,14 @@ class _FoldersScreenState extends State<FoldersScreen> {
   Future<void> _load() async {
     final folders = await LibraryScanner().listMusicFolders();
     final excluded = await DBHelper.instance.getExcludedFolders();
+    final songsByFolder = <String, List<Song>>{};
+    for (final f in folders) {
+      songsByFolder[f] = await LibraryScanner().getSongsInFolder(f);
+    }
     setState(() {
       _folders = folders;
       _excluded = excluded;
+      _songsByFolder = songsByFolder;
     });
   }
 
@@ -39,8 +47,6 @@ class _FoldersScreenState extends State<FoldersScreen> {
     final isHidden = _excluded.contains(folder);
     await DBHelper.instance.setFolderIncluded(folder, isHidden);
     await _load();
-    // Sinkronkan juga ke halaman Semua Lagu supaya lagu dari folder
-    // yang disembunyikan langsung hilang dari daftar utama.
     if (mounted) {
       await context.read<LibraryProvider>().loadFromDb();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -71,23 +77,25 @@ class _FoldersScreenState extends State<FoldersScreen> {
             itemBuilder: (context, i) {
               final folder = visibleFolders[i];
               final isHidden = _excluded.contains(folder);
+              final songsInFolder = _songsByFolder[folder] ?? [];
+              final totalMs = songsInFolder.fold(0, (sum, s) => sum + s.durationMs);
               return ListTile(
                 leading: Icon(Icons.folder, color: isHidden ? Colors.grey : null),
                 title: Text(folder.split('/').last,
                     style: isHidden ? const TextStyle(color: Colors.grey) : null),
-                subtitle: Text(folder, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text(
+                  '${songsInFolder.length} lagu · ${formatDurationLong(totalMs)}',
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                ),
                 trailing: IconButton(
                   icon: Icon(isHidden ? Icons.visibility_off : Icons.visibility_outlined),
                   tooltip: isHidden ? 'Tampilkan folder ini' : 'Sembunyikan folder ini',
                   onPressed: () => _toggleHideFolder(folder),
                 ),
-                onTap: () async {
-                  final songs = await LibraryScanner().getSongsInFolder(folder);
-                  if (context.mounted) {
-                    Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => _FolderSongsScreen(folderName: folder.split('/').last, songs: songs),
-                    ));
-                  }
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => _FolderSongsScreen(folderName: folder.split('/').last, songs: songsInFolder),
+                  ));
                 },
               );
             },
@@ -105,13 +113,24 @@ class _FolderSongsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final totalMs = songs.fold(0, (sum, s) => sum + s.durationMs);
     return Scaffold(
       appBar: AppBar(title: Text(folderName)),
       body: Column(
         children: [
-          if (songs.isNotEmpty)
+          if (songs.isNotEmpty) ...[
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '${songs.length} lagu · ${formatDurationLong(totalMs)}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
               child: Row(
                 children: [
                   Expanded(
@@ -136,6 +155,7 @@ class _FolderSongsScreen extends StatelessWidget {
                 ],
               ),
             ),
+          ],
           Expanded(
             child: ListView.builder(
               itemCount: songs.length,
@@ -144,17 +164,21 @@ class _FolderSongsScreen extends StatelessWidget {
                 title: Text(songs[i].title, maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(songs[i].artist, maxLines: 1, overflow: TextOverflow.ellipsis),
                 onTap: () => PlayerService.instance.setQueueAndPlay(songs, i),
-                trailing: IconButton(
-                  icon: const Icon(Icons.more_vert),
-                  onPressed: () => showSongOptions(context, songs[i]),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(formatDuration(songs[i].durationMs), style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                    IconButton(
+                      icon: const Icon(Icons.more_vert),
+                      onPressed: () => showSongOptions(context, songs[i]),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
         ],
       ),
-      // Layar ini di-push sebagai route terpisah, jadi butuh mini player sendiri
-      // supaya kontrol musik tetap terlihat walau lagi buka folder/playlist.
       bottomNavigationBar: const MiniPlayer(),
     );
   }
@@ -183,12 +207,23 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   Widget build(BuildContext context) {
     if (_favs.isEmpty) return const Center(child: Text('Belum ada lagu favorit.'));
+    final totalMs = _favs.fold(0, (sum, s) => sum + s.durationMs);
     return RefreshIndicator(
       onRefresh: _load,
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '${_favs.length} lagu · ${formatDurationLong(totalMs)}',
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
             child: Row(
               children: [
                 Expanded(
@@ -221,9 +256,15 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 title: Text(_favs[i].title, maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(_favs[i].artist, maxLines: 1, overflow: TextOverflow.ellipsis),
                 onTap: () => PlayerService.instance.setQueueAndPlay(_favs, i),
-                trailing: IconButton(
-                  icon: const Icon(Icons.more_vert),
-                  onPressed: () => showSongOptions(context, _favs[i]),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(formatDuration(_favs[i].durationMs), style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                    IconButton(
+                      icon: const Icon(Icons.more_vert),
+                      onPressed: () => showSongOptions(context, _favs[i]),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -245,6 +286,21 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => context.read<PlaylistProvider>().load());
+  }
+
+  Future<void> _confirmDelete(BuildContext context, PlaylistProvider provider, int id, String name) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Playlist'),
+        content: Text('Hapus playlist "$name"? Lagu-lagu di dalamnya tidak akan terhapus dari library.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Hapus')),
+        ],
+      ),
+    );
+    if (confirm == true) provider.delete(id);
   }
 
   @override
@@ -278,17 +334,14 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                     return ListTile(
                       leading: const Icon(Icons.queue_music),
                       title: Text(p['name']),
-                      onTap: () async {
-                        final songs = await provider.songsIn(p['id']);
-                        if (context.mounted) {
-                          Navigator.push(context, MaterialPageRoute(
-                            builder: (_) => _FolderSongsScreen(folderName: p['name'], songs: songs),
-                          ));
-                        }
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(
+                          builder: (_) => PlaylistDetailScreen(playlistId: p['id'], playlistName: p['name']),
+                        ));
                       },
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline),
-                        onPressed: () => provider.delete(p['id']),
+                        onPressed: () => _confirmDelete(context, provider, p['id'], p['name']),
                       ),
                     );
                   },

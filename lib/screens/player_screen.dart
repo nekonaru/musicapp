@@ -1,12 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
 import '../services/player_service.dart';
 import '../services/metadata_service.dart';
 import '../providers/library_provider.dart';
-import 'package:provider/provider.dart';
+import '../providers/playlist_provider.dart';
+import '../utils/song_options.dart';
+import '../widgets/marquee_text.dart';
 import 'edit_metadata_screen.dart';
 import 'queue_screen.dart';
-import '../widgets/marquee_text.dart';
 
 class PlayerScreen extends StatefulWidget {
   const PlayerScreen({super.key});
@@ -19,9 +22,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _showLyrics = false;
   bool _isFetchingLyrics = false;
   double _dragOffset = 0;
+  Timer? _countdownTicker;
+
+  @override
+  void initState() {
+    super.initState();
+    // Timer buat update tampilan hitung mundur sleep timer tiap detik
+    _countdownTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_player.sleepTimerEndTime != null && mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _countdownTicker?.cancel();
+    super.dispose();
+  }
 
   Future<void> _pickSleepTimer() async {
-    final minutes = await showModalBottomSheet<int>(
+    final result = await showModalBottomSheet<Object>(
       context: context,
       builder: (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
@@ -34,8 +53,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
             ListTile(title: Text('$m menit'), onTap: () => Navigator.pop(ctx, m)),
           ListTile(
             leading: const Icon(Icons.edit_outlined),
-            title: const Text('Kustom...'),
-            onTap: () => Navigator.pop(ctx, -1),
+            title: const Text('Kustom (jam & menit)...'),
+            onTap: () => Navigator.pop(ctx, 'custom'),
           ),
           ListTile(
             title: const Text('Batalkan timer'),
@@ -44,44 +63,71 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ],
       ),
     );
-    if (minutes == null) return;
+    if (result == null) return;
 
-    int? finalMinutes = minutes;
-    if (minutes == -1) {
-      finalMinutes = await _promptCustomMinutes();
-      if (finalMinutes == null) return;
-    }
-
-    if (finalMinutes == 0) {
+    Duration? finalDuration;
+    if (result == 'custom') {
+      finalDuration = await _promptCustomDuration();
+      if (finalDuration == null) return;
+    } else if (result == 0) {
       _player.cancelSleepTimer();
-    } else {
-      _player.setSleepTimer(Duration(minutes: finalMinutes!));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Timer dibatalkan')));
+      }
+      return;
+    } else if (result is int) {
+      finalDuration = Duration(minutes: result);
     }
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(finalMinutes == 0 ? 'Timer dibatalkan' : 'Timer diatur $finalMinutes menit')),
-      );
+
+    if (finalDuration != null) {
+      _player.setSleepTimer(finalDuration);
+      if (mounted) {
+        final h = finalDuration.inHours;
+        final m = finalDuration.inMinutes % 60;
+        final label = h > 0 ? '$h jam ${m > 0 ? '$m menit' : ''}'.trim() : '$m menit';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Timer diatur $label')));
+      }
     }
   }
 
-  Future<int?> _promptCustomMinutes() async {
-    final controller = TextEditingController();
-    return showDialog<int>(
+  Future<Duration?> _promptCustomDuration() async {
+    final hourController = TextEditingController();
+    final minuteController = TextEditingController();
+    return showDialog<Duration>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Timer Kustom'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Menit', suffixText: 'menit'),
+        content: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: hourController,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Jam'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: minuteController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Menit'),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
           FilledButton(
             onPressed: () {
-              final v = int.tryParse(controller.text);
-              Navigator.pop(ctx, v);
+              final h = int.tryParse(hourController.text) ?? 0;
+              final m = int.tryParse(minuteController.text) ?? 0;
+              if (h == 0 && m == 0) {
+                Navigator.pop(ctx);
+                return;
+              }
+              Navigator.pop(ctx, Duration(hours: h, minutes: m));
             },
             child: const Text('Atur'),
           ),
@@ -137,6 +183,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
     setState(() {});
   }
 
+  String _fmtCountdown(Duration d) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    if (d.inHours > 0) return '${d.inHours}:${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}';
+    return '${two(d.inMinutes)}:${two(d.inSeconds % 60)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -152,8 +204,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Widget _buildScaffold(song) {
+    final lib = context.watch<LibraryProvider>();
+    final matchInLib = lib.songs.where((s) => s.id == song.id);
+    final isFavorite = matchInLib.isNotEmpty ? matchInLib.first.isFavorite : false;
+
     return GestureDetector(
-      // Swipe ke bawah untuk minimize player
       onVerticalDragUpdate: (details) {
         if (details.delta.dy > 0) {
           setState(() => _dragOffset += details.delta.dy);
@@ -166,7 +221,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
           setState(() => _dragOffset = 0);
         }
       },
-      // Swipe kiri/kanan untuk ganti lagu
       onHorizontalDragEnd: (details) {
         final velocity = details.primaryVelocity ?? 0;
         if (velocity < -250) {
@@ -226,10 +280,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         child: child,
                       ),
                     ),
-                    child: _showLyrics ? _buildLyricsView(song) : _buildArtView(song),
+                    child: _showLyrics ? _buildLyricsView(song) : _buildArtView(song, isFavorite, lib),
                   ),
                 ),
-                _buildControls(),
+                _buildControls(song),
               ],
             ),
           ),
@@ -290,7 +344,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  Widget _buildArtView(song) {
+  Widget _buildArtView(song, bool isFavorite, LibraryProvider lib) {
     return Center(
       key: ValueKey('art_${song.id}'),
       child: Column(
@@ -348,12 +402,33 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ),
           const SizedBox(height: 6),
           Text(song.artist, style: TextStyle(color: Colors.grey[600])),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: Icon(
+                  isFavorite ? Icons.favorite : Icons.favorite_border,
+                  color: isFavorite ? Colors.red : null,
+                ),
+                tooltip: 'Favorit',
+                onPressed: () => lib.toggleFavorite(song, !isFavorite),
+              ),
+              const SizedBox(width: 16),
+              IconButton(
+                icon: const Icon(Icons.playlist_add),
+                tooltip: 'Tambah ke Playlist',
+                onPressed: () => pickPlaylist(context, song, context.read<PlaylistProvider>()),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildControls() {
+  Widget _buildControls(song) {
+    final remaining = _player.sleepTimerRemaining;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Column(
@@ -395,7 +470,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             children: [
               IconButton(
                 icon: Icon(Icons.shuffle,
-                    color: _player.isShuffle ? Theme.of(context).colorScheme.primary : null),
+                    color: _player.isShuffle ? Theme.of(context).colorScheme.primary : Colors.grey),
                 onPressed: () => setState(() => _player.toggleShuffle()),
               ),
               IconButton(icon: const Icon(Icons.skip_previous), onPressed: _player.previous),
@@ -421,10 +496,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 },
               ),
               IconButton(icon: const Icon(Icons.skip_next), onPressed: _player.next),
-              IconButton(
-                icon: Icon(_repeatIcon()),
-                onPressed: () => setState(() => _player.cycleRepeatMode()),
-              ),
+              _buildRepeatButton(),
             ],
           ),
           Row(
@@ -433,7 +505,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               TextButton.icon(
                 onPressed: _pickSleepTimer,
                 icon: const Icon(Icons.bedtime_outlined),
-                label: const Text('Timer Tidur'),
+                label: Text(remaining != null ? _fmtCountdown(remaining) : 'Timer Tidur'),
               ),
               TextButton.icon(
                 onPressed: _pickPlaybackSpeed,
@@ -447,15 +519,27 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  IconData _repeatIcon() {
-    switch (_player.repeatMode) {
-      case RepeatMode.off:
-        return Icons.repeat;
-      case RepeatMode.all:
-        return Icons.repeat_on;
-      case RepeatMode.one:
-        return Icons.repeat_one_on;
-    }
+  /// Tombol repeat yang kontras jelas untuk tiap mode: mati (abu-abu outline),
+  /// ulang semua (chip ungu terisi), ulang satu lagu (chip ungu + angka "1").
+  Widget _buildRepeatButton() {
+    final mode = _player.repeatMode;
+    final color = Theme.of(context).colorScheme.primary;
+    final isActive = mode != RepeatMode.off;
+
+    return GestureDetector(
+      onTap: () => setState(() => _player.cycleRepeatMode()),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isActive ? color.withValues(alpha: 0.15) : Colors.transparent,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          mode == RepeatMode.one ? Icons.repeat_one : Icons.repeat,
+          color: isActive ? color : Colors.grey,
+        ),
+      ),
+    );
   }
 
   String _fmt(Duration d) {

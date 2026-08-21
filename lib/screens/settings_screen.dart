@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
+import '../services/player_service.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
@@ -37,11 +43,22 @@ class SettingsScreen extends StatelessWidget {
           const Divider(),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: Text('Pemutaran', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+          ),
+          SwitchListTile(
+            title: const Text('Crossfade'),
+            subtitle: const Text('Transisi antar lagu tanpa jeda (3 detik)'),
+            value: PlayerService.instance.crossfadeEnabled,
+            onChanged: (v) => setState(() => PlayerService.instance.setCrossfadeEnabled(v)),
+          ),
+          const Divider(),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: Text('Tentang', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
           ),
           const ListTile(
             title: Text('Swara'),
-            subtitle: Text('v1.1.0'),
+            subtitle: Text('v1.4.0'),
           ),
         ],
       ),

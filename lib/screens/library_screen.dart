@@ -5,7 +5,9 @@ import '../providers/library_provider.dart';
 import '../providers/playlist_provider.dart';
 import '../services/player_service.dart';
 import '../widgets/az_scrollbar.dart';
+import '../widgets/playing_indicator.dart';
 import '../utils/song_options.dart';
+import '../utils/format.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -86,9 +88,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
           for (final s in displayedSongs)
             RegExp(r'^[a-zA-Z]').hasMatch(s.title) ? s.title[0].toUpperCase() : '#'
         };
+        final currentSong = PlayerService.instance.currentSong;
 
         return Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: Text(
+                '${lib.totalCount} lagu · ${formatDurationLong(lib.totalDurationMs)}',
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
               child: Row(
@@ -182,6 +192,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             itemExtent: _itemHeight,
                             itemBuilder: (context, i) {
                               final song = displayedSongs[i];
+                              final isCurrentlyPlaying = currentSong != null && currentSong.id == song.id;
                               return TweenAnimationBuilder<double>(
                                 key: ValueKey('song_${song.id}'),
                                 tween: Tween(begin: 0.0, end: 1.0),
@@ -195,17 +206,43 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                   ),
                                 ),
                                 child: ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundImage: song.albumArtUrl != null ? NetworkImage(song.albumArtUrl!) : null,
-                                    child: song.albumArtUrl == null ? const Icon(Icons.music_note) : null,
-                                  ),
-                                  title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  tileColor: isCurrentlyPlaying
+                                      ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3)
+                                      : null,
+                                  leading: isCurrentlyPlaying
+                                      ? Container(
+                                          width: 40, height: 40,
+                                          alignment: Alignment.center,
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: AnimatedBuilder(
+                                            animation: PlayerService.instance,
+                                            builder: (context, _) => PlayingIndicator(
+                                              isPlaying: PlayerService.instance.player.playing,
+                                              color: Theme.of(context).colorScheme.primary,
+                                            ),
+                                          ),
+                                        )
+                                      : CircleAvatar(
+                                          backgroundImage: song.albumArtUrl != null ? NetworkImage(song.albumArtUrl!) : null,
+                                          child: song.albumArtUrl == null ? const Icon(Icons.music_note) : null,
+                                        ),
+                                  title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(fontWeight: isCurrentlyPlaying ? FontWeight.bold : FontWeight.normal)),
                                   subtitle: Text('${song.artist} · ${song.genre ?? "Genre ?"}',
                                       maxLines: 1, overflow: TextOverflow.ellipsis),
                                   onTap: () => _playSong(displayedSongs, i),
-                                  trailing: IconButton(
-                                    icon: const Icon(Icons.more_vert),
-                                    onPressed: () => showSongOptions(context, song),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(formatDuration(song.durationMs), style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                                      IconButton(
+                                        icon: const Icon(Icons.more_vert),
+                                        onPressed: () => showSongOptions(context, song),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               );

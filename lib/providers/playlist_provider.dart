@@ -30,4 +30,7 @@ class PlaylistProvider extends ChangeNotifier {
 
   Future<List<Song>> songsIn(int playlistId) =>
       DBHelper.instance.getSongsInPlaylist(playlistId);
+
+  Future<void> reorder(int playlistId, List<int> songIdsInOrder) =>
+      DBHelper.instance.reorderPlaylistSongs(playlistId, songIdsInOrder);
 }

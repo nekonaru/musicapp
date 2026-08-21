@@ -10,6 +10,7 @@ class Song {
   String? albumArtUrl; // url dari API kalau belum di-cache
   String? lyrics;
   int durationMs;
+  bool isFavorite;
 
   Song({
     required this.id,
@@ -23,6 +24,7 @@ class Song {
     this.albumArtUrl,
     this.lyrics,
     this.durationMs = 0,
+    this.isFavorite = false,
   });
 
   Map<String, dynamic> toMap() => {
@@ -37,6 +39,7 @@ class Song {
         'albumArtUrl': albumArtUrl,
         'lyrics': lyrics,
         'durationMs': durationMs,
+        'isFavorite': isFavorite ? 1 : 0,
       };
 
   factory Song.fromMap(Map<String, dynamic> map) => Song(
@@ -51,6 +54,7 @@ class Song {
         albumArtUrl: map['albumArtUrl'],
         lyrics: map['lyrics'],
         durationMs: map['durationMs'] ?? 0,
+        isFavorite: (map['isFavorite'] ?? 0) == 1,
       );
 }
 
