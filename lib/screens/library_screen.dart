@@ -35,7 +35,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     super.dispose();
   }
 
-  void _playSong(List<Song> queue, int index) async {
+  Future<void> _playSong(List<Song> queue, int index) async {
     await PlayerService.instance.setQueueAndPlay(queue, index);
     final error = PlayerService.instance.lastError;
     if (error != null && mounted) {
