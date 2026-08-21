@@ -42,6 +42,7 @@ class Song {
         'lyrics': lyrics,
         'durationMs': durationMs,
         'isFavorite': isFavorite ? 1 : 0,
+        'addedAt': addedAt?.toIso8601String(),
       };
 
   factory Song.fromMap(Map<String, dynamic> map) => Song(
