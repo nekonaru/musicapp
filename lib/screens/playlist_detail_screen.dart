@@ -4,6 +4,7 @@ import '../models/song.dart';
 import '../providers/playlist_provider.dart';
 import '../services/player_service.dart';
 import '../utils/format.dart';
+import '../utils/song_options.dart';
 
 class PlaylistDetailScreen extends StatefulWidget {
   final int playlistId;
@@ -121,7 +122,16 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(formatDuration(song.durationMs), style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.more_vert),
+                                onPressed: () async {
+                                  // showFullDelete: false + playlistId -> menu ini cuma bisa
+                                  // "Hapus dari Playlist Ini", tidak menyentuh library/folder lain.
+                                  await showSongOptions(context, song,
+                                      showFullDelete: false, playlistId: widget.playlistId);
+                                  _load();
+                                },
+                              ),
                               const Icon(Icons.drag_handle, color: Colors.grey),
                             ],
                           ),

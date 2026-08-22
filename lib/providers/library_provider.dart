@@ -88,10 +88,10 @@ class LibraryProvider extends ChangeNotifier {
   void _applySort() {
     switch (sortOption) {
       case SortOption.titleAZ:
-        songs.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+        songs.sort((a, b) => compareTitles(a.title, b.title));
         break;
       case SortOption.titleZA:
-        songs.sort((a, b) => b.title.toLowerCase().compareTo(a.title.toLowerCase()));
+        songs.sort((a, b) => compareTitles(b.title, a.title));
         break;
       case SortOption.artistAZ:
         songs.sort((a, b) => a.artist.toLowerCase().compareTo(b.artist.toLowerCase()));
@@ -124,6 +124,9 @@ class LibraryProvider extends ChangeNotifier {
 
   int get totalCount => songs.length;
   int get totalDurationMs => songs.fold(0, (sum, s) => sum + s.durationMs);
+
+  /// Reactive - otomatis update begitu ada toggleFavorite, tanpa perlu refresh manual
+  List<Song> get favorites => songs.where((s) => s.isFavorite).toList();
 
   Future<void> toggleFavorite(Song song, bool value) async {
     await DBHelper.instance.setFavorite(song.id, value);

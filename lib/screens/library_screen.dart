@@ -18,6 +18,7 @@ class LibraryScreen extends StatefulWidget {
 
 class _LibraryScreenState extends State<LibraryScreen> {
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
   static const double _itemHeight = 72;
 
   @override
@@ -32,6 +33,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -106,12 +108,22 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 children: [
                   Expanded(
                     child: TextField(
+                      controller: _searchController,
                       onChanged: (v) => lib.setSearchQuery(v),
                       decoration: InputDecoration(
                         hintText: 'Cari judul, artis, album...',
                         prefixIcon: const Icon(Icons.search),
                         isDense: true,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
+                        suffixIcon: lib.searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  lib.setSearchQuery('');
+                                },
+                              )
+                            : null,
                       ),
                     ),
                   ),

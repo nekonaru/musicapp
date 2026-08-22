@@ -9,7 +9,7 @@ import '../providers/library_provider.dart';
 import '../providers/playlist_provider.dart';
 import '../utils/song_options.dart';
 import '../widgets/marquee_text.dart';
-import 'edit_metadata_screen.dart';
+import 'edit_lyrics_screen.dart';
 import 'queue_screen.dart';
 
 class PlayerScreen extends StatefulWidget {
@@ -180,7 +180,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<void> _addLyricsManually(song) async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => EditMetadataScreen(song: song)));
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => EditLyricsScreen(song: song)));
     setState(() {});
   }
 

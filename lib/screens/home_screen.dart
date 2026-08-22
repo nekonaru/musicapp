@@ -68,23 +68,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
-  Widget _buildBody() {
-    switch (_groupIndex) {
-      case 0:
-        return TabBarView(
-          controller: _musicTabs,
-          children: const [LibraryScreen(), FoldersScreen()],
-        );
-      case 1:
-        return TabBarView(
-          controller: _collectionTabs,
-          children: const [FavoritesScreen(), PlaylistsScreen(), HistoryScreen()],
-        );
-      default:
-        return const DashboardScreen();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -95,10 +78,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: Text(_groupTitle, key: ValueKey(_groupIndex)),
-          ),
+          title: Text(_groupTitle),
           actions: [
             IconButton(
               icon: const Icon(Icons.settings_outlined),
@@ -115,9 +95,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ],
           bottom: _buildSubTabBar(),
         ),
-        body: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          child: KeyedSubtree(key: ValueKey(_groupIndex), child: _buildBody()),
+        // IndexedStack (bukan AnimatedSwitcher) supaya ketiga grup halaman
+        // TETAP HIDUP di memori saat berpindah tab - tidak dibangun ulang dari nol
+        // tiap kali kembali, jadi tidak ada lagi loading berulang di Folder/Favorit/Playlist.
+        body: IndexedStack(
+          index: _groupIndex,
+          children: [
+            TabBarView(
+              controller: _musicTabs,
+              children: const [LibraryScreen(), FoldersScreen()],
+            ),
+            TabBarView(
+              controller: _collectionTabs,
+              children: const [FavoritesScreen(), PlaylistsScreen(), HistoryScreen()],
+            ),
+            const DashboardScreen(),
+          ],
         ),
         bottomNavigationBar: Column(
           mainAxisSize: MainAxisSize.min,

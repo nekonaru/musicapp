@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/song.dart';
 import '../providers/library_provider.dart';
+import 'edit_lyrics_screen.dart';
 
 class EditMetadataScreen extends StatefulWidget {
   final Song song;
@@ -17,7 +18,6 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
   late TextEditingController _album;
   late TextEditingController _genre;
   late TextEditingController _region;
-  late TextEditingController _lyrics;
   bool _isScanning = false;
 
   @override
@@ -29,7 +29,6 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
     _album = TextEditingController(text: s.album);
     _genre = TextEditingController(text: s.genre ?? '');
     _region = TextEditingController(text: s.region ?? '');
-    _lyrics = TextEditingController(text: s.lyrics ?? '');
   }
 
   Future<void> _save() async {
@@ -39,7 +38,6 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
     s.album = _album.text.trim();
     s.genre = _genre.text.trim().isEmpty ? null : _genre.text.trim();
     s.region = _region.text.trim().isEmpty ? null : _region.text.trim();
-    s.lyrics = _lyrics.text.trim().isEmpty ? null : _lyrics.text.trim();
 
     await context.read<LibraryProvider>().updateMetadata(s);
     if (mounted) Navigator.pop(context);
@@ -55,7 +53,6 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
       _album.text = widget.song.album;
       _genre.text = widget.song.genre ?? '';
       _region.text = widget.song.region ?? '';
-      _lyrics.text = widget.song.lyrics ?? '';
     });
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -93,11 +90,14 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
           TextField(controller: _genre, decoration: const InputDecoration(labelText: 'Genre')),
           const SizedBox(height: 12),
           TextField(controller: _region, decoration: const InputDecoration(labelText: 'Asal Region')),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _lyrics,
-            decoration: const InputDecoration(labelText: 'Lirik', alignLabelWithHint: true),
-            maxLines: 10,
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => EditLyricsScreen(song: widget.song)),
+            ),
+            icon: const Icon(Icons.lyrics_outlined),
+            label: const Text('Edit Lirik (halaman terpisah)'),
           ),
           const SizedBox(height: 24),
           FilledButton(onPressed: _save, child: const Text('Simpan Perubahan')),
