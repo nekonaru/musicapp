@@ -47,14 +47,16 @@ class _QueueScreenState extends State<QueueScreen> {
               ? const Center(child: Text('Antrean kosong'))
               : Column(
                   children: [
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: Row(
                         children: [
-                          Icon(Icons.drag_handle, size: 18, color: Colors.grey),
-                          SizedBox(width: 6),
-                          Text('Tahan dan geser untuk mengatur urutan',
-                              style: TextStyle(fontSize: 12, color: Colors.grey)),
+                          const Icon(Icons.drag_handle, size: 18, color: Colors.grey),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text('Tahan-geser untuk urutkan · geser ke kiri untuk hapus',
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                          ),
                         ],
                       ),
                     ),
@@ -69,28 +71,41 @@ class _QueueScreenState extends State<QueueScreen> {
                           return Container(
                             key: ValueKey('queue_${song.id}_$i'),
                             height: _itemHeight,
-                            color: isPlaying
-                                ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4)
-                                : null,
-                            child: ListTile(
-                              leading: isPlaying
-                                  ? Icon(Icons.equalizer, color: Theme.of(context).colorScheme.primary)
-                                  : Text('${i + 1}', style: TextStyle(color: Colors.grey[500])),
-                              title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(fontWeight: isPlaying ? FontWeight.bold : FontWeight.normal)),
-                              subtitle: Text(song.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (!isPlaying)
-                                    IconButton(
-                                      icon: const Icon(Icons.close, size: 20),
-                                      onPressed: () => _player.removeFromQueue(i),
-                                    ),
-                                  const Icon(Icons.drag_handle, color: Colors.grey),
-                                ],
+                            child: Dismissible(
+                              key: ValueKey('queue_dismiss_${song.id}_$i'),
+                              direction: isPlaying ? DismissDirection.none : DismissDirection.endToStart,
+                              onDismissed: (_) => _player.removeFromQueue(i),
+                              background: Container(
+                                color: Colors.red,
+                                alignment: Alignment.centerRight,
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                child: const Icon(Icons.delete, color: Colors.white),
                               ),
-                              onTap: () => _player.playAtQueueIndex(i),
+                              child: Container(
+                                color: isPlaying
+                                    ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4)
+                                    : null,
+                                child: ListTile(
+                                  leading: isPlaying
+                                      ? Icon(Icons.equalizer, color: Theme.of(context).colorScheme.primary)
+                                      : Text('${i + 1}', style: TextStyle(color: Colors.grey[500])),
+                                  title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(fontWeight: isPlaying ? FontWeight.bold : FontWeight.normal)),
+                                  subtitle: Text(song.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (!isPlaying)
+                                        IconButton(
+                                          icon: const Icon(Icons.close, size: 20),
+                                          onPressed: () => _player.removeFromQueue(i),
+                                        ),
+                                      const Icon(Icons.drag_handle, color: Colors.grey),
+                                    ],
+                                  ),
+                                  onTap: () => _player.playAtQueueIndex(i),
+                                ),
+                              ),
                             ),
                           );
                         },

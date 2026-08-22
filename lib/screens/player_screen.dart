@@ -299,15 +299,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
       key: ValueKey('lyrics_${song.id}'),
       padding: const EdgeInsets.all(20),
       child: hasLyrics
-          ? GestureDetector(
-              onTap: () => setState(() => _showLyrics = false),
-              child: Column(
-                children: [
-                  Text(song.lyrics, style: const TextStyle(fontSize: 16, height: 1.6)),
-                  const SizedBox(height: 16),
-                  Text('Ketuk untuk kembali ke cover', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-                ],
-              ),
+          ? Column(
+              children: [
+                GestureDetector(
+                  onTap: () => setState(() => _showLyrics = false),
+                  child: Column(
+                    children: [
+                      Text(song.lyrics, style: const TextStyle(fontSize: 16, height: 1.6)),
+                      const SizedBox(height: 16),
+                      Text('Ketuk untuk kembali ke cover', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextButton.icon(
+                  onPressed: () => _addLyricsManually(song),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Edit Lirik'),
+                ),
+              ],
             )
           : Column(
               children: [
