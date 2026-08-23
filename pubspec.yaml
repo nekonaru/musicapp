@@ -29,7 +29,6 @@ dependencies:
 
   # HTTP untuk fetch metadata/album art/lirik dari API eksternal
   http: ^1.2.2
-  dio: ^5.7.0
 
   # Chart untuk dashboard
   fl_chart: ^0.68.0

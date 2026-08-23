@@ -41,8 +41,14 @@ class PlayerService extends ChangeNotifier {
 
   StreamSubscription? _positionSub;
   bool _crossfadeTriggeredForCurrent = false;
+  bool _crossfadeCancelled = false;
 
-  AudioPlayer get player => _usingCrossfadePlayer ? _crossfadePlayer : _player;
+  /// Player yang SEDANG terdengar sekarang (berganti tiap kali crossfade selesai)
+  AudioPlayer get _activePlayer => _usingCrossfadePlayer ? _crossfadePlayer : _player;
+  /// Player "cadangan" yang dipakai buat fade-in lagu berikutnya
+  AudioPlayer get _fadeTargetPlayer => _usingCrossfadePlayer ? _player : _crossfadePlayer;
+
+  AudioPlayer get player => _activePlayer;
 
   Song? get currentSong {
     if (_playOrder.isEmpty || _posInOrder < 0 || _posInOrder >= _playOrder.length) return null;
@@ -69,12 +75,14 @@ class PlayerService extends ChangeNotifier {
         _onTrackFinished();
       }
     });
-    _positionSub = _player.positionStream.listen(_maybeStartCrossfade);
+    _positionSub = _activePlayer.positionStream.listen(_maybeStartCrossfade);
   }
 
   void _maybeStartCrossfade(Duration position) {
-    if (!crossfadeEnabled || _usingCrossfadePlayer || _crossfadeTriggeredForCurrent) return;
-    final dur = _player.duration;
+    // Guard cuma cek "sudah dipicu untuk lagu ini", TIDAK lagi cek _usingCrossfadePlayer -
+    // supaya crossfade tetap bisa terpicu berulang kali untuk setiap lagu, bukan cuma sekali.
+    if (!crossfadeEnabled || _crossfadeTriggeredForCurrent) return;
+    final dur = _activePlayer.duration;
     if (dur == null) return;
     final remaining = dur - position;
     if (remaining <= crossfadeDuration && remaining > Duration.zero) {
@@ -89,43 +97,52 @@ class PlayerService extends ChangeNotifier {
     if (nextPos == null) return;
     final nextSong = _queue[_playOrder[nextPos]];
 
+    // Pakai getter dinamis - bukan hardcode _player/_crossfadePlayer - supaya
+    // benar untuk crossfade KE BERAPA PUN kalinya, bukan cuma yang pertama.
+    final outgoing = _activePlayer;
+    final incoming = _fadeTargetPlayer;
+    _crossfadeCancelled = false;
+
     try {
-      await _crossfadePlayer.setFilePath(nextSong.filePath);
-      await _crossfadePlayer.setVolume(0);
-      await _crossfadePlayer.play();
+      await incoming.setFilePath(nextSong.filePath);
+      await incoming.setVolume(0);
+      await incoming.play();
 
       const steps = 20;
       final stepDuration = crossfadeDuration ~/ steps;
       for (int i = 1; i <= steps; i++) {
         await Future.delayed(stepDuration);
+        if (_crossfadeCancelled) break; // user pencet next/previous di tengah crossfade
         final v = i / steps;
-        _crossfadePlayer.setVolume(v);
-        _player.setVolume(1 - v);
+        incoming.setVolume(v);
+        outgoing.setVolume(1 - v);
       }
-      await _player.pause();
-      await _player.setVolume(1);
+      if (_crossfadeCancelled) {
+        // Dibatalkan di tengah jalan - bersihkan player cadangan, jangan lanjut swap
+        await incoming.pause();
+        await incoming.setVolume(1);
+        await outgoing.setVolume(1);
+        _crossfadeTriggeredForCurrent = false;
+        return;
+      }
 
-      _usingCrossfadePlayer = true;
+      await outgoing.pause();
+      await outgoing.setVolume(1);
+
+      _usingCrossfadePlayer = !_usingCrossfadePlayer;
       _posInOrder = nextPos;
       _crossfadeTriggeredForCurrent = false;
       await DBHelper.instance.markPlayed(nextSong.id);
       _updateNotification();
-      notifyListeners();
 
-      // Swap peran: player utama sekarang jadi player crossfade untuk lagu berikutnya
-      _swapPlayers();
+      _positionSub?.cancel();
+      _positionSub = _activePlayer.positionStream.listen(_maybeStartCrossfade);
+
+      notifyListeners();
     } catch (e) {
       debugPrint('Crossfade gagal, lanjut normal: $e');
       _crossfadeTriggeredForCurrent = false;
     }
-  }
-
-  void _swapPlayers() {
-    // Setelah crossfade selesai, yang tadinya _crossfadePlayer jadi player utama secara logis.
-    // Supaya kode tetap sederhana, kita cukup tukar flag _usingCrossfadePlayer dan pastikan
-    // listener posisi tetap memantau player yang sedang aktif.
-    _positionSub?.cancel();
-    _positionSub = player.positionStream.listen(_maybeStartCrossfade);
   }
 
   int? _computeNextPosition() {
@@ -139,8 +156,10 @@ class PlayerService extends ChangeNotifier {
   /// masing-masing, jadi antrean otomatis terbatas sesuai sumbernya).
   Future<void> setQueueAndPlay(List<Song> songs, int startIndex) async {
     _logListening();
+    _crossfadeCancelled = true;
     _crossfadeTriggeredForCurrent = false;
     _usingCrossfadePlayer = false;
+    await _crossfadePlayer.pause();
     _queue = List.of(songs);
 
     if (_shuffle) {
@@ -214,6 +233,7 @@ class PlayerService extends ChangeNotifier {
   /// urutan acaknya sudah ditentukan sekali di awal - next tidak mengacak ulang.
   Future<void> next() async {
     _logListening();
+    _crossfadeCancelled = true;
     await _crossfadePlayer.pause();
     _usingCrossfadePlayer = false;
     _crossfadeTriggeredForCurrent = false;
@@ -231,6 +251,7 @@ class PlayerService extends ChangeNotifier {
   /// di _playOrder, bukan lagu acak baru.
   Future<void> previous() async {
     _logListening();
+    _crossfadeCancelled = true;
     await _crossfadePlayer.pause();
     _usingCrossfadePlayer = false;
     _crossfadeTriggeredForCurrent = false;
@@ -247,6 +268,8 @@ class PlayerService extends ChangeNotifier {
   Future<void> playAtQueueIndex(int posInOrder) async {
     if (posInOrder < 0 || posInOrder >= _playOrder.length) return;
     _logListening();
+    _crossfadeCancelled = true;
+    await _crossfadePlayer.pause();
     _usingCrossfadePlayer = false;
     _crossfadeTriggeredForCurrent = false;
     _posInOrder = posInOrder;
@@ -273,12 +296,25 @@ class PlayerService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// ID slot antrean (index asli di _queue) untuk tiap posisi di _playOrder -
+  /// dipakai UI supaya bisa hapus lagu yang BENAR meski list sempat berubah
+  /// di tengah proses swipe (index posisi biasa bisa jadi basi, ID slot ini tidak).
+  List<int> get queueSlotIds => List.unmodifiable(_playOrder);
+
   /// Hapus dari antrean (posisi di _playOrder, bukan currently playing)
   void removeFromQueue(int posInOrder) {
     if (posInOrder == _posInOrder || posInOrder < 0 || posInOrder >= _playOrder.length) return;
     _playOrder.removeAt(posInOrder);
     if (posInOrder < _posInOrder) _posInOrder--;
     notifyListeners();
+  }
+
+  /// Hapus dari antrean berdasarkan slot ID (stabil), bukan posisi index biasa -
+  /// aman dipanggil dari swipe-to-dismiss walau list sempat berubah di tengah jalan.
+  void removeQueueSlot(int slotId) {
+    final pos = _playOrder.indexOf(slotId);
+    if (pos == -1) return; // sudah dihapus/berubah duluan, aman diabaikan
+    removeFromQueue(pos);
   }
 
   /// Drag reorder di halaman Antrean - yang diubah urutannya adalah _playOrder

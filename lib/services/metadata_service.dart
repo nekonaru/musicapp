@@ -47,10 +47,13 @@ class MetadataService {
         }
       }
     } catch (_) {
-      // Kalau gagal fetch (offline/no result), biarkan metadata apa adanya
-      song.region ??= 'Tidak diketahui';
-      song.genre ??= 'Tidak diketahui';
+      // Gagal fetch (offline/error jaringan) - biarkan metadata apa adanya
     }
+    // Fallback ini HARUS di luar try-catch supaya tetap jalan walau request
+    // sukses tapi lagunya memang tidak ketemu di iTunes (resultCount == 0) -
+    // kasus umum buat lagu lokal/indie yang tidak terdaftar di sana.
+    song.region ??= 'Tidak diketahui';
+    song.genre ??= 'Tidak diketahui';
 
     // Fetch lirik terpisah
     try {

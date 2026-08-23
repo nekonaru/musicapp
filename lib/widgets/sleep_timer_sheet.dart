@@ -196,7 +196,7 @@ class _SleepTimerSheetState extends State<_SleepTimerSheet> with SingleTickerPro
               ),
             ],
           ),
-          Text(_songCount == 1 ? 'lagu' : 'lagu', style: const TextStyle(color: Colors.grey)),
+          const Text('lagu', style: TextStyle(color: Colors.grey)),
           const SizedBox(height: 16),
           Slider(
             value: _songCount.toDouble(),

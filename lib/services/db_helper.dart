@@ -112,7 +112,13 @@ class DBHelper {
       map['isFavorite'] = existing.first['isFavorite'];
       map['lastPlayedAt'] = existing.first['lastPlayedAt'];
       map['addedAt'] = existing.first['addedAt'];
-      map['metadataScanned'] = existing.first['metadataScanned'];
+      // PENTING: pakai OR, bukan sekadar copy nilai lama.
+      // - Dipanggil dari library_scanner (file-sync tiap app dibuka): objek `s` selalu
+      //   metadataScanned=false, jadi hasil OR = nilai lama di DB (benar, tidak ke-reset).
+      // - Dipanggil dari metadata_service (setelah enrich): objek `s` metadataScanned=true,
+      //   jadi hasil OR = true (benar, TERSIMPAN, tidak ketiban nilai lama yang masih false).
+      final wasScanned = existing.first['metadataScanned'] == 1;
+      map['metadataScanned'] = (wasScanned || s.metadataScanned) ? 1 : 0;
     } else {
       map['addedAt'] = DateTime.now().toIso8601String();
     }

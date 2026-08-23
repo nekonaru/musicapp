@@ -36,6 +36,7 @@ class _QueueScreenState extends State<QueueScreen> {
       animation: _player,
       builder: (context, _) {
         final queue = _player.queue;
+        final slotIds = _player.queueSlotIds;
         final currentIndex = _player.currentIndex;
         if (queue.isNotEmpty) _scrollToCurrentIfNeeded(currentIndex);
 
@@ -67,14 +68,15 @@ class _QueueScreenState extends State<QueueScreen> {
                         onReorder: (oldIndex, newIndex) => _player.reorderQueue(oldIndex, newIndex),
                         itemBuilder: (context, i) {
                           final song = queue[i];
+                          final slotId = slotIds[i]; // ID stabil - tidak berubah meski list ke-refresh
                           final isPlaying = i == currentIndex;
                           return Container(
-                            key: ValueKey('queue_${song.id}_$i'),
+                            key: ValueKey('queue_slot_$slotId'),
                             height: _itemHeight,
                             child: Dismissible(
-                              key: ValueKey('queue_dismiss_${song.id}_$i'),
+                              key: ValueKey('queue_dismiss_slot_$slotId'),
                               direction: isPlaying ? DismissDirection.none : DismissDirection.endToStart,
-                              onDismissed: (_) => _player.removeFromQueue(i),
+                              onDismissed: (_) => _player.removeQueueSlot(slotId),
                               background: Container(
                                 color: Colors.red,
                                 alignment: Alignment.centerRight,
@@ -98,7 +100,7 @@ class _QueueScreenState extends State<QueueScreen> {
                                       if (!isPlaying)
                                         IconButton(
                                           icon: const Icon(Icons.close, size: 20),
-                                          onPressed: () => _player.removeFromQueue(i),
+                                          onPressed: () => _player.removeQueueSlot(slotId),
                                         ),
                                       const Icon(Icons.drag_handle, color: Colors.grey),
                                     ],
