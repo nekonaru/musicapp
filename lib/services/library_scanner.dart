@@ -17,7 +17,8 @@ class LibraryScanner {
   }
 
   /// Scan semua file musik di device, simpan ke DB kalau belum ada,
-  /// lalu jalankan auto-fetch metadata untuk lagu yang masih kosong.
+  /// lalu (opsional) jalankan auto-fetch metadata HANYA untuk lagu yang
+  /// benar-benar belum pernah discan (dicek dari DB, bukan objek sementara).
   Future<List<Song>> scanAndSync({bool autoFetchMetadata = true}) async {
     final granted = await requestPermission();
     if (!granted) {
@@ -25,6 +26,7 @@ class LibraryScanner {
     }
 
     final excluded = await DBHelper.instance.getExcludedFolders();
+    final alreadyScannedIds = await DBHelper.instance.getScannedSongIds();
     final tracks = await _audioQuery.querySongs(
       sortType: SongSortType.TITLE,
       orderType: OrderType.ASC_OR_SMALLER,
@@ -32,6 +34,7 @@ class LibraryScanner {
     );
 
     final List<Song> result = [];
+    final List<Song> needsMetadata = [];
     for (final track in tracks) {
       final folder = folderOf(track.data);
       if (excluded.contains(folder)) continue;
@@ -48,15 +51,19 @@ class LibraryScanner {
       );
       await DBHelper.instance.upsertSong(song);
       result.add(song);
+
+      // Cek status SEBENARNYA dari DB (bukan objek `song` yang baru dibuat,
+      // yang selalu punya genre=null meski datanya sudah tersimpan di DB).
+      if (!alreadyScannedIds.contains(song.id)) {
+        needsMetadata.add(song);
+      }
     }
 
-    if (autoFetchMetadata) {
-      // Lengkapi metadata (genre, region, lirik, album art) di background
-      // untuk lagu yang belum punya data lengkap.
-      for (final song in result) {
-        if (song.genre == null || song.lyrics == null || song.albumArtUrl == null) {
-          await MetadataService.instance.enrichSong(song);
-        }
+    if (autoFetchMetadata && needsMetadata.isNotEmpty) {
+      const batchSize = 5;
+      for (int i = 0; i < needsMetadata.length; i += batchSize) {
+        final batch = needsMetadata.skip(i).take(batchSize);
+        await Future.wait(batch.map((s) => MetadataService.instance.enrichSong(s)));
       }
     }
 

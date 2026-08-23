@@ -31,6 +31,9 @@ class PlayerService extends ChangeNotifier {
 
   Timer? _sleepTimer;
   DateTime? sleepTimerEndTime;
+  int? sleepSongsRemaining;
+  bool _finishCurrentSongOnSleep = false;
+  bool _pendingSleepStop = false;
   String? lastError;
 
   DateTime? _playStartedAt;
@@ -345,16 +348,33 @@ class PlayerService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Timer tidur dengan hitung mundur yang bisa ditampilkan di UI
-  void setSleepTimer(Duration duration) {
+  /// Timer tidur berbasis WAKTU dengan hitung mundur.
+  /// [finishCurrentSong] true = tidak langsung stop pas waktu habis, tapi
+  /// tunggu lagu yang sedang diputar selesai dulu baru berhenti.
+  void setSleepTimer(Duration duration, {bool finishCurrentSong = false}) {
     _sleepTimer?.cancel();
+    sleepSongsRemaining = null; // mode waktu & mode lagu saling eksklusif
     sleepTimerEndTime = DateTime.now().add(duration);
+    _finishCurrentSongOnSleep = finishCurrentSong;
     _sleepTimer = Timer(duration, () async {
-      _logListening();
-      await player.pause();
       sleepTimerEndTime = null;
+      if (_finishCurrentSongOnSleep) {
+        _pendingSleepStop = true; // ditangani di _onTrackFinished()
+      } else {
+        _logListening();
+        await player.pause();
+      }
       notifyListeners();
     });
+    notifyListeners();
+  }
+
+  /// Timer tidur berbasis JUMLAH LAGU - berhenti otomatis setelah N lagu
+  /// (dihitung dari lagu yang sedang diputar sekarang, termasuk).
+  void setSleepTimerBySongs(int songCount) {
+    _sleepTimer?.cancel();
+    sleepTimerEndTime = null; // mode waktu & mode lagu saling eksklusif
+    sleepSongsRemaining = songCount;
     notifyListeners();
   }
 
@@ -368,10 +388,32 @@ class PlayerService extends ChangeNotifier {
     _sleepTimer?.cancel();
     _sleepTimer = null;
     sleepTimerEndTime = null;
+    sleepSongsRemaining = null;
+    _pendingSleepStop = false;
     notifyListeners();
   }
 
   void _onTrackFinished() {
+    // Mode hitung jumlah lagu: kurangi 1, berhenti kalau sudah habis
+    if (sleepSongsRemaining != null) {
+      sleepSongsRemaining = sleepSongsRemaining! - 1;
+      if (sleepSongsRemaining! <= 0) {
+        sleepSongsRemaining = null;
+        _logListening();
+        player.pause();
+        notifyListeners();
+        return;
+      }
+    }
+    // Mode waktu dengan "selesaikan lagu terakhir": lagu barusan itu yang terakhir
+    if (_pendingSleepStop) {
+      _pendingSleepStop = false;
+      _logListening();
+      player.pause();
+      notifyListeners();
+      return;
+    }
+
     if (_repeatMode == RepeatMode.one) {
       _usingCrossfadePlayer = false;
       _crossfadeTriggeredForCurrent = false;

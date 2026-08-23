@@ -67,6 +67,7 @@ class MetadataService {
       // lirik tidak ditemukan, biarkan null — user bisa isi manual lewat fitur edit
     }
 
+    song.metadataScanned = true;
     await DBHelper.instance.upsertSong(song);
   }
 

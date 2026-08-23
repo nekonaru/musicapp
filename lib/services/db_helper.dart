@@ -17,7 +17,7 @@ class DBHelper {
     final path = p.join(dbPath, 'music_app.db');
     return openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE songs(
@@ -34,7 +34,8 @@ class DBHelper {
             durationMs INTEGER,
             isFavorite INTEGER DEFAULT 0,
             lastPlayedAt TEXT,
-            addedAt TEXT
+            addedAt TEXT,
+            metadataScanned INTEGER DEFAULT 0
           )
         ''');
         await db.execute('''
@@ -86,6 +87,16 @@ class DBHelper {
             // Kolom mungkin sudah ada, abaikan
           }
         }
+        if (oldVersion < 4) {
+          // Tandai eksplisit lagu yang sudah pernah di-scan metadata-nya,
+          // supaya fitur "scan yang belum ada metadata saja" akurat.
+          try {
+            await db.execute('ALTER TABLE songs ADD COLUMN metadataScanned INTEGER DEFAULT 0');
+            await db.execute("UPDATE songs SET metadataScanned = 1 WHERE genre IS NOT NULL OR lyrics IS NOT NULL");
+          } catch (_) {
+            // Kolom mungkin sudah ada, abaikan
+          }
+        }
       },
     );
   }
@@ -101,6 +112,7 @@ class DBHelper {
       map['isFavorite'] = existing.first['isFavorite'];
       map['lastPlayedAt'] = existing.first['lastPlayedAt'];
       map['addedAt'] = existing.first['addedAt'];
+      map['metadataScanned'] = existing.first['metadataScanned'];
     } else {
       map['addedAt'] = DateTime.now().toIso8601String();
     }
@@ -111,6 +123,14 @@ class DBHelper {
     final database = await db;
     final rows = await database.query('songs', orderBy: 'title ASC');
     return rows.map((r) => Song.fromMap(r)).toList();
+  }
+
+  /// Set ID lagu yang sudah pernah discan metadata-nya (dipakai supaya
+  /// tidak fetch ulang ke internet untuk lagu yang sama berkali-kali).
+  Future<Set<int>> getScannedSongIds() async {
+    final database = await db;
+    final rows = await database.query('songs', where: 'metadataScanned = 1', columns: ['id']);
+    return rows.map((r) => r['id'] as int).toSet();
   }
 
   /// Lagu diurutkan berdasarkan waktu benar-benar ditambahkan ke library,

@@ -9,6 +9,7 @@ import '../providers/library_provider.dart';
 import '../providers/playlist_provider.dart';
 import '../utils/song_options.dart';
 import '../widgets/marquee_text.dart';
+import '../widgets/sleep_timer_sheet.dart';
 import 'edit_lyrics_screen.dart';
 import 'queue_screen.dart';
 
@@ -41,100 +42,36 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<void> _pickSleepTimer() async {
-    final result = await showModalBottomSheet<Object>(
-      context: context,
-      builder: (ctx) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(12),
-            child: Text('Timer Tidur', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          for (final m in [10, 15, 30, 45, 60])
-            ListTile(title: Text('$m menit'), onTap: () => Navigator.pop(ctx, m)),
-          ListTile(
-            leading: const Icon(Icons.edit_outlined),
-            title: const Text('Kustom (jam & menit)...'),
-            onTap: () => Navigator.pop(ctx, 'custom'),
-          ),
-          ListTile(
-            title: const Text('Batalkan timer'),
-            onTap: () => Navigator.pop(ctx, 0),
-          ),
-        ],
-      ),
-    );
+    final result = await showSleepTimerSheet(context);
     if (result == null) return;
 
-    Duration? finalDuration;
-    if (result == 'custom') {
-      finalDuration = await _promptCustomDuration();
-      if (finalDuration == null) return;
-    } else if (result == 0) {
+    if (result.cancel) {
       _player.cancelSleepTimer();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Timer dibatalkan')));
       }
       return;
-    } else if (result is int) {
-      finalDuration = Duration(minutes: result);
     }
 
-    if (finalDuration != null) {
-      _player.setSleepTimer(finalDuration);
+    if (result.songCount != null) {
+      _player.setSleepTimerBySongs(result.songCount!);
       if (mounted) {
-        final h = finalDuration.inHours;
-        final m = finalDuration.inMinutes % 60;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Timer diatur: berhenti setelah ${result.songCount} lagu')),
+        );
+      }
+      return;
+    }
+
+    if (result.duration != null) {
+      _player.setSleepTimer(result.duration!, finishCurrentSong: result.finishCurrentSong);
+      if (mounted) {
+        final h = result.duration!.inHours;
+        final m = result.duration!.inMinutes % 60;
         final label = h > 0 ? '$h jam ${m > 0 ? '$m menit' : ''}'.trim() : '$m menit';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Timer diatur $label')));
       }
     }
-  }
-
-  Future<Duration?> _promptCustomDuration() async {
-    final hourController = TextEditingController();
-    final minuteController = TextEditingController();
-    return showDialog<Duration>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Timer Kustom'),
-        content: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: hourController,
-                autofocus: true,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Jam'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                controller: minuteController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Menit'),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
-          FilledButton(
-            onPressed: () {
-              final h = int.tryParse(hourController.text) ?? 0;
-              final m = int.tryParse(minuteController.text) ?? 0;
-              if (h == 0 && m == 0) {
-                Navigator.pop(ctx);
-                return;
-              }
-              Navigator.pop(ctx, Duration(hours: h, minutes: m));
-            },
-            child: const Text('Atur'),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _pickPlaybackSpeed() async {
@@ -321,10 +258,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
             )
           : Column(
               children: [
-                const SizedBox(height: 40),
-                Icon(Icons.lyrics_outlined, size: 56, color: Colors.grey[500]),
-                const SizedBox(height: 12),
-                const Text('Lirik tidak ditemukan', style: TextStyle(fontSize: 16)),
+                GestureDetector(
+                  onTap: () => setState(() => _showLyrics = false),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 40),
+                      Icon(Icons.lyrics_outlined, size: 56, color: Colors.grey[500]),
+                      const SizedBox(height: 12),
+                      const Text('Lirik tidak ditemukan', style: TextStyle(fontSize: 16)),
+                      const SizedBox(height: 4),
+                      Text('Ketuk di sini untuk kembali ke cover', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 20),
                 Wrap(
                   spacing: 8,
@@ -527,7 +473,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
               TextButton.icon(
                 onPressed: _pickSleepTimer,
                 icon: const Icon(Icons.bedtime_outlined),
-                label: Text(remaining != null ? _fmtCountdown(remaining) : 'Timer Tidur'),
+                label: Text(
+                  remaining != null
+                      ? _fmtCountdown(remaining)
+                      : (_player.sleepSongsRemaining != null
+                          ? '${_player.sleepSongsRemaining} lagu lagi'
+                          : 'Timer Tidur'),
+                ),
               ),
               TextButton.icon(
                 onPressed: _pickPlaybackSpeed,

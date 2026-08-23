@@ -30,12 +30,14 @@ class LibraryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Scan file dari HP (deteksi lagu baru/hapus), TANPA fetch metadata internet.
+  /// Cepat dan aman dipanggil otomatis tiap kali app dibuka.
   Future<void> scanDevice() async {
     isScanning = true;
     scanError = null;
     notifyListeners();
     try {
-      await LibraryScanner().scanAndSync();
+      await LibraryScanner().scanAndSync(autoFetchMetadata: false);
       await loadFromDb();
       isScanning = false;
       notifyListeners();
@@ -47,18 +49,21 @@ class LibraryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Scan ulang metadata untuk SEMUA lagu di library (dipanggil dari tombol bulk scan).
-  /// Diproses per-batch (5 lagu sekaligus) supaya lebih cepat dibanding satu-satu,
-  /// tapi tidak terlalu agresif membombardir API gratis (rawan kena rate-limit).
-  Future<void> bulkScanMetadata() async {
+  /// Scan ulang metadata (dipanggil dari tombol bulk scan di Semua Lagu/Folder).
+  /// [onlyMissing] true = cuma proses lagu yang belum pernah discan (hemat, dipakai
+  /// otomatis buat lagu baru); false = paksa scan ulang semua lagu dari nol.
+  Future<void> bulkScanMetadata({bool onlyMissing = false}) async {
+    final targets = onlyMissing ? songs.where((s) => !s.metadataScanned).toList() : songs;
+    if (targets.isEmpty) return;
+
     isBulkScanningMetadata = true;
-    bulkScanTotal = songs.length;
+    bulkScanTotal = targets.length;
     bulkScanProgress = 0;
     notifyListeners();
 
     const batchSize = 5;
-    for (int i = 0; i < songs.length; i += batchSize) {
-      final batch = songs.skip(i).take(batchSize);
+    for (int i = 0; i < targets.length; i += batchSize) {
+      final batch = targets.skip(i).take(batchSize);
       await Future.wait(batch.map((song) => MetadataService.instance.enrichSong(song)));
       bulkScanProgress += batch.length;
       notifyListeners();

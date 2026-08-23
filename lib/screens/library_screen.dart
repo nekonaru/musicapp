@@ -282,21 +282,42 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   void _confirmBulkScan(BuildContext context, LibraryProvider lib) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Scan Ulang Semua Metadata'),
-        content: Text('Ini akan mengambil ulang judul, artis, album art, genre, dan lirik untuk semua ${lib.songs.length} lagu dari internet. Proses ini butuh koneksi internet dan bisa memakan waktu.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              lib.bulkScanMetadata();
-            },
-            child: const Text('Mulai Scan'),
-          ),
-        ],
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.cloud_sync_outlined),
+              title: const Text('Scan yang Belum Ada Metadata'),
+              subtitle: const Text('Cuma proses lagu baru yang belum pernah discan'),
+              onTap: () {
+                Navigator.pop(ctx);
+                lib.bulkScanMetadata(onlyMissing: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.refresh),
+              title: const Text('Scan Ulang Semua'),
+              subtitle: Text('Paksa ambil ulang untuk semua ${lib.totalCount} lagu dari internet'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (c) => AlertDialog(
+                    title: const Text('Scan Ulang Semua'),
+                    content: Text('Ambil ulang metadata untuk semua ${lib.totalCount} lagu? Ini butuh waktu lebih lama.'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Batal')),
+                      FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Mulai')),
+                    ],
+                  ),
+                );
+                if (confirm == true) lib.bulkScanMetadata(onlyMissing: false);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

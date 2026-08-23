@@ -18,11 +18,14 @@ class FoldersScreen extends StatefulWidget {
   State<FoldersScreen> createState() => _FoldersScreenState();
 }
 
+enum FolderSortOption { nameAZ, nameZA, songCountDesc }
+
 class _FoldersScreenState extends State<FoldersScreen> {
   List<String> _folders = [];
   Set<String> _excluded = {};
   bool _showHidden = false;
   Map<String, List<Song>> _songsByFolder = {};
+  FolderSortOption _sortOption = FolderSortOption.nameAZ;
 
   @override
   void initState() {
@@ -56,17 +59,50 @@ class _FoldersScreenState extends State<FoldersScreen> {
     }
   }
 
+  List<String> _sortedFolders(List<String> folders) {
+    final sorted = List<String>.of(folders);
+    switch (_sortOption) {
+      case FolderSortOption.nameAZ:
+        sorted.sort((a, b) => compareTitles(a.split('/').last, b.split('/').last));
+        break;
+      case FolderSortOption.nameZA:
+        sorted.sort((a, b) => compareTitles(b.split('/').last, a.split('/').last));
+        break;
+      case FolderSortOption.songCountDesc:
+        sorted.sort((a, b) => (_songsByFolder[b]?.length ?? 0).compareTo(_songsByFolder[a]?.length ?? 0));
+        break;
+    }
+    return sorted;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final visibleFolders = _showHidden
-        ? _folders
-        : _folders.where((f) => !_excluded.contains(f)).toList();
+    final visibleFolders = _sortedFolders(
+      _showHidden ? _folders : _folders.where((f) => !_excluded.contains(f)).toList(),
+    );
 
     if (_folders.isEmpty) {
       return const Center(child: Text('Belum ada folder musik terdeteksi.'));
     }
     return Column(
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+          child: Row(
+            children: [
+              const Expanded(child: Text('Urutkan folder', style: TextStyle(fontSize: 12, color: Colors.grey))),
+              PopupMenuButton<FolderSortOption>(
+                icon: const Icon(Icons.sort),
+                onSelected: (v) => setState(() => _sortOption = v),
+                itemBuilder: (context) => const [
+                  PopupMenuItem(value: FolderSortOption.nameAZ, child: Text('Nama A-Z')),
+                  PopupMenuItem(value: FolderSortOption.nameZA, child: Text('Nama Z-A')),
+                  PopupMenuItem(value: FolderSortOption.songCountDesc, child: Text('Jumlah lagu terbanyak')),
+                ],
+              ),
+            ],
+          ),
+        ),
         SwitchListTile(
           title: const Text('Tampilkan folder tersembunyi'),
           value: _showHidden,
@@ -136,14 +172,21 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
         s.title.toLowerCase().contains(q) || s.artist.toLowerCase().contains(q)).toList();
   }
 
-  Future<void> _scanThisFolder() async {
+  Future<void> _scanThisFolder({required bool onlyMissing}) async {
+    final targets = onlyMissing ? widget.songs.where((s) => !s.metadataScanned).toList() : widget.songs;
+    if (targets.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Semua lagu di folder ini sudah pernah discan')),
+      );
+      return;
+    }
     setState(() {
       _isScanning = true;
       _scanProgress = 0;
     });
     const batchSize = 5;
-    for (int i = 0; i < widget.songs.length; i += batchSize) {
-      final batch = widget.songs.skip(i).take(batchSize);
+    for (int i = 0; i < targets.length; i += batchSize) {
+      final batch = targets.skip(i).take(batchSize);
       await Future.wait(batch.map((s) => MetadataService.instance.enrichSong(s)));
       setState(() => _scanProgress += batch.length);
     }
@@ -154,6 +197,36 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
         const SnackBar(content: Text('Selesai scan metadata folder ini')),
       );
     }
+  }
+
+  void _pickScanMode() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.cloud_sync_outlined),
+              title: const Text('Scan yang Belum Ada Metadata'),
+              subtitle: const Text('Cuma proses lagu baru di folder ini'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _scanThisFolder(onlyMissing: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.refresh),
+              title: const Text('Scan Ulang Semua'),
+              subtitle: const Text('Paksa ambil ulang semua lagu di folder ini'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _scanThisFolder(onlyMissing: false);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -172,8 +245,8 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
           else
             IconButton(
               icon: const Icon(Icons.cloud_sync_outlined),
-              tooltip: 'Scan ulang metadata folder ini',
-              onPressed: widget.songs.isEmpty ? null : _scanThisFolder,
+              tooltip: 'Scan metadata folder ini',
+              onPressed: widget.songs.isEmpty ? null : _pickScanMode,
             ),
         ],
       ),

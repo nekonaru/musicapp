@@ -12,6 +12,7 @@ class Song {
   int durationMs;
   bool isFavorite;
   DateTime? addedAt;
+  bool metadataScanned;
 
   Song({
     required this.id,
@@ -27,6 +28,7 @@ class Song {
     this.durationMs = 0,
     this.isFavorite = false,
     this.addedAt,
+    this.metadataScanned = false,
   });
 
   Map<String, dynamic> toMap() => {
@@ -43,6 +45,7 @@ class Song {
         'durationMs': durationMs,
         'isFavorite': isFavorite ? 1 : 0,
         'addedAt': addedAt?.toIso8601String(),
+        'metadataScanned': metadataScanned ? 1 : 0,
       };
 
   factory Song.fromMap(Map<String, dynamic> map) => Song(
@@ -59,6 +62,7 @@ class Song {
         durationMs: map['durationMs'] ?? 0,
         isFavorite: (map['isFavorite'] ?? 0) == 1,
         addedAt: map['addedAt'] != null ? DateTime.tryParse(map['addedAt']) : null,
+        metadataScanned: (map['metadataScanned'] ?? 0) == 1,
       );
 }
 

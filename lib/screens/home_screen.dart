@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'library_screen.dart';
 import 'extra_screens.dart';
 import 'history_screen.dart';
 import 'dashboard_screen.dart';
 import 'settings_screen.dart';
+import '../providers/library_provider.dart';
 import '../widgets/mini_player.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -19,6 +21,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   late final TabController _musicTabs = TabController(length: 2, vsync: this);
   late final TabController _collectionTabs = TabController(length: 3, vsync: this);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _autoDetectNewFiles());
+  }
+
+  /// Setiap app dibuka: cek file baru/hilang di HP (cepat, tanpa internet),
+  /// lalu diam-diam lengkapi metadata lagu yang baru ketemu di background -
+  /// jadi lagu baru otomatis muncul lengkap tanpa perlu scan manual.
+  Future<void> _autoDetectNewFiles() async {
+    final lib = context.read<LibraryProvider>();
+    await lib.scanDevice();
+    if (mounted) {
+      lib.bulkScanMetadata(onlyMissing: true); // tidak di-await, jalan di background
+    }
+  }
 
   @override
   void dispose() {
