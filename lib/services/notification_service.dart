@@ -33,7 +33,7 @@ class NotificationService {
     try {
       // Android 13+ mewajibkan izin notifikasi diminta secara aktif saat runtime
       await Permission.notification.request();
-      const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const androidInit = AndroidInitializationSettings('ic_stat_swara');
       const initSettings = InitializationSettings(android: androidInit);
       await _plugin.initialize(
         initSettings,
