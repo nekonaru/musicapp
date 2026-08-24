@@ -129,8 +129,14 @@ class PlayerService extends ChangeNotifier {
       await outgoing.pause();
       await outgoing.setVolume(1);
 
+      // PENTING: catat riwayat dengar lagu LAMA dulu (pakai currentSong yang masih
+      // menunjuk ke lagu lama, sebelum _posInOrder berpindah), baru reset jam mulai
+      // untuk lagu BARU - supaya listening_entries tidak salah atribusi/durasi dobel.
+      _logListening();
       _usingCrossfadePlayer = !_usingCrossfadePlayer;
       _posInOrder = nextPos;
+      _playStartedAt = DateTime.now();
+      _accumulatedListenedMs = 0;
       _crossfadeTriggeredForCurrent = false;
       await DBHelper.instance.markPlayed(nextSong.id);
       _updateNotification();

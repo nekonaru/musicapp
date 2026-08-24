@@ -6,10 +6,10 @@ import '../models/song.dart';
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  State<DashboardScreen> createState() => DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class DashboardScreenState extends State<DashboardScreen> {
   Map<DateTime, int> _daily = {};
   List<MapEntry<int, int>> _topSongIds = [];
   List<MapEntry<String, int>> _topArtists = [];
@@ -23,6 +23,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     _load();
   }
+
+  /// Dipanggil dari HomeScreen tiap kali tab Dashboard dipilih, supaya data
+  /// selalu terbaru (misalnya abis dengar lagu baru di tab lain) tanpa perlu
+  /// pull-to-refresh manual - soalnya widget ini tidak pernah di-dispose
+  /// selama sesi app (dipertahankan oleh IndexedStack).
+  Future<void> reload() => _load();
 
   Future<void> _load() async {
     final daily = await DBHelper.instance.getDailyListeningLast7Days();

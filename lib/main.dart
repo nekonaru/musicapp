@@ -17,11 +17,16 @@ void main() async {
     debugPrint('Notifikasi kontrol musik tidak tersedia: $e');
   }
   await PlayerService.instance.init();
-  runApp(const MusicApp());
+
+  final themeProvider = ThemeProvider();
+  await themeProvider.load(); // baca tema tersimpan SEBELUM app pertama kali dirender
+
+  runApp(MusicApp(themeProvider: themeProvider));
 }
 
 class MusicApp extends StatelessWidget {
-  const MusicApp({super.key});
+  final ThemeProvider themeProvider;
+  const MusicApp({super.key, required this.themeProvider});
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +34,7 @@ class MusicApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => LibraryProvider()),
         ChangeNotifierProvider(create: (_) => PlaylistProvider()),
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider.value(value: themeProvider),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) => MaterialApp(

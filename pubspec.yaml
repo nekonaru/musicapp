@@ -27,6 +27,9 @@ dependencies:
   # State management
   provider: ^6.1.2
 
+  # Simpan preferensi (tema, dll) supaya tidak reset tiap app dibuka
+  shared_preferences: ^2.3.2
+
   # HTTP untuk fetch metadata/album art/lirik dari API eksternal
   http: ^1.2.2
 

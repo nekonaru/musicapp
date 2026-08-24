@@ -22,10 +22,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late final TabController _musicTabs = TabController(length: 2, vsync: this);
   late final TabController _collectionTabs = TabController(length: 3, vsync: this);
 
+  final _dashboardKey = GlobalKey<DashboardScreenState>();
+  final _historyKey = GlobalKey<HistoryScreenState>();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _autoDetectNewFiles());
+    _collectionTabs.addListener(_onCollectionSubTabChanged);
+  }
+
+  void _onCollectionSubTabChanged() {
+    if (_collectionTabs.indexIsChanging) return;
+    if (_collectionTabs.index == 2) _historyKey.currentState?.reload();
   }
 
   /// Setiap app dibuka: cek file baru/hilang di HP (cepat, tanpa internet),
@@ -41,6 +50,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _collectionTabs.removeListener(_onCollectionSubTabChanged);
     _musicTabs.dispose();
     _collectionTabs.dispose();
     super.dispose();
@@ -126,9 +136,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
             TabBarView(
               controller: _collectionTabs,
-              children: const [FavoritesScreen(), PlaylistsScreen(), HistoryScreen()],
+              children: [const FavoritesScreen(), const PlaylistsScreen(), HistoryScreen(key: _historyKey)],
             ),
-            const DashboardScreen(),
+            DashboardScreen(key: _dashboardKey),
           ],
         ),
         bottomNavigationBar: Column(
@@ -137,7 +147,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             const MiniPlayer(),
             NavigationBar(
               selectedIndex: _groupIndex,
-              onDestinationSelected: (i) => setState(() => _groupIndex = i),
+              onDestinationSelected: (i) {
+                setState(() => _groupIndex = i);
+                if (i == 2) _dashboardKey.currentState?.reload();
+                if (i == 1 && _collectionTabs.index == 2) _historyKey.currentState?.reload();
+              },
               destinations: const [
                 NavigationDestination(icon: Icon(Icons.library_music), label: 'Musik'),
                 NavigationDestination(icon: Icon(Icons.favorite), label: 'Koleksi'),

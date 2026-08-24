@@ -8,10 +8,10 @@ import '../utils/format.dart';
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
   @override
-  State<HistoryScreen> createState() => _HistoryScreenState();
+  State<HistoryScreen> createState() => HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> {
+class HistoryScreenState extends State<HistoryScreen> {
   List<Song> _history = [];
 
   @override
@@ -19,6 +19,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     super.initState();
     _load();
   }
+
+  /// Dipanggil dari HomeScreen tiap kali tab Riwayat dipilih, supaya lagu
+  /// yang baru saja diputar langsung muncul tanpa perlu pull-to-refresh manual.
+  Future<void> reload() => _load();
 
   Future<void> _load() async {
     final history = await DBHelper.instance.getRecentlyPlayed();
