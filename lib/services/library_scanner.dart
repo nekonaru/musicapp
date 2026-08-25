@@ -33,6 +33,11 @@ class LibraryScanner {
       uriType: UriType.EXTERNAL,
     );
 
+    // ID SEMUA lagu yang beneran masih ada di device (termasuk yang folder-nya
+    // disembunyikan) - dipakai buat bersihkan "lagu hantu" tanpa ikut menghapus
+    // lagu yang cuma disembunyikan (bukan beneran hilang).
+    final allDeviceIds = tracks.map((t) => t.id).toSet();
+
     final List<Song> result = [];
     final List<Song> needsMetadata = [];
     for (final track in tracks) {
@@ -58,6 +63,10 @@ class LibraryScanner {
         needsMetadata.add(song);
       }
     }
+
+    // Bersihkan lagu "hantu" - yang ada di DB tapi file aslinya sudah
+    // dihapus/dipindah dari HP di luar aplikasi.
+    await DBHelper.instance.deleteSongsMissingFromDevice(allDeviceIds);
 
     if (autoFetchMetadata && needsMetadata.isNotEmpty) {
       const batchSize = 5;

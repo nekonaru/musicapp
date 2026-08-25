@@ -131,6 +131,28 @@ class DBHelper {
     return rows.map((r) => Song.fromMap(r)).toList();
   }
 
+  /// Hapus dari DB lagu-lagu yang file aslinya sudah tidak ada lagi di HP
+  /// (dihapus/dipindah user di luar aplikasi). [existingIds] adalah SEMUA id
+  /// lagu yang masih benar-benar terdeteksi di device (termasuk yang folder-nya
+  /// disembunyikan - supaya lagu di folder tersembunyi TIDAK ikut kehapus).
+  Future<int> deleteSongsMissingFromDevice(Set<int> existingIds) async {
+    final database = await db;
+    final allDbIds = (await database.query('songs', columns: ['id']))
+        .map((r) => r['id'] as int)
+        .toSet();
+    final ghostIds = allDbIds.difference(existingIds);
+    if (ghostIds.isEmpty) return 0;
+
+    final batch = database.batch();
+    for (final id in ghostIds) {
+      batch.delete('songs', where: 'id = ?', whereArgs: [id]);
+      batch.delete('playlist_songs', where: 'songId = ?', whereArgs: [id]);
+      batch.delete('listening_entries', where: 'songId = ?', whereArgs: [id]);
+    }
+    await batch.commit(noResult: true);
+    return ghostIds.length;
+  }
+
   /// Set ID lagu yang sudah pernah discan metadata-nya (dipakai supaya
   /// tidak fetch ulang ke internet untuk lagu yang sama berkali-kali).
   Future<Set<int>> getScannedSongIds() async {
