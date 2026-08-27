@@ -77,8 +77,41 @@ jobs:
         run: flutter pub get
 
       - name: Patch namespace untuk plugin lama yang belum kompatibel AGP terbaru
+        # Flutter 3.29+ menggunakan Kotlin DSL (build.gradle.kts), bukan Groovy (build.gradle).
+        # Step ini mendeteksi mana yang ada dan menulis sintaks yang sesuai.
+        # Menulis ke build.gradle (Groovy) saat yang ada hanya build.gradle.kts akan
+        # menciptakan dua file sekaligus → Gradle error "cannot both exist".
         run: |
-          cat >> android/build.gradle << 'EOF'
+          if [ -f android/build.gradle.kts ]; then
+            # Kotlin DSL — pakai sintaks lambda, bukan closure Groovy
+            cat >> android/build.gradle.kts << 'EOF'
+
+          subprojects {
+              afterEvaluate {
+                  val androidExt = extensions.findByName("android")
+                  if (androidExt != null) {
+                      val android = androidExt as com.android.build.gradle.BaseExtension
+                      if (android.namespace == null) {
+                          android.namespace = group.toString()
+                      }
+                      android.compileOptions {
+                          sourceCompatibility = JavaVersion.VERSION_17
+                          targetCompatibility = JavaVersion.VERSION_17
+                          isCoreLibraryDesugaringEnabled = true
+                      }
+                      dependencies.add("coreLibraryDesugaring", "com.android.tools:desugar_jdk_libs:2.1.4")
+                      android.defaultConfig.multiDexEnabled = true
+                  }
+                  tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+                      kotlinOptions { jvmTarget = "17" }
+                  }
+              }
+          }
+          EOF
+          else
+            # Groovy DSL — flutter create lama (sebelum 3.29)
+            cat >> android/build.gradle << 'EOF'
+
           subprojects {
               afterEvaluate { project ->
                   if (project.hasProperty('android')) {
@@ -98,14 +131,13 @@ jobs:
                           }
                       }
                       project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-                          kotlinOptions {
-                              jvmTarget = "17"
-                          }
+                          kotlinOptions { jvmTarget = "17" }
                       }
                   }
               }
           }
           EOF
+          fi
 
       - name: Build APK
         run: flutter build apk --release

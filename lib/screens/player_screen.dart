@@ -243,7 +243,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   onTap: () => setState(() => _showLyrics = false),
                   child: Column(
                     children: [
-                      Text(song.lyrics, style: const TextStyle(fontSize: 16, height: 1.6)),
+                      Text(song.lyrics ?? '', style: const TextStyle(fontSize: 16, height: 1.6)),
                       const SizedBox(height: 16),
                       Text('Ketuk untuk kembali ke cover', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
                     ],
