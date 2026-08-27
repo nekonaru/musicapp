@@ -451,7 +451,7 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
                 children: [
                   Expanded(
                     child: FilledButton.icon(
-                      onPressed: () => PlayerService.instance.setQueueAndPlay(displayed, 0),
+                      onPressed: displayed.isEmpty ? null : () => PlayerService.instance.setQueueAndPlay(displayed, 0),
                       icon: const Icon(Icons.play_arrow),
                       label: const Text('Mulai Putar'),
                     ),
@@ -459,7 +459,7 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () async {
+                      onPressed: displayed.isEmpty ? null : () async {
                         final randomStart = Random().nextInt(displayed.length);
                         await PlayerService.instance.setQueueAndPlay(displayed, randomStart);
                         PlayerService.instance.setShuffle(true);
@@ -707,7 +707,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 children: [
                   Expanded(
                     child: FilledButton.icon(
-                      onPressed: () => PlayerService.instance.setQueueAndPlay(favs, 0),
+                      onPressed: favs.isEmpty ? null : () => PlayerService.instance.setQueueAndPlay(favs, 0),
                       icon: const Icon(Icons.play_arrow),
                       label: const Text('Mulai Putar'),
                     ),
@@ -715,7 +715,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () async {
+                      onPressed: favs.isEmpty ? null : () async {
                         final randomStart = Random().nextInt(favs.length);
                         await PlayerService.instance.setQueueAndPlay(favs, randomStart);
                         PlayerService.instance.setShuffle(true);

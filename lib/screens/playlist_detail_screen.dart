@@ -183,7 +183,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                     children: [
                       Expanded(
                         child: FilledButton.icon(
-                          onPressed: () => PlayerService.instance.setQueueAndPlay(displayed, 0),
+                          onPressed: displayed.isEmpty ? null : () => PlayerService.instance.setQueueAndPlay(displayed, 0),
                           icon: const Icon(Icons.play_arrow),
                           label: const Text('Mulai Putar'),
                         ),
@@ -191,7 +191,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () async {
+                          onPressed: displayed.isEmpty ? null : () async {
                             final randomStart = Random().nextInt(displayed.length);
                             await PlayerService.instance.setQueueAndPlay(displayed, randomStart);
                             PlayerService.instance.setShuffle(true);
