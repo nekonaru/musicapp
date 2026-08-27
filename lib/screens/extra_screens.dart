@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -459,7 +460,8 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () async {
-                        await PlayerService.instance.setQueueAndPlay(displayed, 0);
+                        final randomStart = Random().nextInt(displayed.length);
+                        await PlayerService.instance.setQueueAndPlay(displayed, randomStart);
                         PlayerService.instance.setShuffle(true);
                       },
                       icon: const Icon(Icons.shuffle),
@@ -714,7 +716,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () async {
-                        await PlayerService.instance.setQueueAndPlay(favs, 0);
+                        final randomStart = Random().nextInt(favs.length);
+                        await PlayerService.instance.setQueueAndPlay(favs, randomStart);
                         PlayerService.instance.setShuffle(true);
                       },
                       icon: const Icon(Icons.shuffle),

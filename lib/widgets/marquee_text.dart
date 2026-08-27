@@ -14,22 +14,28 @@ class MarqueeText extends StatefulWidget {
 
 class _MarqueeTextState extends State<MarqueeText> {
   final ScrollController _scrollController = ScrollController();
-  // _loopId: bertambah setiap kali teks ganti. Loop lama cek ID ini —
-  // kalau sudah beda, loop lama langsung berhenti tanpa perlu flag terpisah.
-  // Ini menghilangkan race-condition "dua loop jalan bareng sesaat" yang
-  // terjadi kalau hanya pakai _isRunning = false di didUpdateWidget.
+  // _loopId: bertambah setiap kali teks ganti — loop lama cek ini dan berhenti.
   int _loopId = 0;
+  // _activeLoopId: ID loop yang sedang aktif berjalan saat ini.
+  // Dipakai untuk mencegah spawn loop dobel saat widget di-rebuild berkali-kali
+  // dengan teks yang SAMA (misal karena notifyListeners() dari bulk scan background).
+  int? _activeLoopId;
 
   @override
   void didUpdateWidget(covariant MarqueeText oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.text != widget.text && _scrollController.hasClients) {
-      _loopId++; // batalkan loop lama sebelum jump
+      _loopId++;          // batalkan loop lama
+      _activeLoopId = null; // bebaskan slot supaya loop baru bisa spawn
       _scrollController.jumpTo(0);
     }
   }
 
   Future<void> _runMarquee(double maxScroll, int myLoopId) async {
+    // Cegah dobel-spawn: kalau loop dengan loopId yang sama sudah aktif, skip.
+    if (_activeLoopId == myLoopId) return;
+    _activeLoopId = myLoopId;
+
     // Loop ini hanya boleh jalan kalau myLoopId masih sama dengan _loopId saat ini.
     // Begitu teks ganti (_loopId naik), loop ini akan berhenti di cek berikutnya.
     while (mounted && _scrollController.hasClients && myLoopId == _loopId) {
@@ -48,6 +54,9 @@ class _MarqueeTextState extends State<MarqueeText> {
         curve: Curves.linear,
       );
     }
+
+    // Loop selesai atau dibatalkan — bebaskan slot supaya loopId baru bisa spawn
+    if (_activeLoopId == myLoopId) _activeLoopId = null;
   }
 
   @override

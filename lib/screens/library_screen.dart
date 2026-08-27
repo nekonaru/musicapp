@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/song.dart';
@@ -181,7 +182,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         onPressed: displayedSongs.isEmpty
                             ? null
                             : () async {
-                                await _playSong(displayedSongs, 0);
+                                final randomStart = Random().nextInt(displayedSongs.length);
+                                await _playSong(displayedSongs, randomStart);
                                 PlayerService.instance.setShuffle(true);
                               },
                         icon: const Icon(Icons.shuffle),
