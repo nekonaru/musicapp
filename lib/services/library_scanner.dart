@@ -38,6 +38,31 @@ class LibraryScanner {
     // lagu yang cuma disembunyikan (bukan beneran hilang).
     final allDeviceIds = tracks.map((t) => t.id).toSet();
 
+    // 🛡️ Safety guard: jangan hapus apapun kalau querySongs() kelihatan return
+    // hasil yang mencurigakan — bisa jadi MediaStore belum selesai indexing,
+    // izin storage baru saja dikasih (race condition), atau plugin gagal sementara.
+    // Tanpa guard ini, seluruh library bisa terhapus permanen dari DB padahal
+    // file aslinya masih ada di HP.
+    //
+    // Kondisi yang dianggap tidak aman:
+    //   1. Device tidak return lagu sama sekali (paling bahaya)
+    //   2. Jumlah lagu turun >50% dibanding yang sudah ada di DB dalam satu scan
+    //      — penurunan wajar biasanya cuma beberapa lagu (file yang memang dihapus user),
+    //        bukan separuh library sekaligus.
+    final bool safeToDelete;
+    if (allDeviceIds.isEmpty) {
+      // Tidak ada lagu terdeteksi sama sekali — hampir pasti bukan kondisi normal.
+      safeToDelete = false;
+    } else {
+      final dbCount = await DBHelper.instance.getSongCount();
+      if (dbCount > 0 && allDeviceIds.length < dbCount * 0.5) {
+        // Jumlah lagu dari device kurang dari 50% yang ada di DB → curigai query parsial.
+        safeToDelete = false;
+      } else {
+        safeToDelete = true;
+      }
+    }
+
     final List<Song> result = [];
     final List<Song> needsMetadata = [];
     for (final track in tracks) {
@@ -66,7 +91,10 @@ class LibraryScanner {
 
     // Bersihkan lagu "hantu" - yang ada di DB tapi file aslinya sudah
     // dihapus/dipindah dari HP di luar aplikasi.
-    await DBHelper.instance.deleteSongsMissingFromDevice(allDeviceIds);
+    // Hanya dijalankan kalau querySongs() return hasil yang masuk akal (lihat guard di atas).
+    if (safeToDelete) {
+      await DBHelper.instance.deleteSongsMissingFromDevice(allDeviceIds);
+    }
 
     if (autoFetchMetadata && needsMetadata.isNotEmpty) {
       const batchSize = 5;

@@ -181,8 +181,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         onPressed: displayedSongs.isEmpty
                             ? null
                             : () async {
-                                final shuffled = List<Song>.of(displayedSongs)..shuffle();
-                                await _playSong(shuffled, 0);
+                                await _playSong(displayedSongs, 0);
                                 PlayerService.instance.setShuffle(true);
                               },
                         icon: const Icon(Icons.shuffle),

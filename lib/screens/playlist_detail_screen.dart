@@ -191,8 +191,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () async {
-                            final shuffled = List<Song>.of(displayed)..shuffle();
-                            await PlayerService.instance.setQueueAndPlay(shuffled, 0);
+                            await PlayerService.instance.setQueueAndPlay(displayed, 0);
                             PlayerService.instance.setShuffle(true);
                           },
                           icon: const Icon(Icons.shuffle),

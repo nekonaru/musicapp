@@ -135,6 +135,14 @@ class DBHelper {
   /// (dihapus/dipindah user di luar aplikasi). [existingIds] adalah SEMUA id
   /// lagu yang masih benar-benar terdeteksi di device (termasuk yang folder-nya
   /// disembunyikan - supaya lagu di folder tersembunyi TIDAK ikut kehapus).
+  /// Jumlah lagu di DB — dipakai safety guard di scanAndSync()
+  /// untuk mendeteksi kalau querySongs() return hasil yang mencurigakan.
+  Future<int> getSongCount() async {
+    final database = await db;
+    final result = await database.rawQuery('SELECT COUNT(*) as count FROM songs');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
   Future<int> deleteSongsMissingFromDevice(Set<int> existingIds) async {
     final database = await db;
     final allDbIds = (await database.query('songs', columns: ['id']))

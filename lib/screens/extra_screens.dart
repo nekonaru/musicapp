@@ -459,8 +459,7 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () async {
-                        final shuffled = List<Song>.of(displayed)..shuffle();
-                        await PlayerService.instance.setQueueAndPlay(shuffled, 0);
+                        await PlayerService.instance.setQueueAndPlay(displayed, 0);
                         PlayerService.instance.setShuffle(true);
                       },
                       icon: const Icon(Icons.shuffle),
@@ -715,8 +714,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () async {
-                        final shuffled = List<Song>.of(favs)..shuffle();
-                        await PlayerService.instance.setQueueAndPlay(shuffled, 0);
+                        await PlayerService.instance.setQueueAndPlay(favs, 0);
                         PlayerService.instance.setShuffle(true);
                       },
                       icon: const Icon(Icons.shuffle),
