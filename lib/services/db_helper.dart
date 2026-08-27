@@ -180,8 +180,15 @@ class DBHelper {
 
   Future<void> updateSongMetadata(Song s) async {
     final database = await db;
-    await database.update('songs', s.toMap(),
-        where: 'id = ?', whereArgs: [s.id]);
+    // Baca isFavorite dari DB dulu supaya tidak ter-reset oleh objek Song yang stale.
+    // Sama seperti perlindungan di upsertSong() — user bisa saja me-favorite lagu
+    // di tab lain sementara layar Edit Metadata masih terbuka.
+    final existing = await database.query('songs', columns: ['isFavorite'], where: 'id = ?', whereArgs: [s.id], limit: 1);
+    final map = s.toMap();
+    if (existing.isNotEmpty) {
+      map['isFavorite'] = existing.first['isFavorite'];
+    }
+    await database.update('songs', map, where: 'id = ?', whereArgs: [s.id]);
   }
 
   Future<void> setFavorite(int songId, bool value) async {

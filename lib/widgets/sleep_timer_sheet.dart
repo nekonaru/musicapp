@@ -15,6 +15,9 @@ Future<SleepTimerResult?> showSleepTimerSheet(BuildContext context) {
   return showModalBottomSheet<SleepTimerResult>(
     context: context,
     isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
     builder: (ctx) => const _SleepTimerSheet(),
   );
 }
@@ -34,6 +37,13 @@ class _SleepTimerSheetState extends State<_SleepTimerSheet> with SingleTickerPro
   final _hourController = TextEditingController();
   final _minuteController = TextEditingController();
 
+  // Apakah ada input kustom yang valid
+  bool get _hasCustomInput {
+    final h = int.tryParse(_hourController.text) ?? 0;
+    final m = int.tryParse(_minuteController.text) ?? 0;
+    return h > 0 || m > 0;
+  }
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -52,7 +62,13 @@ class _SleepTimerSheetState extends State<_SleepTimerSheet> with SingleTickerPro
   void _submitCustomTime() {
     final h = int.tryParse(_hourController.text) ?? 0;
     final m = int.tryParse(_minuteController.text) ?? 0;
-    if (h == 0 && m == 0) return;
+    if (h == 0 && m == 0) {
+      // Coba pakai pilihan preset kalau ada
+      if (_selectedMinutes != null) {
+        _submitTime(_selectedMinutes!);
+      }
+      return;
+    }
     Navigator.pop(context, SleepTimerResult(
       duration: Duration(hours: h, minutes: m),
       finishCurrentSong: _finishCurrentSong,
@@ -63,20 +79,62 @@ class _SleepTimerSheetState extends State<_SleepTimerSheet> with SingleTickerPro
     Navigator.pop(context, SleepTimerResult(songCount: _songCount));
   }
 
+  // Apakah tombol "Atur Timer" bisa diklik
+  bool get _canSubmitTime => _selectedMinutes != null || _hasCustomInput;
+
   @override
   Widget build(BuildContext context) {
+    final remaining = PlayerService.instance.sleepTimerRemaining;
+    final songsLeft = PlayerService.instance.sleepSongsRemaining;
+    final hasActiveTimer = remaining != null || songsLeft != null;
+
     return SafeArea(
-      child: Padding(
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 200),
         padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
         child: SizedBox(
-          height: 460,
+          height: 520,
           child: Column(
             children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 4),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              if (hasActiveTimer)
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.bedtime, size: 16, color: Theme.of(context).colorScheme.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        remaining != null
+                            ? 'Timer aktif: ${_fmtCountdown(remaining)}'
+                            : 'Timer aktif: $songsLeft lagu lagi',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               const Padding(
-                padding: EdgeInsets.all(16),
+                padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
                 child: Text('Timer Tidur', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ),
-              // Toggle dua mode - bisa tap ATAU swipe kiri/kanan lewat PageView di bawah
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: SegmentedButton<int>(
@@ -101,10 +159,11 @@ class _SleepTimerSheetState extends State<_SleepTimerSheet> with SingleTickerPro
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(12),
-                child: TextButton(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: TextButton.icon(
                   onPressed: () => Navigator.pop(context, SleepTimerResult(cancel: true)),
-                  child: const Text('Batalkan Timer yang Aktif'),
+                  icon: const Icon(Icons.cancel_outlined, size: 18),
+                  label: const Text('Batalkan Timer yang Aktif'),
                 ),
               ),
             ],
@@ -112,6 +171,12 @@ class _SleepTimerSheetState extends State<_SleepTimerSheet> with SingleTickerPro
         ),
       ),
     );
+  }
+
+  String _fmtCountdown(Duration d) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    if (d.inHours > 0) return '${d.inHours}:${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}';
+    return '${two(d.inMinutes)}:${two(d.inSeconds % 60)}';
   }
 
   Widget _buildTimeMode() {
@@ -123,7 +188,12 @@ class _SleepTimerSheetState extends State<_SleepTimerSheet> with SingleTickerPro
             title: Text('$m menit'),
             value: m,
             groupValue: _selectedMinutes,
-            onChanged: (v) => setState(() => _selectedMinutes = v),
+            onChanged: (v) => setState(() {
+              _selectedMinutes = v;
+              // Reset custom input kalau pilih preset
+              _hourController.clear();
+              _minuteController.clear();
+            }),
           ),
         const Divider(),
         const Text('Kustom (jam & menit)', style: TextStyle(fontSize: 13, color: Colors.grey)),
@@ -134,7 +204,8 @@ class _SleepTimerSheetState extends State<_SleepTimerSheet> with SingleTickerPro
               child: TextField(
                 controller: _hourController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Jam', isDense: true),
+                decoration: const InputDecoration(labelText: 'Jam', isDense: true, border: OutlineInputBorder()),
+                onChanged: (_) => setState(() => _selectedMinutes = null), // hapus pilihan preset
               ),
             ),
             const SizedBox(width: 12),
@@ -142,7 +213,8 @@ class _SleepTimerSheetState extends State<_SleepTimerSheet> with SingleTickerPro
               child: TextField(
                 controller: _minuteController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Menit', isDense: true),
+                decoration: const InputDecoration(labelText: 'Menit', isDense: true, border: OutlineInputBorder()),
+                onChanged: (_) => setState(() => _selectedMinutes = null),
               ),
             ),
           ],
@@ -157,13 +229,8 @@ class _SleepTimerSheetState extends State<_SleepTimerSheet> with SingleTickerPro
         ),
         const SizedBox(height: 12),
         FilledButton(
-          onPressed: () {
-            if (_hourController.text.isNotEmpty || _minuteController.text.isNotEmpty) {
-              _submitCustomTime();
-            } else if (_selectedMinutes != null) {
-              _submitTime(_selectedMinutes!);
-            }
-          },
+          // Tombol aktif kalau ada preset dipilih ATAU ada input kustom
+          onPressed: _canSubmitTime ? _submitCustomTime : null,
           child: const Text('Atur Timer'),
         ),
       ],

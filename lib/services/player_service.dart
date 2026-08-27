@@ -152,6 +152,9 @@ class PlayerService extends ChangeNotifier {
   }
 
   int? _computeNextPosition() {
+    // RepeatMode.one harus dicek DULUAN sebelum kondisi lainnya,
+    // supaya crossfade juga mengulang lagu yang sama bukan maju ke berikutnya.
+    if (_repeatMode == RepeatMode.one) return _posInOrder;
     if (_posInOrder < _playOrder.length - 1) return _posInOrder + 1;
     if (_repeatMode == RepeatMode.all) return 0;
     return null;
@@ -312,7 +315,30 @@ class PlayerService extends ChangeNotifier {
     if (posInOrder == _posInOrder || posInOrder < 0 || posInOrder >= _playOrder.length) return;
     _playOrder.removeAt(posInOrder);
     if (posInOrder < _posInOrder) _posInOrder--;
+    // Compact _queue: buang entri yang sudah tidak direferensikan oleh _playOrder manapun
+    // supaya _queue tidak terus membesar sepanjang sesi tanpa restart app.
+    _compactQueue();
     notifyListeners();
+  }
+
+  /// Buang entri _queue yang sudah tidak ada di _playOrder.
+  /// Setelah compact, remap semua index di _playOrder ke posisi baru.
+  void _compactQueue() {
+    final used = _playOrder.toSet();
+    if (used.length == _queue.length) return; // tidak ada yang perlu dibuang
+
+    // Buat mapping index lama → index baru
+    final Map<int, int> remap = {};
+    int newIdx = 0;
+    final newQueue = <Song>[];
+    for (int oldIdx = 0; oldIdx < _queue.length; oldIdx++) {
+      if (used.contains(oldIdx)) {
+        remap[oldIdx] = newIdx++;
+        newQueue.add(_queue[oldIdx]);
+      }
+    }
+    _queue = newQueue;
+    _playOrder = _playOrder.map((old) => remap[old]!).toList();
   }
 
   /// Hapus dari antrean berdasarkan slot ID (stabil), bukan posisi index biasa -
@@ -404,7 +430,9 @@ class PlayerService extends ChangeNotifier {
         _pendingSleepStop = true; // ditangani di _onTrackFinished()
       } else {
         _logListening();
-        await player.pause();
+        // Pause KEDUA player supaya musik pasti berhenti walau sedang crossfade
+        await _player.pause();
+        await _crossfadePlayer.pause();
       }
       notifyListeners();
     });
@@ -442,7 +470,8 @@ class PlayerService extends ChangeNotifier {
       if (sleepSongsRemaining! <= 0) {
         sleepSongsRemaining = null;
         _logListening();
-        player.pause();
+        _player.pause();
+        _crossfadePlayer.pause();
         notifyListeners();
         return;
       }
@@ -451,7 +480,8 @@ class PlayerService extends ChangeNotifier {
     if (_pendingSleepStop) {
       _pendingSleepStop = false;
       _logListening();
-      player.pause();
+      _player.pause();
+      _crossfadePlayer.pause();
       notifyListeners();
       return;
     }

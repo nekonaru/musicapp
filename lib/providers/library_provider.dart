@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/song.dart';
 import '../services/db_helper.dart';
 import '../services/library_scanner.dart';
@@ -17,6 +18,25 @@ class LibraryProvider extends ChangeNotifier {
   SortOption sortOption = SortOption.titleAZ;
   String searchQuery = '';
 
+  // Key SharedPreferences
+  static const _kSortOption = 'lib_sort_option';
+
+  LibraryProvider() {
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final idx = prefs.getInt(_kSortOption) ?? 0;
+    sortOption = SortOption.values[idx.clamp(0, SortOption.values.length - 1)];
+    // Tidak notify di sini - akan notify saat loadFromDb pertama kali
+  }
+
+  Future<void> _savePrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_kSortOption, sortOption.index);
+  }
+
   Future<void> loadFromDb() async {
     final all = await DBHelper.instance.getAllSongs();
     final excluded = await DBHelper.instance.getExcludedFolders();
@@ -31,7 +51,7 @@ class LibraryProvider extends ChangeNotifier {
   }
 
   /// Scan file dari HP (deteksi lagu baru/hapus), TANPA fetch metadata internet.
-  /// Cepat dan aman dipanggil otomatis tiap kali app dibuka.
+  /// Tidak lagi otomatis scan metadata - harus diminta manual.
   Future<void> scanDevice() async {
     isScanning = true;
     scanError = null;
@@ -82,6 +102,7 @@ class LibraryProvider extends ChangeNotifier {
   void setSortOption(SortOption option) {
     sortOption = option;
     _applySort();
+    _savePrefs();
     notifyListeners();
   }
 

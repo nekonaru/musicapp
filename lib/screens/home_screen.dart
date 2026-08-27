@@ -37,15 +37,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (_collectionTabs.index == 2) _historyKey.currentState?.reload();
   }
 
-  /// Setiap app dibuka: cek file baru/hilang di HP (cepat, tanpa internet),
-  /// lalu diam-diam lengkapi metadata lagu yang baru ketemu di background -
-  /// jadi lagu baru otomatis muncul lengkap tanpa perlu scan manual.
+  /// Setiap app dibuka: hanya cek file baru/hilang di HP (cepat, tanpa internet).
+  /// Scan metadata dilakukan manual lewat tombol di layar Semua Lagu/Folder.
   Future<void> _autoDetectNewFiles() async {
     final lib = context.read<LibraryProvider>();
     await lib.scanDevice();
-    if (mounted) {
-      lib.bulkScanMetadata(onlyMissing: true); // tidak di-await, jalan di background
-    }
   }
 
   @override

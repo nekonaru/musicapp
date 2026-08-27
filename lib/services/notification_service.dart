@@ -3,16 +3,18 @@ import 'package:permission_handler/permission_handler.dart';
 import 'player_service.dart';
 
 @pragma('vm:entry-point')
-void _onBackgroundNotificationResponse(NotificationResponse response) {
+Future<void> _onBackgroundNotificationResponse(NotificationResponse response) async {
+  // Harus async supaya panggilan async selesai sebelum isolate background dihentikan.
+  // Tanpa ini, tombol play/pause/next/prev di notifikasi bisa tidak responsif secara sporadis.
   switch (response.actionId) {
     case 'play_pause':
-      PlayerService.instance.togglePlayPause();
+      await PlayerService.instance.togglePlayPause();
       break;
     case 'next':
-      PlayerService.instance.next();
+      await PlayerService.instance.next();
       break;
     case 'previous':
-      PlayerService.instance.previous();
+      await PlayerService.instance.previous();
       break;
   }
 }

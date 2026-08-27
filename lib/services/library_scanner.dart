@@ -91,7 +91,8 @@ class LibraryScanner {
 
   Future<List<Song>> getSongsInFolder(String folderPath) async {
     final all = await DBHelper.instance.getAllSongs();
-    return all.where((s) => s.filePath.startsWith(folderPath)).toList();
+    // Tambahkan trailing '/' supaya '/storage/Music' tidak cocok '/storage/Music2'
+    return all.where((s) => s.filePath.startsWith('$folderPath/')).toList();
   }
 
   String _titleFromFilename(String path) {

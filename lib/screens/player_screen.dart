@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
+import '../models/song.dart';
 import '../services/player_service.dart';
 import '../services/metadata_service.dart';
 import '../providers/library_provider.dart';
@@ -97,13 +98,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (speed != null) await _player.setPlaybackSpeed(speed);
   }
 
-  Future<void> _searchLyricsOnGoogle(song) async {
+  Future<void> _searchLyricsOnGoogle(Song song) async {
     final query = Uri.encodeComponent('${song.artist} ${song.title} lirik lyrics');
     final url = Uri.parse('https://www.google.com/search?q=$query');
     await launchUrl(url, mode: LaunchMode.externalApplication);
   }
 
-  Future<void> _autoFetchLyrics(song) async {
+  Future<void> _autoFetchLyrics(Song song) async {
     setState(() => _isFetchingLyrics = true);
     await MetadataService.instance.enrichSong(song);
     if (mounted) {
@@ -116,7 +117,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-  Future<void> _addLyricsManually(song) async {
+  Future<void> _addLyricsManually(Song song) async {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => EditLyricsScreen(song: song)));
     setState(() {});
   }
@@ -141,7 +142,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  Widget _buildScaffold(song) {
+  Widget _buildScaffold(Song song) {
     final lib = context.watch<LibraryProvider>();
     final matchInLib = lib.songs.where((s) => s.id == song.id);
     final isFavorite = matchInLib.isNotEmpty ? matchInLib.first.isFavorite : false;
@@ -230,7 +231,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  Widget _buildLyricsView(song) {
+  Widget _buildLyricsView(Song song) {
     final hasLyrics = song.lyrics != null && song.lyrics.toString().trim().isNotEmpty;
     return SingleChildScrollView(
       key: ValueKey('lyrics_${song.id}'),
@@ -301,7 +302,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  Widget _buildArtView(song, bool isFavorite, LibraryProvider lib) {
+  Widget _buildArtView(Song song, bool isFavorite, LibraryProvider lib) {
     return Center(
       key: ValueKey('art_${song.id}'),
       child: Column(
@@ -395,7 +396,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  Widget _buildControls(song) {
+  Widget _buildControls(Song song) {
     final remaining = _player.sleepTimerRemaining;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
