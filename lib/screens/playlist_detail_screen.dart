@@ -70,7 +70,9 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
 
   Future<void> _removeSong(Song song) async {
     await context.read<PlaylistProvider>().removeSong(widget.playlistId, song.id);
-    setState(() => _songs.removeWhere((s) => s.id == song.id));
+    if (mounted) {
+      setState(() => _songs.removeWhere((s) => s.id == song.id));
+    }
   }
 
   List<Song> get _displayed {

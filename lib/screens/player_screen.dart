@@ -109,11 +109,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
     await MetadataService.instance.enrichSong(song);
     if (mounted) {
       await context.read<LibraryProvider>().loadFromDb();
-      setState(() => _isFetchingLyrics = false);
-      final found = song.lyrics != null && song.lyrics.toString().isNotEmpty;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(found ? 'Lirik ditemukan!' : 'Lirik tetap tidak ditemukan, coba tambah manual')),
-      );
+      if (mounted) {
+        setState(() => _isFetchingLyrics = false);
+        final found = song.lyrics != null && song.lyrics.toString().isNotEmpty;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(found ? 'Lirik ditemukan!' : 'Lirik tetap tidak ditemukan, coba tambah manual')),
+        );
+      }
     }
   }
 

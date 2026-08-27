@@ -31,6 +31,16 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
     _region = TextEditingController(text: s.region ?? '');
   }
 
+  @override
+  void dispose() {
+    _title.dispose();
+    _artist.dispose();
+    _album.dispose();
+    _genre.dispose();
+    _region.dispose();
+    super.dispose();
+  }
+
   Future<void> _save() async {
     final s = widget.song;
     s.title = _title.text.trim();

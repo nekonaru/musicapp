@@ -73,9 +73,11 @@ class _FoldersScreenState extends State<FoldersScreen> {
     await _load();
     if (mounted) {
       await context.read<LibraryProvider>().loadFromDb();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(isHidden ? 'Folder ditampilkan lagi' : 'Folder disembunyikan dari library')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(isHidden ? 'Folder ditampilkan lagi' : 'Folder disembunyikan dari library')),
+        );
+      }
     }
   }
 
