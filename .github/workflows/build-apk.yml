@@ -36,6 +36,17 @@ jobs:
           sed -i 's/android:label="offline_music_player"/android:label="Swara"/' "$MANIFEST"
           cat "$MANIFEST"
 
+      - name: Deklarasi eksplisit service audio_service (wajib Android 14+/API 34+)
+        # Tanpa foregroundServiceType="mediaPlayback" dideklarasikan eksplisit di sini,
+        # service milik audio_service gagal start diam-diam di Android 14 ke atas -
+        # akibatnya notifikasi kontrol musik dan lockscreen sama-sama tidak pernah muncul,
+        # tanpa error yang kelihatan. android:exported juga wajib eksplisit sejak Android 12
+        # untuk komponen yang punya intent-filter.
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i 's#</application>#    <service\n        android:name="com.ryanheise.audioservice.AudioService"\n        android:foregroundServiceType="mediaPlayback"\n        android:exported="true">\n        <intent-filter>\n            <action android:name="android.media.browse.MediaBrowserService" />\n        </intent-filter>\n    </service>\n    <receiver\n        android:name="com.ryanheise.audioservice.MediaButtonReceiver"\n        android:exported="true">\n        <intent-filter>\n            <action android:name="android.intent.action.MEDIA_BUTTON" />\n        </intent-filter>\n    </receiver>\n</application>#' "$MANIFEST"
+          cat "$MANIFEST"
+
       - name: Buat ikon status bar notifikasi (wajib monokrom/siluet)
         run: |
           cat > android/app/src/main/res/drawable/ic_stat_swara.xml << 'EOF'
