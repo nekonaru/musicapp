@@ -114,6 +114,43 @@ jobs:
           echo "Init script dibuat:"
           cat "$HOME/.gradle/init.d/fix-namespace.gradle"
 
+      - name: Aktifkan core library desugaring di app/build.gradle.kts
+        # flutter_local_notifications (dan beberapa plugin lain) butuh isCoreLibraryDesugaringEnabled = true
+        # di level :app — ini TIDAK bisa diset lewat init script (hanya berlaku per-module),
+        # harus langsung di-patch ke android/app/build.gradle.kts.
+        run: |
+          APP_GRADLE="android/app/build.gradle.kts"
+          echo "=== Sebelum patch ==="
+          cat "$APP_GRADLE"
+
+          # 1. Aktifkan core library desugaring di compileOptions
+          if grep -q "isCoreLibraryDesugaringEnabled" "$APP_GRADLE"; then
+            # Sudah ada tapi mungkin false — set jadi true
+            sed -i 's/isCoreLibraryDesugaringEnabled\s*=\s*false/isCoreLibraryDesugaringEnabled = true/' "$APP_GRADLE"
+          else
+            # Tambahkan ke dalam blok compileOptions yang sudah ada
+            if grep -q "compileOptions" "$APP_GRADLE"; then
+              sed -i '/compileOptions {/,/}/ s/}/    isCoreLibraryDesugaringEnabled = true\n        }/' "$APP_GRADLE"
+            else
+              # Tidak ada compileOptions sama sekali — tambahkan blok baru setelah 'android {'
+              sed -i '/^android {/a\    compileOptions {\n        sourceCompatibility = JavaVersion.VERSION_17\n        targetCompatibility = JavaVersion.VERSION_17\n        isCoreLibraryDesugaringEnabled = true\n    }' "$APP_GRADLE"
+            fi
+          fi
+
+          # 2. Tambahkan dependency desugar kalau belum ada
+          if ! grep -q "desugar_jdk_libs" "$APP_GRADLE"; then
+            # Cari blok dependencies { dan inject di dalamnya
+            sed -i '/^dependencies {/a\    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")' "$APP_GRADLE"
+          fi
+
+          # 3. multiDexEnabled (opsional tapi disarankan)
+          if ! grep -q "multiDexEnabled" "$APP_GRADLE"; then
+            sed -i '/defaultConfig {/a\        multiDexEnabled = true' "$APP_GRADLE"
+          fi
+
+          echo "=== Sesudah patch ==="
+          cat "$APP_GRADLE"
+
       - name: Build APK
         run: flutter build apk --release
         continue-on-error: true
