@@ -27,6 +27,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
   double _dragOffset = 0;
   Timer? _countdownTicker;
 
+  // Logika tombol previous "pintar" ala aplikasi musik pada umumnya:
+  // - Pencet pertama -> lagu yang sedang jalan diulang dari awal (seek ke 0),
+  //   dan kita masuk ke "mode previous" selama beberapa detik.
+  // - Pencet lagi SELAGI masih dalam mode previous -> baru pindah ke lagu
+  //   sebelumnya, dan jendela waktunya di-reset (jadi kalau dipencet
+  //   berturut-turut, terus mundur ke lagu-lagu sebelumnya).
+  // - Kalau dibiarkan (lagu jalan normal) sampai jendela waktu habis, mode
+  //   previous berakhir dan pencet berikutnya kembali ke "ulang dari awal".
+  bool _previousModeActive = false;
+  Timer? _previousModeTimer;
+  static const _previousModeWindow = Duration(seconds: 3);
+
   @override
   void initState() {
     super.initState();
@@ -39,7 +51,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void dispose() {
     _countdownTicker?.cancel();
+    _previousModeTimer?.cancel();
     super.dispose();
+  }
+
+  void _onPreviousPressed() {
+    if (_previousModeActive) {
+      _player.previous();
+    } else {
+      _player.player.seek(Duration.zero);
+      setState(() => _previousModeActive = true);
+    }
+    _previousModeTimer?.cancel();
+    _previousModeTimer = Timer(_previousModeWindow, () {
+      if (mounted) setState(() => _previousModeActive = false);
+    });
   }
 
   Future<void> _pickSleepTimer() async {
@@ -124,12 +150,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     setState(() {});
   }
 
-  String _fmtCountdown(Duration d) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    if (d.inHours > 0) return '${d.inHours}:${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}';
-    return '${two(d.inMinutes)}:${two(d.inSeconds % 60)}';
-  }
-
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -175,57 +195,42 @@ class _PlayerScreenState extends State<PlayerScreen> {
         child: Opacity(
           opacity: (1 - (_dragOffset / 400)).clamp(0.4, 1.0),
           child: Scaffold(
-            appBar: AppBar(
-              leading: IconButton(
-                icon: const Icon(Icons.keyboard_arrow_down),
-                tooltip: 'Minimize',
-                onPressed: () => Navigator.pop(context),
-              ),
-              title: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
-                child: Text(_showLyrics ? 'Lirik' : 'Sedang Diputar', key: ValueKey(_showLyrics)),
-              ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.queue_music_outlined),
-                  tooltip: 'Antrean Putar',
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QueueScreen())),
-                ),
-                if (_showLyrics)
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined),
-                    tooltip: 'Edit Lirik',
-                    onPressed: () => _addLyricsManually(song),
-                  ),
-                IconButton(
-                  icon: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 250),
-                    transitionBuilder: (child, anim) => RotationTransition(turns: anim, child: child),
-                    child: Icon(_showLyrics ? Icons.album : Icons.lyrics_outlined, key: ValueKey(_showLyrics)),
-                  ),
-                  onPressed: () => setState(() => _showLyrics = !_showLyrics),
-                ),
-              ],
-            ),
-            body: Column(
-              children: [
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    switchInCurve: Curves.easeOut,
-                    switchOutCurve: Curves.easeIn,
-                    transitionBuilder: (child, anim) => FadeTransition(
-                      opacity: anim,
-                      child: SlideTransition(
-                        position: Tween<Offset>(begin: const Offset(0, 0.03), end: Offset.zero).animate(anim),
-                        child: child,
-                      ),
+            body: SafeArea(
+              child: Column(
+                children: [
+                  // Bagian atas dibiarkan kosong dan bersih, cuma tombol
+                  // minimize buat balik ke mini player, tanpa judul atau
+                  // ikon lain.
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.keyboard_arrow_down),
+                          tooltip: 'Minimize',
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
                     ),
-                    child: _showLyrics ? _buildLyricsView(song) : _buildArtView(song, isFavorite, lib),
                   ),
-                ),
-                _buildControls(song),
-              ],
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      switchInCurve: Curves.easeOut,
+                      switchOutCurve: Curves.easeIn,
+                      transitionBuilder: (child, anim) => FadeTransition(
+                        opacity: anim,
+                        child: SlideTransition(
+                          position: Tween<Offset>(begin: const Offset(0, 0.03), end: Offset.zero).animate(anim),
+                          child: child,
+                        ),
+                      ),
+                      child: _showLyrics ? _buildLyricsView(song) : _buildArtView(song),
+                    ),
+                  ),
+                  _buildControls(song, isFavorite, lib),
+                ],
+              ),
             ),
           ),
         ),
@@ -304,7 +309,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  Widget _buildArtView(Song song, bool isFavorite, LibraryProvider lib) {
+  Widget _buildArtView(Song song) {
     return Center(
       key: ValueKey('art_${song.id}'),
       child: Column(
@@ -373,7 +378,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ),
           const SizedBox(height: 6),
           Text(song.artist, style: TextStyle(color: Colors.grey[600])),
-          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildControls(Song song, bool isFavorite, LibraryProvider lib) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        children: [
+          // Semua tombol sekunder dikumpulkan jadi satu baris ikon polos di
+          // bawah, tanpa keterangan huruf, biar bagian atas tetap bersih.
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -381,29 +397,42 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 icon: Icon(
                   isFavorite ? Icons.favorite : Icons.favorite_border,
                   color: isFavorite ? Colors.red : null,
+                  size: 22,
                 ),
                 tooltip: 'Favorit',
                 onPressed: () => lib.toggleFavorite(song, !isFavorite),
               ),
-              const SizedBox(width: 16),
               IconButton(
-                icon: const Icon(Icons.playlist_add),
+                icon: const Icon(Icons.playlist_add, size: 22),
                 tooltip: 'Tambah ke Playlist',
                 onPressed: () => pickPlaylist(context, song, context.read<PlaylistProvider>()),
               ),
+              IconButton(
+                icon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  transitionBuilder: (child, anim) => RotationTransition(turns: anim, child: child),
+                  child: Icon(
+                    _showLyrics ? Icons.album : Icons.lyrics_outlined,
+                    key: ValueKey(_showLyrics),
+                    size: 22,
+                  ),
+                ),
+                tooltip: _showLyrics ? 'Tampilkan Cover' : 'Tampilkan Lirik',
+                onPressed: () => setState(() => _showLyrics = !_showLyrics),
+              ),
+              if (_showLyrics)
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined, size: 22),
+                  tooltip: 'Edit Lirik',
+                  onPressed: () => _addLyricsManually(song),
+                ),
+              IconButton(
+                icon: const Icon(Icons.queue_music_outlined, size: 22),
+                tooltip: 'Antrean Putar',
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QueueScreen())),
+              ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildControls(Song song) {
-    final remaining = _player.sleepTimerRemaining;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Column(
-        children: [
           StreamBuilder<Duration>(
             stream: _player.player.positionStream,
             builder: (context, snapshot) {
@@ -444,7 +473,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     color: _player.isShuffle ? Theme.of(context).colorScheme.primary : Colors.grey),
                 onPressed: () => setState(() => _player.toggleShuffle()),
               ),
-              IconButton(icon: const Icon(Icons.skip_previous), onPressed: _player.previous),
+              IconButton(
+                icon: const Icon(Icons.skip_previous),
+                tooltip: 'Sebelumnya',
+                onPressed: _onPreviousPressed,
+              ),
               StreamBuilder(
                 stream: _player.player.playerStateStream,
                 builder: (context, snapshot) {
@@ -466,28 +499,34 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   );
                 },
               ),
-              IconButton(icon: const Icon(Icons.skip_next), onPressed: _player.next),
+              IconButton(
+                icon: const Icon(Icons.skip_next),
+                tooltip: 'Berikutnya',
+                onPressed: _player.next,
+              ),
               _buildRepeatButton(),
             ],
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              TextButton.icon(
-                onPressed: _pickSleepTimer,
-                icon: const Icon(Icons.bedtime_outlined),
-                label: Text(
-                  remaining != null
-                      ? _fmtCountdown(remaining)
-                      : (_player.sleepSongsRemaining != null
-                          ? '${_player.sleepSongsRemaining} lagu lagi'
-                          : 'Timer Tidur'),
+              IconButton(
+                icon: Icon(
+                  Icons.bedtime_outlined,
+                  color: (_player.sleepTimerRemaining != null || _player.sleepSongsRemaining != null)
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.grey,
                 ),
+                tooltip: 'Timer Tidur',
+                onPressed: _pickSleepTimer,
               ),
-              TextButton.icon(
+              IconButton(
+                icon: Icon(
+                  Icons.speed_outlined,
+                  color: _player.playbackSpeed != 1.0 ? Theme.of(context).colorScheme.primary : Colors.grey,
+                ),
+                tooltip: 'Kecepatan Putar',
                 onPressed: _pickPlaybackSpeed,
-                icon: const Icon(Icons.speed_outlined),
-                label: Text('${_player.playbackSpeed}x'),
               ),
             ],
           ),
