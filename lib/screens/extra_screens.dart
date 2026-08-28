@@ -13,6 +13,7 @@ import '../utils/song_options.dart';
 import '../utils/format.dart';
 import '../widgets/mini_player.dart';
 import '../widgets/az_scrollbar.dart';
+import '../widgets/playing_indicator.dart';
 import 'playlist_detail_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────
@@ -479,12 +480,16 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
                 ? const Center(child: Text('Lagu tidak ditemukan'))
                 : Stack(
                     children: [
-                      ListView.builder(
+                      AnimatedBuilder(
+                        animation: PlayerService.instance,
+                        builder: (context, _) => ListView.builder(
                         controller: _scrollController,
                         itemCount: displayed.length,
                         itemExtent: _itemHeight,
                         itemBuilder: (context, i) {
                           final song = displayed[i];
+                          final currentSong = PlayerService.instance.currentSong;
+                          final isCurrentlyPlaying = currentSong != null && currentSong.id == song.id;
                           return TweenAnimationBuilder<double>(
                             key: ValueKey('fsong_${song.id}'),
                             tween: Tween(begin: 0.0, end: 1.0),
@@ -495,8 +500,25 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
                               child: Transform.translate(offset: Offset(0, (1 - v) * 6), child: child),
                             ),
                             child: ListTile(
-                              leading: const Icon(Icons.music_note),
-                              title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                              tileColor: isCurrentlyPlaying
+                                  ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3)
+                                  : null,
+                              leading: isCurrentlyPlaying
+                                  ? Container(
+                                      width: 40, height: 40,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: PlayingIndicator(
+                                        isPlaying: PlayerService.instance.player.playing,
+                                        color: Theme.of(context).colorScheme.primary,
+                                      ),
+                                    )
+                                  : const Icon(Icons.music_note),
+                              title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontWeight: isCurrentlyPlaying ? FontWeight.bold : FontWeight.normal)),
                               subtitle: Text(song.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
                               onTap: () => PlayerService.instance.setQueueAndPlay(displayed, i),
                               trailing: Row(
@@ -513,6 +535,7 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
                             ),
                           );
                         },
+                        ),
                       ),
                       if (showAzBar)
                         Positioned(
@@ -736,12 +759,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       children: [
                         RefreshIndicator(
                           onRefresh: () => lib.loadFromDb(),
-                          child: ListView.builder(
+                          child: AnimatedBuilder(
+                            animation: PlayerService.instance,
+                            builder: (context, _) => ListView.builder(
                             controller: _scrollController,
                             itemCount: favs.length,
                             itemExtent: _itemHeight,
                             itemBuilder: (context, i) {
                               final song = favs[i];
+                              final currentSong = PlayerService.instance.currentSong;
+                              final isCurrentlyPlaying = currentSong != null && currentSong.id == song.id;
                               return TweenAnimationBuilder<double>(
                                 key: ValueKey('fav_${song.id}'),
                                 tween: Tween(begin: 0.0, end: 1.0),
@@ -752,8 +779,25 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                   child: Transform.translate(offset: Offset(0, (1 - v) * 6), child: child),
                                 ),
                                 child: ListTile(
-                                  leading: const Icon(Icons.favorite, color: Colors.red),
-                                  title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  tileColor: isCurrentlyPlaying
+                                      ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3)
+                                      : null,
+                                  leading: isCurrentlyPlaying
+                                      ? Container(
+                                          width: 40, height: 40,
+                                          alignment: Alignment.center,
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: PlayingIndicator(
+                                            isPlaying: PlayerService.instance.player.playing,
+                                            color: Theme.of(context).colorScheme.primary,
+                                          ),
+                                        )
+                                      : const Icon(Icons.favorite, color: Colors.red),
+                                  title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(fontWeight: isCurrentlyPlaying ? FontWeight.bold : FontWeight.normal)),
                                   subtitle: Text(song.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
                                   onTap: () => PlayerService.instance.setQueueAndPlay(favs, i),
                                   trailing: Row(
@@ -770,6 +814,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                 ),
                               );
                             },
+                            ),
                           ),
                         ),
                         if (showAzBar)

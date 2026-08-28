@@ -92,8 +92,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
           for (final s in displayedSongs)
             RegExp(r'^[a-zA-Z]').hasMatch(s.title) ? s.title[0].toUpperCase() : '#'
         };
-        final currentSong = PlayerService.instance.currentSong;
-
         return Column(
           children: [
             Padding(
@@ -200,12 +198,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       children: [
                         RefreshIndicator(
                           onRefresh: () => lib.scanDevice(),
-                          child: ListView.builder(
+                          child: AnimatedBuilder(
+                            animation: PlayerService.instance,
+                            builder: (context, _) => ListView.builder(
                             controller: _scrollController,
                             itemCount: displayedSongs.length,
                             itemExtent: _itemHeight,
                             itemBuilder: (context, i) {
                               final song = displayedSongs[i];
+                              final currentSong = PlayerService.instance.currentSong;
                               final isCurrentlyPlaying = currentSong != null && currentSong.id == song.id;
                               return TweenAnimationBuilder<double>(
                                 key: ValueKey('song_${song.id}'),
@@ -231,12 +232,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                             color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
                                             shape: BoxShape.circle,
                                           ),
-                                          child: AnimatedBuilder(
-                                            animation: PlayerService.instance,
-                                            builder: (context, _) => PlayingIndicator(
-                                              isPlaying: PlayerService.instance.player.playing,
-                                              color: Theme.of(context).colorScheme.primary,
-                                            ),
+                                          child: PlayingIndicator(
+                                            isPlaying: PlayerService.instance.player.playing,
+                                            color: Theme.of(context).colorScheme.primary,
                                           ),
                                         )
                                       : CircleAvatar(
@@ -261,6 +259,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                 ),
                               );
                             },
+                            ),
                           ),
                         ),
                         if (showAzBar)

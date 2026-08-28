@@ -74,30 +74,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     if (result.cancel) {
       _player.cancelSleepTimer();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Timer dibatalkan')));
-      }
       return;
     }
 
     if (result.songCount != null) {
       _player.setSleepTimerBySongs(result.songCount!);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Timer diatur: berhenti setelah ${result.songCount} lagu')),
-        );
-      }
       return;
     }
 
     if (result.duration != null) {
       _player.setSleepTimer(result.duration!, finishCurrentSong: result.finishCurrentSong);
-      if (mounted) {
-        final h = result.duration!.inHours;
-        final m = result.duration!.inMinutes % 60;
-        final label = h > 0 ? '$h jam ${m > 0 ? '$m menit' : ''}'.trim() : '$m menit';
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Timer diatur $label')));
-      }
     }
   }
 
@@ -139,10 +125,31 @@ class _PlayerScreenState extends State<PlayerScreen> {
         setState(() => _isFetchingLyrics = false);
         final found = song.lyrics != null && song.lyrics.toString().isNotEmpty;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(found ? 'Lirik ditemukan!' : 'Lirik tetap tidak ditemukan, coba tambah manual')),
+          SnackBar(
+            content: Text(found ? 'Lirik ditemukan!' : 'Lirik tetap tidak ditemukan, coba tambah manual'),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+            margin: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(context).size.height * 0.55),
+          ),
         );
       }
     }
+  }
+
+  /// Label singkat buat hitungan mundur sleep timer, ditampilkan langsung di
+  /// player (bukan cuma di dalam sheet timer), null kalau timer gak aktif.
+  String? _sleepTimerLabel() {
+    final remaining = _player.sleepTimerRemaining;
+    if (remaining != null) {
+      final m = remaining.inMinutes;
+      final s = remaining.inSeconds % 60;
+      return '$m:${s.toString().padLeft(2, '0')}';
+    }
+    final songsLeft = _player.sleepSongsRemaining;
+    if (songsLeft != null) {
+      return '$songsLeft lagu lagi';
+    }
+    return null;
   }
 
   Future<void> _addLyricsManually(Song song) async {
@@ -366,9 +373,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               },
             ),
           ),
-          const SizedBox(height: 8),
-          Text('Ketuk cover untuk lihat lirik', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           SizedBox(
             width: 280,
             child: MarqueeText(
@@ -510,15 +515,28 @@ class _PlayerScreenState extends State<PlayerScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              IconButton(
-                icon: Icon(
-                  Icons.bedtime_outlined,
-                  color: (_player.sleepTimerRemaining != null || _player.sleepSongsRemaining != null)
-                      ? Theme.of(context).colorScheme.primary
-                      : Colors.grey,
-                ),
-                tooltip: 'Timer Tidur',
-                onPressed: _pickSleepTimer,
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.bedtime_outlined,
+                      color: (_player.sleepTimerRemaining != null || _player.sleepSongsRemaining != null)
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.grey,
+                    ),
+                    tooltip: 'Timer Tidur',
+                    onPressed: _pickSleepTimer,
+                  ),
+                  if (_sleepTimerLabel() != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        _sleepTimerLabel()!,
+                        style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.primary),
+                      ),
+                    ),
+                ],
               ),
               IconButton(
                 icon: Icon(

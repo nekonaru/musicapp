@@ -8,6 +8,7 @@ import '../services/player_service.dart';
 import '../utils/format.dart';
 import '../utils/song_options.dart';
 import '../widgets/az_scrollbar.dart';
+import '../widgets/playing_indicator.dart';
 
 enum _PlsSortOption { custom, titleAZ, titleZA, artistAZ }
 
@@ -222,21 +223,24 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                       ? const Center(child: Text('Lagu tidak ditemukan'))
                       : Stack(
                           children: [
-                            // Gunakan ReorderableListView hanya di mode custom tanpa search
-                            if (_sortOption == _PlsSortOption.custom && _query.isEmpty)
-                              ReorderableListView.builder(
+                            AnimatedBuilder(
+                              animation: PlayerService.instance,
+                              builder: (context, _) =>
+                                // Gunakan ReorderableListView hanya di mode custom tanpa search
+                                _sortOption == _PlsSortOption.custom && _query.isEmpty
+                                ? ReorderableListView.builder(
                                 scrollController: _scrollController,
                                 itemCount: displayed.length,
                                 onReorder: _onReorder,
                                 itemBuilder: (context, i) => _buildTile(displayed, i, reorderable: true),
                               )
-                            else
-                              ListView.builder(
+                                : ListView.builder(
                                 controller: _scrollController,
                                 itemCount: displayed.length,
                                 itemExtent: _itemHeight,
                                 itemBuilder: (context, i) => _buildTile(displayed, i, reorderable: false),
                               ),
+                            ),
                             if (showAzBar)
                               Positioned(
                                 right: 0, top: 0, bottom: 0,
@@ -255,6 +259,8 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
 
   Widget _buildTile(List<Song> songs, int i, {required bool reorderable}) {
     final song = songs[i];
+    final currentSong = PlayerService.instance.currentSong;
+    final isCurrentlyPlaying = currentSong != null && currentSong.id == song.id;
     final tile = Dismissible(
       key: ValueKey('pls_${song.id}_$i'),
       direction: DismissDirection.endToStart,
@@ -266,8 +272,25 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
         child: const Icon(Icons.delete, color: Colors.white),
       ),
       child: ListTile(
-        leading: const Icon(Icons.music_note),
-        title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        tileColor: isCurrentlyPlaying
+            ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3)
+            : null,
+        leading: isCurrentlyPlaying
+            ? Container(
+                width: 40, height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: PlayingIndicator(
+                  isPlaying: PlayerService.instance.player.playing,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              )
+            : const Icon(Icons.music_note),
+        title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontWeight: isCurrentlyPlaying ? FontWeight.bold : FontWeight.normal)),
         subtitle: Text(song.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
