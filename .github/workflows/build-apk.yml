@@ -78,38 +78,36 @@ jobs:
 
       - name: Patch namespace untuk plugin lama yang belum kompatibel AGP terbaru
         # Flutter 3.29+ menggunakan Kotlin DSL (build.gradle.kts), bukan Groovy (build.gradle).
-        # Step ini mendeteksi mana yang ada dan menulis sintaks yang sesuai.
-        # Menulis ke build.gradle (Groovy) saat yang ada hanya build.gradle.kts akan
-        # menciptakan dua file sekaligus → Gradle error "cannot both exist".
+        # afterEvaluate{} dari root project tidak bisa dipakai di AGP 8+ (project sudah
+        # dievaluasi saat blok itu dieksekusi → "Cannot run afterEvaluate when already evaluated").
+        # Solusi: pakai subprojects{} tanpa afterEvaluate, set compileOptions langsung
+        # lewat allprojects di settings.gradle.kts atau lewat android{} DSL di app-level.
+        # Cara paling aman dan kompatibel: inject ke android/app/build.gradle.kts langsung.
         run: |
           if [ -f android/build.gradle.kts ]; then
-            # Kotlin DSL — pakai sintaks lambda, bukan closure Groovy
-            cat >> android/build.gradle.kts << 'EOF'
-
-          subprojects {
-              afterEvaluate {
-                  val androidExt = extensions.findByName("android")
-                  if (androidExt != null) {
-                      val android = androidExt as com.android.build.gradle.BaseExtension
-                      if (android.namespace == null) {
-                          android.namespace = group.toString()
-                      }
-                      android.compileOptions {
-                          sourceCompatibility = JavaVersion.VERSION_17
-                          targetCompatibility = JavaVersion.VERSION_17
-                          isCoreLibraryDesugaringEnabled = true
-                      }
-                      dependencies.add("coreLibraryDesugaring", "com.android.tools:desugar_jdk_libs:2.1.4")
-                      android.defaultConfig.multiDexEnabled = true
-                  }
-                  tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-                      kotlinOptions { jvmTarget = "17" }
-                  }
-              }
-          }
-          EOF
+            # Kotlin DSL: tambahkan konfigurasi Java 17 + desugar ke app/build.gradle.kts
+            # TANPA afterEvaluate — langsung ke blok android{} yang sudah ada
+            APP_GRADLE="android/app/build.gradle.kts"
+            if grep -q "compileOptions" "$APP_GRADLE"; then
+              # Sudah ada compileOptions, update sourceCompatibility saja
+              sed -i 's/sourceCompatibility = JavaVersion.VERSION_[0-9_]*/sourceCompatibility = JavaVersion.VERSION_17/' "$APP_GRADLE"
+              sed -i 's/targetCompatibility = JavaVersion.VERSION_[0-9_]*/targetCompatibility = JavaVersion.VERSION_17/' "$APP_GRADLE"
+            else
+              # Tambahkan compileOptions ke dalam blok android {}
+              sed -i '/^android {/a\    compileOptions {\n        sourceCompatibility = JavaVersion.VERSION_17\n        targetCompatibility = JavaVersion.VERSION_17\n        isCoreLibraryDesugaringEnabled = true\n    }' "$APP_GRADLE"
+            fi
+            # Tambahkan desugar dependency kalau belum ada
+            if ! grep -q "desugar_jdk_libs" "$APP_GRADLE"; then
+              sed -i '/^dependencies {/a\    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")' "$APP_GRADLE"
+            fi
+            # Set multiDex
+            if ! grep -q "multiDexEnabled" "$APP_GRADLE"; then
+              sed -i '/defaultConfig {/a\        multiDexEnabled = true' "$APP_GRADLE"
+            fi
+            echo "Patched app/build.gradle.kts (Kotlin DSL)"
+            cat "$APP_GRADLE"
           else
-            # Groovy DSL — flutter create lama (sebelum 3.29)
+            # Groovy DSL (Flutter < 3.29) — cara lama masih aman
             cat >> android/build.gradle << 'EOF'
 
           subprojects {
@@ -130,13 +128,11 @@ jobs:
                               androidExt.defaultConfig.multiDexEnabled = true
                           }
                       }
-                      project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-                          kotlinOptions { jvmTarget = "17" }
-                      }
                   }
               }
           }
           EOF
+            echo "Patched android/build.gradle (Groovy DSL)"
           fi
 
       - name: Build APK
