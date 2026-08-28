@@ -115,39 +115,41 @@ jobs:
           cat "$HOME/.gradle/init.d/fix-namespace.gradle"
 
       - name: Aktifkan core library desugaring di app/build.gradle.kts
-        # flutter_local_notifications (dan beberapa plugin lain) butuh isCoreLibraryDesugaringEnabled = true
-        # di level :app — ini TIDAK bisa diset lewat init script (hanya berlaku per-module),
-        # harus langsung di-patch ke android/app/build.gradle.kts.
+        # flutter_local_notifications butuh isCoreLibraryDesugaringEnabled = true di :app.
+        # Kotlin jvmTarget juga harus disesuaikan ke 17 supaya match dengan Java (bukan 11 vs 17).
         run: |
           APP_GRADLE="android/app/build.gradle.kts"
 
           # 1. Aktifkan isCoreLibraryDesugaringEnabled di compileOptions
-          #    Kotlin DSL template dari flutter create sudah punya blok compileOptions,
-          #    cukup tambahkan satu baris di dalamnya.
           if grep -q "isCoreLibraryDesugaringEnabled" "$APP_GRADLE"; then
             sed -i 's/isCoreLibraryDesugaringEnabled\s*=\s*false/isCoreLibraryDesugaringEnabled = true/' "$APP_GRADLE"
           else
-            # Sisipkan setelah baris sourceCompatibility (paling aman, pasti ada di template)
             sed -i '/sourceCompatibility/a\        isCoreLibraryDesugaringEnabled = true' "$APP_GRADLE"
           fi
 
-          # 2. Tambahkan desugar dependency
-          #    Pakai append ke akhir file — lebih reliable daripada sed cari blok dependencies {}
-          #    karena format/indentasi Kotlin DSL bisa bervariasi antar versi Flutter.
-          #    Gradle akan merge blok dependencies {} yang muncul beberapa kali di file yang sama.
-          if ! grep -q "desugar_jdk_libs" "$APP_GRADLE"; then
-            cat >> "$APP_GRADLE" << 'EOF'
-
-          dependencies {
-              coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-          }
-          EOF
-          fi
-
-          # 3. multiDexEnabled
+          # 2. multiDexEnabled
           if ! grep -q "multiDexEnabled" "$APP_GRADLE"; then
             sed -i '/minSdk/a\        multiDexEnabled = true' "$APP_GRADLE"
           fi
+
+          # 3. Append desugar dependency + kotlinOptions ke akhir file.
+          #    Gradle merge beberapa blok dependencies{} secara otomatis.
+          #    kotlinOptions.jvmTarget harus "17" supaya match dengan compileOptions Java 17.
+          cat >> "$APP_GRADLE" << 'GRADLEOF'
+
+          // === Patch oleh CI: desugar + Kotlin JVM target ===
+          dependencies {
+              coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+          }
+
+          // Samakan jvmTarget Kotlin dengan Java — tanpa ini build gagal:
+          // "Inconsistent JVM-target: compileReleaseJavaWithJavac(17) vs compileReleaseKotlin(11)"
+          tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+          }
+          GRADLEOF
 
           echo "=== app/build.gradle.kts setelah patch ==="
           cat "$APP_GRADLE"
