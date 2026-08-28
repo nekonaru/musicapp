@@ -1,22 +1,43 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'providers/library_provider.dart';
 import 'providers/playlist_provider.dart';
 import 'providers/theme_provider.dart';
 import 'services/player_service.dart';
-import 'services/notification_service.dart';
+import 'services/swara_audio_handler.dart';
 import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Notifikasi kontrol musik bersifat opsional - kalau gagal init,
-  // aplikasi tetap berjalan normal tanpa notifikasi kontrol.
-  try {
-    await NotificationService.instance.init();
-  } catch (e) {
-    debugPrint('Notifikasi kontrol musik tidak tersedia: $e');
-  }
   await PlayerService.instance.init();
+
+  // Android 13+ mewajibkan izin notifikasi diminta secara aktif saat runtime -
+  // tanpa ini notifikasi kontrol musik dari AudioService tidak akan muncul.
+  try {
+    await Permission.notification.request();
+  } catch (e) {
+    debugPrint('Izin notifikasi tidak bisa diminta: $e');
+  }
+
+  // Kontrol musik lewat notifikasi + lockscreen (MediaSession asli) dan
+  // foreground service, bersifat opsional - kalau gagal init, aplikasi
+  // tetap berjalan normal cuma tanpa kontrol dari luar app.
+  try {
+    await AudioService.init(
+      builder: () => SwaraAudioHandler(),
+      config: const AudioServiceConfig(
+        androidNotificationChannelId: 'com.nikodwidharma.offline_music_player.channel.audio',
+        androidNotificationChannelName: 'Kontrol Musik Swara',
+        androidNotificationIcon: 'drawable/ic_stat_swara',
+        androidNotificationOngoing: true,
+        androidStopForegroundOnPause: true,
+      ),
+    );
+  } catch (e) {
+    debugPrint('AudioService gagal diinisialisasi, kontrol lockscreen/notifikasi tidak tersedia: $e');
+  }
 
   final themeProvider = ThemeProvider();
   await themeProvider.load(); // baca tema tersimpan SEBELUM app pertama kali dirender

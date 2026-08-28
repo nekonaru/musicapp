@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import '../models/song.dart';
 import 'db_helper.dart';
-import 'notification_service.dart';
 
 enum RepeatMode { off, all, one }
 
@@ -139,7 +138,6 @@ class PlayerService extends ChangeNotifier {
       _accumulatedListenedMs = 0;
       _crossfadeTriggeredForCurrent = false;
       await DBHelper.instance.markPlayed(nextSong.id);
-      _updateNotification();
 
       _positionSub?.cancel();
       _positionSub = _activePlayer.positionStream.listen(_maybeStartCrossfade);
@@ -208,22 +206,11 @@ class PlayerService extends ChangeNotifier {
     _accumulatedListenedMs = 0;
     await DBHelper.instance.markPlayed(song.id);
     lastError = null;
-    _updateNotification();
     // Pasang ulang listener posisi ke player yang sekarang aktif, supaya
     // crossfade tetap terpicu untuk lagu-lagu berikutnya juga (bukan cuma sekali).
     _positionSub?.cancel();
     _positionSub = player.positionStream.listen(_maybeStartCrossfade);
     notifyListeners();
-  }
-
-  void _updateNotification() {
-    final song = currentSong;
-    if (song == null) return;
-    NotificationService.instance.showOrUpdate(
-      title: song.title,
-      artist: song.artist,
-      isPlaying: player.playing,
-    );
   }
 
   Future<void> togglePlayPause() async {
@@ -234,7 +221,6 @@ class PlayerService extends ChangeNotifier {
       _playStartedAt = DateTime.now();
       await player.play();
     }
-    _updateNotification();
     notifyListeners();
   }
 
