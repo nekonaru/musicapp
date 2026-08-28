@@ -120,35 +120,36 @@ jobs:
         # harus langsung di-patch ke android/app/build.gradle.kts.
         run: |
           APP_GRADLE="android/app/build.gradle.kts"
-          echo "=== Sebelum patch ==="
-          cat "$APP_GRADLE"
 
-          # 1. Aktifkan core library desugaring di compileOptions
+          # 1. Aktifkan isCoreLibraryDesugaringEnabled di compileOptions
+          #    Kotlin DSL template dari flutter create sudah punya blok compileOptions,
+          #    cukup tambahkan satu baris di dalamnya.
           if grep -q "isCoreLibraryDesugaringEnabled" "$APP_GRADLE"; then
-            # Sudah ada tapi mungkin false — set jadi true
             sed -i 's/isCoreLibraryDesugaringEnabled\s*=\s*false/isCoreLibraryDesugaringEnabled = true/' "$APP_GRADLE"
           else
-            # Tambahkan ke dalam blok compileOptions yang sudah ada
-            if grep -q "compileOptions" "$APP_GRADLE"; then
-              sed -i '/compileOptions {/,/}/ s/}/    isCoreLibraryDesugaringEnabled = true\n        }/' "$APP_GRADLE"
-            else
-              # Tidak ada compileOptions sama sekali — tambahkan blok baru setelah 'android {'
-              sed -i '/^android {/a\    compileOptions {\n        sourceCompatibility = JavaVersion.VERSION_17\n        targetCompatibility = JavaVersion.VERSION_17\n        isCoreLibraryDesugaringEnabled = true\n    }' "$APP_GRADLE"
-            fi
+            # Sisipkan setelah baris sourceCompatibility (paling aman, pasti ada di template)
+            sed -i '/sourceCompatibility/a\        isCoreLibraryDesugaringEnabled = true' "$APP_GRADLE"
           fi
 
-          # 2. Tambahkan dependency desugar kalau belum ada
+          # 2. Tambahkan desugar dependency
+          #    Pakai append ke akhir file — lebih reliable daripada sed cari blok dependencies {}
+          #    karena format/indentasi Kotlin DSL bisa bervariasi antar versi Flutter.
+          #    Gradle akan merge blok dependencies {} yang muncul beberapa kali di file yang sama.
           if ! grep -q "desugar_jdk_libs" "$APP_GRADLE"; then
-            # Cari blok dependencies { dan inject di dalamnya
-            sed -i '/^dependencies {/a\    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")' "$APP_GRADLE"
+            cat >> "$APP_GRADLE" << 'EOF'
+
+          dependencies {
+              coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+          }
+          EOF
           fi
 
-          # 3. multiDexEnabled (opsional tapi disarankan)
+          # 3. multiDexEnabled
           if ! grep -q "multiDexEnabled" "$APP_GRADLE"; then
-            sed -i '/defaultConfig {/a\        multiDexEnabled = true' "$APP_GRADLE"
+            sed -i '/minSdk/a\        multiDexEnabled = true' "$APP_GRADLE"
           fi
 
-          echo "=== Sesudah patch ==="
+          echo "=== app/build.gradle.kts setelah patch ==="
           cat "$APP_GRADLE"
 
       - name: Build APK
