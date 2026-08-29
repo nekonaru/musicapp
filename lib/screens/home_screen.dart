@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import 'library_screen.dart';
 import 'extra_screens.dart';
 import 'history_screen.dart';
@@ -32,8 +34,53 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autoDetectNewFiles();
       _showAudioServiceErrorIfAny();
+      _showNativeCrashLogIfAny();
     });
     _collectionTabs.addListener(_onCollectionSubTabChanged);
+  }
+
+  /// Debug sementara: kalau app kemarin force-close karena crash native (bukan
+  /// exception Dart biasa), MainApplication.kt di sisi Android sudah nyimpen
+  /// stack trace-nya ke file. Baca ulang di sini dan tampilkan, biar gak perlu
+  /// adb/file manager buat lihat isinya.
+  Future<void> _showNativeCrashLogIfAny() async {
+    try {
+      final dir = await getExternalStorageDirectory();
+      if (dir == null) return;
+      final file = File('${dir.path}/swara_crash_log.txt');
+      if (!await file.exists()) return;
+      final content = await file.readAsString();
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Crash terakhir tercatat'),
+          content: SingleChildScrollView(
+            child: SelectableText(content, style: const TextStyle(fontSize: 12)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: content));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Disalin ke clipboard')),
+                );
+              },
+              child: const Text('Salin'),
+            ),
+            TextButton(
+              onPressed: () async {
+                await file.delete();
+                if (context.mounted) Navigator.of(context).pop();
+              },
+              child: const Text('Hapus & Tutup'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      // Diam-diam gagal, ini cuma alat bantu debug, jangan sampai ganggu app utama.
+    }
   }
 
   /// Debug sementara: kalau AudioService gagal diinisialisasi pas app dibuka
