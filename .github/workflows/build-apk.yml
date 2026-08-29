@@ -47,18 +47,19 @@ jobs:
           sed -i 's#</application>#    <service\n        android:name="com.ryanheise.audioservice.AudioService"\n        android:foregroundServiceType="mediaPlayback"\n        android:exported="true">\n        <intent-filter>\n            <action android:name="android.media.browse.MediaBrowserService" />\n        </intent-filter>\n    </service>\n    <receiver\n        android:name="com.ryanheise.audioservice.MediaButtonReceiver"\n        android:exported="true">\n        <intent-filter>\n            <action android:name="android.intent.action.MEDIA_BUTTON" />\n        </intent-filter>\n    </receiver>\n</application>#' "$MANIFEST"
           cat "$MANIFEST"
 
-      - name: Ubah MainActivity.kt jadi extends AudioServiceActivity
-        # Ini akar masalah sebenarnya dari error "PlatformException(The Activity class
-        # declared in your AndroidManifest.xml is wrong or has not provided the correct
-        # FlutterEngine...)". MainActivity.kt bawaan 'flutter create' extends FlutterActivity
-        # biasa, padahal audio_service butuh activity yang menyediakan FlutterEngine dengan
-        # cara khusus. Deklarasi <service>/<receiver> di manifest saja tidak cukup tanpa ini.
-        # Didokumentasikan resmi di README audio_service (pub.dev/packages/audio_service).
+      - name: Ubah MainActivity.kt jadi extends AudioServiceFragmentActivity
+        # AudioServiceActivity biasa pernah dilaporkan bikin crash "Flutter JNI error"
+        # tepat setelah notifikasi kebentuk, di beberapa perangkat (terutama yang custom
+        # ROM/skin seperti XOS, MIUI, dll). AudioServiceFragmentActivity adalah varian yang
+        # lebih stabil karena berbasis FlutterFragmentActivity, dipakai buat menghindari
+        # bug itu. Referensi: github.com/ryanheise/audio_service/pull/840
         run: |
           MAINACTIVITY=$(find android/app/src/main/kotlin -name "MainActivity.kt")
           echo "Ditemukan di: $MAINACTIVITY"
-          sed -i 's/import io.flutter.embedding.android.FlutterActivity/import com.ryanheise.audioservice.AudioServiceActivity/' "$MAINACTIVITY"
-          sed -i 's/FlutterActivity()/AudioServiceActivity()/' "$MAINACTIVITY"
+          sed -i 's/import io.flutter.embedding.android.FlutterActivity/import com.ryanheise.audioservice.AudioServiceFragmentActivity/' "$MAINACTIVITY"
+          sed -i 's/import com.ryanheise.audioservice.AudioServiceActivity/import com.ryanheise.audioservice.AudioServiceFragmentActivity/' "$MAINACTIVITY"
+          sed -i 's/FlutterActivity()/AudioServiceFragmentActivity()/' "$MAINACTIVITY"
+          sed -i 's/AudioServiceActivity()/AudioServiceFragmentActivity()/' "$MAINACTIVITY"
           cat "$MAINACTIVITY"
 
       - name: Buat ikon status bar notifikasi (wajib monokrom/siluet)
@@ -139,6 +140,23 @@ jobs:
           echo "Init script dibuat:"
           cat "$HOME/.gradle/init.d/fix-namespace.gradle"
 
+      - name: Ganti tema LaunchTheme/NormalTheme jadi turunan Theme.AppCompat
+        # AudioServiceFragmentActivity mewarisi FlutterFragmentActivity, dan itu MEWAJIBKAN
+        # tema turunan Theme.AppCompat. Tema bawaan 'flutter create' masih tema Android biasa
+        # (Theme.Light/Black.NoTitleBar), tanpa ini activity crash:
+        # "IllegalStateException: You need to use a Theme.AppCompat theme (or descendant)
+        # with this activity" - persis kenapa musik tetap jalan (service selamat) tapi
+        # layarnya force close (activity yang crash).
+        run: |
+          STYLES="android/app/src/main/res/values/styles.xml"
+          STYLES_NIGHT="android/app/src/main/res/values-night/styles.xml"
+          sed -i 's#@android:style/Theme.Light.NoTitleBar#Theme.AppCompat.Light.NoActionBar#g' "$STYLES"
+          sed -i 's#@android:style/Theme.Black.NoTitleBar#Theme.AppCompat.NoActionBar#g' "$STYLES_NIGHT"
+          echo "=== styles.xml ==="
+          cat "$STYLES"
+          echo "=== styles.xml (night) ==="
+          cat "$STYLES_NIGHT"
+
       - name: Aktifkan core library desugaring di app/build.gradle.kts
         # flutter_local_notifications butuh isCoreLibraryDesugaringEnabled = true di :app.
         # Kotlin jvmTarget juga harus disesuaikan ke 17 supaya match dengan Java (bukan 11 vs 17).
@@ -165,6 +183,9 @@ jobs:
           // === Patch oleh CI: desugar + Kotlin JVM target ===
           dependencies {
               coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+              // Wajib buat resource tema Theme.AppCompat.* di styles.xml (dipakai
+              // AudioServiceFragmentActivity, lihat step "Ganti tema LaunchTheme/NormalTheme")
+              implementation("androidx.appcompat:appcompat:1.7.0")
           }
 
           // Samakan jvmTarget Kotlin dengan Java — tanpa ini build gagal:
