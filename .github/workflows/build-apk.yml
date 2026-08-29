@@ -113,6 +113,19 @@ jobs:
           echo "=== isi file setelah disalin ==="
           cat android/app/src/main/res/drawable/ic_stat_swara.xml
 
+      - name: Cegah icon custom kebuang R8 resource shrinker
+        # Ini akar masalah sebenarnya dari crash "Invalid notification (no valid small icon)".
+        # Didokumentasikan resmi di README audio_service: icon bawaan plugin aman dari R8,
+        # tapi icon custom kita (ic_stat_swara) ikut kebuang proses shrinking kalau gak
+        # di-exclude manual lewat res/raw/keep.xml. File-nya ada di source, tapi hilang di APK final.
+        run: |
+          mkdir -p android/app/src/main/res/raw
+          cat > android/app/src/main/res/raw/keep.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@drawable/*" />
+          EOF
+          cat android/app/src/main/res/raw/keep.xml
+
       - name: Install dependency
         run: flutter pub get
 
