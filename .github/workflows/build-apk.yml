@@ -47,6 +47,20 @@ jobs:
           sed -i 's#</application>#    <service\n        android:name="com.ryanheise.audioservice.AudioService"\n        android:foregroundServiceType="mediaPlayback"\n        android:exported="true">\n        <intent-filter>\n            <action android:name="android.media.browse.MediaBrowserService" />\n        </intent-filter>\n    </service>\n    <receiver\n        android:name="com.ryanheise.audioservice.MediaButtonReceiver"\n        android:exported="true">\n        <intent-filter>\n            <action android:name="android.intent.action.MEDIA_BUTTON" />\n        </intent-filter>\n    </receiver>\n</application>#' "$MANIFEST"
           cat "$MANIFEST"
 
+      - name: Ubah MainActivity.kt jadi extends AudioServiceActivity
+        # Ini akar masalah sebenarnya dari error "PlatformException(The Activity class
+        # declared in your AndroidManifest.xml is wrong or has not provided the correct
+        # FlutterEngine...)". MainActivity.kt bawaan 'flutter create' extends FlutterActivity
+        # biasa, padahal audio_service butuh activity yang menyediakan FlutterEngine dengan
+        # cara khusus. Deklarasi <service>/<receiver> di manifest saja tidak cukup tanpa ini.
+        # Didokumentasikan resmi di README audio_service (pub.dev/packages/audio_service).
+        run: |
+          MAINACTIVITY=$(find android/app/src/main/kotlin -name "MainActivity.kt")
+          echo "Ditemukan di: $MAINACTIVITY"
+          sed -i 's/import io.flutter.embedding.android.FlutterActivity/import com.ryanheise.audioservice.AudioServiceActivity/' "$MAINACTIVITY"
+          sed -i 's/FlutterActivity()/AudioServiceActivity()/' "$MAINACTIVITY"
+          cat "$MAINACTIVITY"
+
       - name: Buat ikon status bar notifikasi (wajib monokrom/siluet)
         run: |
           cat > android/app/src/main/res/drawable/ic_stat_swara.xml << 'EOF'
