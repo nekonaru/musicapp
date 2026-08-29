@@ -7,6 +7,7 @@ import 'history_screen.dart';
 import 'dashboard_screen.dart';
 import 'settings_screen.dart';
 import '../providers/library_provider.dart';
+import '../services/diagnostics.dart';
 import '../widgets/mini_player.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -28,8 +29,43 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _autoDetectNewFiles());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoDetectNewFiles();
+      _showAudioServiceErrorIfAny();
+    });
     _collectionTabs.addListener(_onCollectionSubTabChanged);
+  }
+
+  /// Debug sementara: kalau AudioService gagal diinisialisasi pas app dibuka
+  /// (kontrol notifikasi/lockscreen gak akan muncul), tunjukkan error-nya
+  /// langsung di sini biar gampang di-screenshot, gak perlu adb/logcat.
+  void _showAudioServiceErrorIfAny() {
+    final error = Diagnostics.audioServiceError;
+    if (error == null) return;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('AudioService gagal diinisialisasi'),
+        content: SingleChildScrollView(
+          child: SelectableText(error, style: const TextStyle(fontSize: 12)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: error));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Disalin ke clipboard')),
+              );
+            },
+            child: const Text('Salin'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Tutup'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _onCollectionSubTabChanged() {
