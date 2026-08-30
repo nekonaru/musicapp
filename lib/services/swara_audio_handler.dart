@@ -1,37 +1,30 @@
 import 'dart:async';
-
 import 'package:audio_service/audio_service.dart';
-
 import 'player_service.dart';
+import 'db_helper.dart';
 
-/// Adapter tipis di atas [PlayerService] yang sudah ada, BUKAN pengganti
-/// logic pemutaran. Semua state (queue, shuffle, crossfade, sleep timer, dst)
-/// tetap sepenuhnya dikelola PlayerService seperti sebelumnya - handler ini
-/// cuma menerjemahkan state itu ke MediaSession Android (untuk notifikasi
-/// asli, lockscreen, dan foreground service), dan meneruskan balik perintah
-/// dari tombol notifikasi/lockscreen ke PlayerService.
+/// Adapter tipis di atas [PlayerService]. Menerjemahkan state pemutaran ke
+/// MediaSession Android untuk notifikasi, lockscreen, dan foreground service.
+/// Tombol notifikasi: Favorit | Sebelumnya | Play/Pause | Berikutnya | Tutup
 class SwaraAudioHandler extends BaseAudioHandler {
   Timer? _positionTicker;
 
-  static const _shuffleAction = MediaControl(
-    androidIcon: 'drawable/ic_notif_shuffle',
-    label: 'Acak',
+  static const _favoriteAction = MediaControl(
+    androidIcon: 'drawable/ic_notif_favorite',
+    label: 'Favorit',
     action: MediaAction.custom,
-    customAction: CustomMediaAction(name: 'shuffle'),
+    customAction: CustomMediaAction(name: 'favorite'),
   );
 
-  static const _repeatAction = MediaControl(
-    androidIcon: 'drawable/ic_notif_repeat',
-    label: 'Ulangi',
-    action: MediaAction.custom,
-    customAction: CustomMediaAction(name: 'repeat'),
+  // Gunakan stop action bawaan sebagai tombol "Tutup"
+  static const _closeAction = MediaControl(
+    androidIcon: 'drawable/ic_notif_close',
+    label: 'Tutup',
+    action: MediaAction.stop,
   );
 
   SwaraAudioHandler() {
     PlayerService.instance.addListener(_syncState);
-    // notifyListeners() di PlayerService tidak dipanggil tiap tick posisi
-    // lagu berjalan, jadi progress bar di lockscreen perlu didorong berkala
-    // sendiri di sini supaya tidak diam di tempat selama lagu diputar.
     _positionTicker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (PlayerService.instance.player.playing) _syncState();
     });
@@ -51,28 +44,27 @@ class SwaraAudioHandler extends BaseAudioHandler {
               artist: song.artist,
               album: song.album,
               duration: Duration(milliseconds: song.durationMs),
-              artUri: song.albumArtPath != null ? Uri.file(song.albumArtPath!) : null,
+              artUri: song.albumArtPath != null
+                  ? Uri.file(song.albumArtPath!)
+                  : null,
             ),
     );
 
     final playing = ps.player.playing;
     playbackState.add(
       playbackState.value.copyWith(
-        // 5 tombol: acak, sebelumnya, play/pause, berikutnya, ulangi - sama
-        // dengan baris kontrol utama di layar player. Notifikasi Android
-        // umumnya cuma cukup buat 5 tombol, jadi favorit sengaja tidak
-        // disertakan di sini (tetap ada di layar player).
         controls: [
-          _shuffleAction,
+          _favoriteAction,
           MediaControl.skipToPrevious,
           playing ? MediaControl.pause : MediaControl.play,
           MediaControl.skipToNext,
-          _repeatAction,
+          _closeAction,
         ],
         systemActions: const {
           MediaAction.seek,
           MediaAction.skipToPrevious,
           MediaAction.skipToNext,
+          MediaAction.stop,
         },
         androidCompactActionIndices: const [1, 2, 3],
         processingState: AudioProcessingState.ready,
@@ -104,16 +96,21 @@ class SwaraAudioHandler extends BaseAudioHandler {
   Future<void> skipToPrevious() => PlayerService.instance.smartPrevious();
 
   @override
-  Future<void> seek(Duration position) => PlayerService.instance.player.seek(position);
+  Future<void> seek(Duration position) =>
+      PlayerService.instance.player.seek(position);
 
   @override
-  Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) async {
+  Future<dynamic> customAction(String name,
+      [Map<String, dynamic>? extras]) async {
     switch (name) {
-      case 'shuffle':
-        PlayerService.instance.toggleShuffle();
-        break;
-      case 'repeat':
-        PlayerService.instance.cycleRepeatMode();
+      case 'favorite':
+        final song = PlayerService.instance.currentSong;
+        if (song != null) {
+          final newVal = !song.isFavorite;
+          await DBHelper.instance.setFavorite(song.id, newVal);
+          song.isFavorite = newVal;
+          PlayerService.instance.notifyListeners();
+        }
         break;
     }
   }

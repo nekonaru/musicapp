@@ -393,4 +393,46 @@ class DBHelper {
     final rows = await database.query('folders', where: 'includeInLibrary = 0');
     return rows.map((r) => r['path'] as String).toSet();
   }
+
+  /// Lagu diurutkan berdasarkan jumlah diputar (paling sering dulu)
+  Future<List<Song>> getMostPlayedSongs({int limit = 50}) async {
+    final topIds = await getTopSongIds(limit: limit);
+    if (topIds.isEmpty) return [];
+    final allSongs = await getAllSongs();
+    final songMap = <int, Song>{for (final s in allSongs) s.id: s};
+    return topIds
+        .map((e) => songMap[e.key])
+        .whereType<Song>()
+        .toList();
+  }
+
+  /// Lagu yang belum pernah diputar sama sekali
+  Future<List<Song>> getNeverPlayedSongs() async {
+    final database = await db;
+    final rows = await database.query(
+      'songs',
+      where: 'lastPlayedAt IS NULL',
+      orderBy: 'title ASC',
+    );
+    return rows.map((r) => Song.fromMap(r)).toList();
+  }
+
+  /// Total waktu mendengarkan seluruh waktu (ms)
+  Future<int> getTotalListeningMs() async {
+    final database = await db;
+    final result = await database.rawQuery(
+        'SELECT COALESCE(SUM(listenedMs), 0) as total FROM listening_entries');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  /// Total mendengarkan bulan ini (ms)
+  Future<int> getThisMonthListeningMs() async {
+    final database = await db;
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, 1).toIso8601String();
+    final result = await database.rawQuery(
+        'SELECT COALESCE(SUM(listenedMs), 0) as total FROM listening_entries WHERE timestamp >= ?',
+        [start]);
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
 }

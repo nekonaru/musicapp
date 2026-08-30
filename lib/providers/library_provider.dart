@@ -6,7 +6,31 @@ import '../services/library_scanner.dart';
 import '../services/metadata_service.dart';
 import '../utils/format.dart';
 
-enum SortOption { titleAZ, titleZA, artistAZ, dateAddedNewest, genre }
+enum SortOption {
+  titleAZ,
+  titleZA,
+  artistAZ,
+  artistZA,
+  albumAZ,
+  albumZA,
+  dateAddedNewest,
+  dateAddedOldest,
+  genre,
+}
+
+String sortOptionLabel(SortOption opt) {
+  switch (opt) {
+    case SortOption.titleAZ: return 'Judul \u2191';
+    case SortOption.titleZA: return 'Judul \u2193';
+    case SortOption.artistAZ: return 'Artis \u2191';
+    case SortOption.artistZA: return 'Artis \u2193';
+    case SortOption.albumAZ: return 'Album \u2191';
+    case SortOption.albumZA: return 'Album \u2193';
+    case SortOption.dateAddedNewest: return 'Tanggal \u2191';
+    case SortOption.dateAddedOldest: return 'Tanggal \u2193';
+    case SortOption.genre: return 'Genre \u2191';
+  }
+}
 
 class LibraryProvider extends ChangeNotifier {
   List<Song> songs = [];
@@ -16,10 +40,11 @@ class LibraryProvider extends ChangeNotifier {
   int bulkScanTotal = 0;
   String? scanError;
   SortOption sortOption = SortOption.titleAZ;
-  String searchQuery = '';
 
-  // Key SharedPreferences
   static const _kSortOption = 'lib_sort_option';
+  static const _kLastDeviceScan = 'last_device_scan_ms';
+  // Scan otomatis hanya kalau sudah lebih dari 30 menit
+  static const _scanIntervalMs = 1800000;
 
   LibraryProvider() {
     _loadPrefs();
@@ -29,7 +54,6 @@ class LibraryProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final idx = prefs.getInt(_kSortOption) ?? 0;
     sortOption = SortOption.values[idx.clamp(0, SortOption.values.length - 1)];
-    // Tidak notify di sini - akan notify saat loadFromDb pertama kali
   }
 
   Future<void> _savePrefs() async {
@@ -37,6 +61,7 @@ class LibraryProvider extends ChangeNotifier {
     await prefs.setInt(_kSortOption, sortOption.index);
   }
 
+  /// Load dari DB (instan, tidak scan device) - dipanggil saat app buka
   Future<void> loadFromDb() async {
     final all = await DBHelper.instance.getAllSongs();
     final excluded = await DBHelper.instance.getExcludedFolders();
@@ -50,8 +75,27 @@ class LibraryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Load dari DB lalu scan device di background hanya jika diperlukan.
+  /// Lagu muncul instan dari DB, scan hanya berjalan kalau sudah lama tidak scan.
+  Future<void> autoLoadAndScanIfNeeded() async {
+    // Step 1: Load DB dulu - musik langsung muncul
+    await loadFromDb();
+
+    // Step 2: Cek apakah perlu scan device
+    final prefs = await SharedPreferences.getInstance();
+    final lastMs = prefs.getInt(_kLastDeviceScan) ?? 0;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final elapsed = nowMs - lastMs;
+
+    // Kalau lagu sudah ada dan scan terakhir belum lama, skip scan
+    if (songs.isNotEmpty && elapsed < _scanIntervalMs) return;
+
+    // Scan device (tanpa internet) di background
+    await scanDevice();
+    await prefs.setInt(_kLastDeviceScan, nowMs);
+  }
+
   /// Scan file dari HP (deteksi lagu baru/hapus), TANPA fetch metadata internet.
-  /// Tidak lagi otomatis scan metadata - harus diminta manual.
   Future<void> scanDevice() async {
     isScanning = true;
     scanError = null;
@@ -59,9 +103,6 @@ class LibraryProvider extends ChangeNotifier {
     try {
       await LibraryScanner().scanAndSync(autoFetchMetadata: false);
       await loadFromDb();
-      isScanning = false;
-      notifyListeners();
-      return;
     } catch (e) {
       scanError = e.toString();
     }
@@ -69,9 +110,13 @@ class LibraryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Scan ulang metadata (dipanggil dari tombol bulk scan di Semua Lagu/Folder).
-  /// [onlyMissing] true = cuma proses lagu yang belum pernah discan (hemat, dipakai
-  /// otomatis buat lagu baru); false = paksa scan ulang semua lagu dari nol.
+  /// Force scan device dan update timestamp
+  Future<void> forceScanDevice() async {
+    await scanDevice();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_kLastDeviceScan, DateTime.now().millisecondsSinceEpoch);
+  }
+
   Future<void> bulkScanMetadata({bool onlyMissing = false}) async {
     final targets = onlyMissing ? songs.where((s) => !s.metadataScanned).toList() : songs;
     if (targets.isEmpty) return;
@@ -93,7 +138,6 @@ class LibraryProvider extends ChangeNotifier {
     await loadFromDb();
   }
 
-  /// Scan ulang metadata untuk satu lagu saja (dipanggil dari tombol di layar edit)
   Future<void> rescanSingleMetadata(Song song) async {
     await MetadataService.instance.enrichSong(song);
     await loadFromDb();
@@ -103,11 +147,6 @@ class LibraryProvider extends ChangeNotifier {
     sortOption = option;
     _applySort();
     _savePrefs();
-    notifyListeners();
-  }
-
-  void setSearchQuery(String query) {
-    searchQuery = query;
     notifyListeners();
   }
 
@@ -122,6 +161,15 @@ class LibraryProvider extends ChangeNotifier {
       case SortOption.artistAZ:
         songs.sort((a, b) => a.artist.toLowerCase().compareTo(b.artist.toLowerCase()));
         break;
+      case SortOption.artistZA:
+        songs.sort((a, b) => b.artist.toLowerCase().compareTo(a.artist.toLowerCase()));
+        break;
+      case SortOption.albumAZ:
+        songs.sort((a, b) => (a.album).toLowerCase().compareTo((b.album).toLowerCase()));
+        break;
+      case SortOption.albumZA:
+        songs.sort((a, b) => (b.album).toLowerCase().compareTo((a.album).toLowerCase()));
+        break;
       case SortOption.dateAddedNewest:
         songs.sort((a, b) {
           final da = a.addedAt;
@@ -129,7 +177,17 @@ class LibraryProvider extends ChangeNotifier {
           if (da == null && db == null) return 0;
           if (da == null) return 1;
           if (db == null) return -1;
-          return db.compareTo(da); // terbaru duluan
+          return db.compareTo(da);
+        });
+        break;
+      case SortOption.dateAddedOldest:
+        songs.sort((a, b) {
+          final da = a.addedAt;
+          final db = b.addedAt;
+          if (da == null && db == null) return 0;
+          if (da == null) return 1;
+          if (db == null) return -1;
+          return da.compareTo(db);
         });
         break;
       case SortOption.genre:
@@ -138,10 +196,9 @@ class LibraryProvider extends ChangeNotifier {
     }
   }
 
-  /// Lagu yang ditampilkan setelah difilter oleh search query (real-time)
-  List<Song> get filteredSongs {
-    if (searchQuery.trim().isEmpty) return songs;
-    final q = searchQuery.toLowerCase();
+  List<Song> filteredSongs(String query) {
+    if (query.trim().isEmpty) return songs;
+    final q = query.toLowerCase();
     return songs.where((s) =>
         s.title.toLowerCase().contains(q) ||
         s.artist.toLowerCase().contains(q) ||
@@ -151,7 +208,6 @@ class LibraryProvider extends ChangeNotifier {
   int get totalCount => songs.length;
   int get totalDurationMs => songs.fold(0, (sum, s) => sum + s.durationMs);
 
-  /// Reactive - otomatis update begitu ada toggleFavorite, tanpa perlu refresh manual
   List<Song> get favorites => songs.where((s) => s.isFavorite).toList();
 
   Future<void> toggleFavorite(Song song, bool value) async {
@@ -173,6 +229,14 @@ class LibraryProvider extends ChangeNotifier {
   List<Song> get sortedByArtist =>
       [...songs]..sort((a, b) => a.artist.compareTo(b.artist));
 
+  Map<String, List<Song>> get groupedByArtist {
+    final Map<String, List<Song>> map = {};
+    for (final s in songs) {
+      map.putIfAbsent(s.artist, () => []).add(s);
+    }
+    return map;
+  }
+
   Map<String, List<Song>> get groupedByGenre {
     final Map<String, List<Song>> map = {};
     for (final s in songs) {
@@ -189,5 +253,18 @@ class LibraryProvider extends ChangeNotifier {
       map.putIfAbsent(key, () => []).add(s);
     }
     return map;
+  }
+
+  Future<List<Song>> getRecentlyAdded({int limit = 50}) async {
+    final all = await DBHelper.instance.getAllSongsByDateAdded();
+    final excluded = await DBHelper.instance.getExcludedFolders();
+    final filtered = excluded.isEmpty
+        ? all
+        : all.where((s) => !excluded.contains(folderOf(s.filePath))).toList();
+    return filtered.take(limit).toList();
+  }
+
+  Future<List<Song>> getMostPlayed({int limit = 50}) async {
+    return DBHelper.instance.getMostPlayedSongs(limit: limit);
   }
 }

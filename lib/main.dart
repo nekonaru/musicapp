@@ -13,22 +13,18 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await PlayerService.instance.init();
 
-  // Android 13+ mewajibkan izin notifikasi diminta secara aktif saat runtime -
-  // tanpa ini notifikasi kontrol musik dari AudioService tidak akan muncul.
   try {
     await Permission.notification.request();
   } catch (e) {
     debugPrint('Izin notifikasi tidak bisa diminta: $e');
   }
 
-  // Kontrol musik lewat notifikasi + lockscreen (MediaSession asli) dan
-  // foreground service, bersifat opsional - kalau gagal init, aplikasi
-  // tetap berjalan normal cuma tanpa kontrol dari luar app.
   try {
     await AudioService.init(
       builder: () => SwaraAudioHandler(),
       config: const AudioServiceConfig(
-        androidNotificationChannelId: 'com.nikodwidharma.offline_music_player.channel.audio',
+        androidNotificationChannelId:
+            'com.nikodwidharma.offline_music_player.channel.audio',
         androidNotificationChannelName: 'Kontrol Musik Swara',
         androidNotificationIcon: 'drawable/ic_stat_swara',
         androidNotificationOngoing: true,
@@ -36,11 +32,11 @@ void main() async {
       ),
     );
   } catch (e) {
-    debugPrint('AudioService gagal diinisialisasi, kontrol lockscreen/notifikasi tidak tersedia: $e');
+    debugPrint('AudioService gagal diinisialisasi: $e');
   }
 
   final themeProvider = ThemeProvider();
-  await themeProvider.load(); // baca tema tersimpan SEBELUM app pertama kali dirender
+  await themeProvider.load();
 
   runApp(MusicApp(themeProvider: themeProvider));
 }
@@ -58,16 +54,16 @@ class MusicApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: themeProvider),
       ],
       child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, _) => MaterialApp(
+        builder: (context, tp, _) => MaterialApp(
           title: 'Swara',
           debugShowCheckedModeBanner: false,
-          themeMode: themeProvider.themeMode,
+          themeMode: tp.themeMode,
           theme: ThemeData(
-            colorSchemeSeed: Colors.deepPurple,
+            colorSchemeSeed: tp.accentColor,
             useMaterial3: true,
           ),
           darkTheme: ThemeData(
-            colorSchemeSeed: Colors.deepPurple,
+            colorSchemeSeed: tp.accentColor,
             brightness: Brightness.dark,
             useMaterial3: true,
           ),
