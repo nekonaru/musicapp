@@ -4,7 +4,7 @@
 
 Aplikasi pemutar musik offline berbasis Flutter, dengan metadata otomatis, lirik, dan dashboard analitik pendengaran.
 
-[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Flutter](https://img.shields.io/badge/Flutter-3.35-02569B?logo=flutter)](https://flutter.dev)
 [![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?logo=android)](https://github.com/nekonaru/musicapp)
 
@@ -72,7 +72,7 @@ Aplikasi bisa langsung diunduh dari halaman [Releases](https://github.com/nekona
 
 ## Lisensi
 
-Source code project ini bersifat proprietary. Boleh dilihat untuk keperluan portofolio, namun tidak boleh disalin, dimodifikasi, atau didistribusikan ulang tanpa izin tertulis dari pemilik hak cipta. Lihat file [LICENSE](LICENSE) untuk detail lengkap.
+Source code project ini open source di bawah lisensi MIT. Bebas dipakai, dimodifikasi, dan didistribusikan ulang, termasuk untuk keperluan komersial, selama tetap menyertakan notice lisensi aslinya. Lihat file [LICENSE](LICENSE) untuk detail lengkap.
 
 Aplikasi (APK) yang tersedia di halaman Releases bebas digunakan untuk keperluan pribadi.
 

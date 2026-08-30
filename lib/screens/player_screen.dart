@@ -27,18 +27,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
   double _dragOffset = 0;
   Timer? _countdownTicker;
 
-  // Logika tombol previous "pintar" ala aplikasi musik pada umumnya:
-  // - Pencet pertama -> lagu yang sedang jalan diulang dari awal (seek ke 0),
-  //   dan kita masuk ke "mode previous" selama beberapa detik.
-  // - Pencet lagi SELAGI masih dalam mode previous -> baru pindah ke lagu
-  //   sebelumnya, dan jendela waktunya di-reset (jadi kalau dipencet
-  //   berturut-turut, terus mundur ke lagu-lagu sebelumnya).
-  // - Kalau dibiarkan (lagu jalan normal) sampai jendela waktu habis, mode
-  //   previous berakhir dan pencet berikutnya kembali ke "ulang dari awal".
-  bool _previousModeActive = false;
-  Timer? _previousModeTimer;
-  static const _previousModeWindow = Duration(seconds: 3);
-
   @override
   void initState() {
     super.initState();
@@ -51,22 +39,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void dispose() {
     _countdownTicker?.cancel();
-    _previousModeTimer?.cancel();
     super.dispose();
   }
 
-  void _onPreviousPressed() {
-    if (_previousModeActive) {
-      _player.previous();
-    } else {
-      _player.player.seek(Duration.zero);
-      setState(() => _previousModeActive = true);
-    }
-    _previousModeTimer?.cancel();
-    _previousModeTimer = Timer(_previousModeWindow, () {
-      if (mounted) setState(() => _previousModeActive = false);
-    });
-  }
+  void _onPreviousPressed() => _player.smartPrevious();
 
   Future<void> _pickSleepTimer() async {
     final result = await showSleepTimerSheet(context);
@@ -393,51 +369,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         children: [
-          // Semua tombol sekunder dikumpulkan jadi satu baris ikon polos di
-          // bawah, tanpa keterangan huruf, biar bagian atas tetap bersih.
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: Icon(
-                  isFavorite ? Icons.favorite : Icons.favorite_border,
-                  color: isFavorite ? Colors.red : null,
-                  size: 22,
-                ),
-                tooltip: 'Favorit',
-                onPressed: () => lib.toggleFavorite(song, !isFavorite),
-              ),
-              IconButton(
-                icon: const Icon(Icons.playlist_add, size: 22),
-                tooltip: 'Tambah ke Playlist',
-                onPressed: () => pickPlaylist(context, song, context.read<PlaylistProvider>()),
-              ),
-              IconButton(
-                icon: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
-                  transitionBuilder: (child, anim) => RotationTransition(turns: anim, child: child),
-                  child: Icon(
-                    _showLyrics ? Icons.album : Icons.lyrics_outlined,
-                    key: ValueKey(_showLyrics),
-                    size: 22,
-                  ),
-                ),
-                tooltip: _showLyrics ? 'Tampilkan Cover' : 'Tampilkan Lirik',
-                onPressed: () => setState(() => _showLyrics = !_showLyrics),
-              ),
-              if (_showLyrics)
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 22),
-                  tooltip: 'Edit Lirik',
-                  onPressed: () => _addLyricsManually(song),
-                ),
-              IconButton(
-                icon: const Icon(Icons.queue_music_outlined, size: 22),
-                tooltip: 'Antrean Putar',
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QueueScreen())),
-              ),
-            ],
-          ),
           StreamBuilder<Duration>(
             stream: _player.player.positionStream,
             builder: (context, snapshot) {
@@ -513,8 +444,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
             ],
           ),
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
+              IconButton(
+                icon: Icon(
+                  isFavorite ? Icons.favorite : Icons.favorite_border,
+                  color: isFavorite ? Colors.red : Colors.grey,
+                  size: 22,
+                ),
+                tooltip: 'Favorit',
+                onPressed: () => lib.toggleFavorite(song, !isFavorite),
+              ),
+              IconButton(
+                icon: const Icon(Icons.playlist_add, size: 22, color: Colors.grey),
+                tooltip: 'Tambah ke Playlist',
+                onPressed: () => pickPlaylist(context, song, context.read<PlaylistProvider>()),
+              ),
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -545,6 +490,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
                 tooltip: 'Kecepatan Putar',
                 onPressed: _pickPlaybackSpeed,
+              ),
+              IconButton(
+                icon: const Icon(Icons.queue_music_outlined, size: 22, color: Colors.grey),
+                tooltip: 'Antrean Putar',
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QueueScreen())),
               ),
             ],
           ),

@@ -7,7 +7,6 @@ import 'providers/playlist_provider.dart';
 import 'providers/theme_provider.dart';
 import 'services/player_service.dart';
 import 'services/swara_audio_handler.dart';
-import 'services/diagnostics.dart';
 import 'screens/home_screen.dart';
 
 void main() async {
@@ -36,9 +35,8 @@ void main() async {
         androidStopForegroundOnPause: true,
       ),
     );
-  } catch (e, st) {
+  } catch (e) {
     debugPrint('AudioService gagal diinisialisasi, kontrol lockscreen/notifikasi tidak tersedia: $e');
-    Diagnostics.audioServiceError = '$e\n\n$st';
   }
 
   final themeProvider = ThemeProvider();

@@ -13,6 +13,20 @@ import 'player_service.dart';
 class SwaraAudioHandler extends BaseAudioHandler {
   Timer? _positionTicker;
 
+  static const _shuffleAction = MediaControl(
+    androidIcon: 'drawable/ic_notif_shuffle',
+    label: 'Acak',
+    action: MediaAction.custom,
+    customAction: CustomMediaAction(name: 'shuffle'),
+  );
+
+  static const _repeatAction = MediaControl(
+    androidIcon: 'drawable/ic_notif_repeat',
+    label: 'Ulangi',
+    action: MediaAction.custom,
+    customAction: CustomMediaAction(name: 'repeat'),
+  );
+
   SwaraAudioHandler() {
     PlayerService.instance.addListener(_syncState);
     // notifyListeners() di PlayerService tidak dipanggil tiap tick posisi
@@ -44,17 +58,23 @@ class SwaraAudioHandler extends BaseAudioHandler {
     final playing = ps.player.playing;
     playbackState.add(
       playbackState.value.copyWith(
+        // 5 tombol: acak, sebelumnya, play/pause, berikutnya, ulangi - sama
+        // dengan baris kontrol utama di layar player. Notifikasi Android
+        // umumnya cuma cukup buat 5 tombol, jadi favorit sengaja tidak
+        // disertakan di sini (tetap ada di layar player).
         controls: [
+          _shuffleAction,
           MediaControl.skipToPrevious,
           playing ? MediaControl.pause : MediaControl.play,
           MediaControl.skipToNext,
+          _repeatAction,
         ],
         systemActions: const {
           MediaAction.seek,
           MediaAction.skipToPrevious,
           MediaAction.skipToNext,
         },
-        androidCompactActionIndices: const [0, 1, 2],
+        androidCompactActionIndices: const [1, 2, 3],
         processingState: AudioProcessingState.ready,
         playing: playing,
         updatePosition: ps.player.position,
@@ -81,10 +101,22 @@ class SwaraAudioHandler extends BaseAudioHandler {
   Future<void> skipToNext() => PlayerService.instance.next();
 
   @override
-  Future<void> skipToPrevious() => PlayerService.instance.previous();
+  Future<void> skipToPrevious() => PlayerService.instance.smartPrevious();
 
   @override
   Future<void> seek(Duration position) => PlayerService.instance.player.seek(position);
+
+  @override
+  Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) async {
+    switch (name) {
+      case 'shuffle':
+        PlayerService.instance.toggleShuffle();
+        break;
+      case 'repeat':
+        PlayerService.instance.cycleRepeatMode();
+        break;
+    }
+  }
 
   @override
   Future<void> stop() async {

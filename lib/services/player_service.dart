@@ -260,6 +260,24 @@ class PlayerService extends ChangeNotifier {
     await _playCurrent();
   }
 
+  DateTime? _lastPreviousPressAt;
+  static const _previousDoubleTapWindow = Duration(seconds: 3);
+
+  /// Logika "previous" pintar yang sama dipakai di layar player dan tombol
+  /// notifikasi: tekan sekali ulang lagu dari awal, tekan lagi dalam 3 detik
+  /// baru beneran pindah ke lagu sebelumnya.
+  Future<void> smartPrevious() async {
+    final now = DateTime.now();
+    if (_lastPreviousPressAt != null && now.difference(_lastPreviousPressAt!) < _previousDoubleTapWindow) {
+      _lastPreviousPressAt = null;
+      await previous();
+    } else {
+      _lastPreviousPressAt = now;
+      await player.seek(Duration.zero);
+      notifyListeners();
+    }
+  }
+
   Future<void> playAtQueueIndex(int posInOrder) async {
     if (posInOrder < 0 || posInOrder >= _playOrder.length) return;
     _logListening();
