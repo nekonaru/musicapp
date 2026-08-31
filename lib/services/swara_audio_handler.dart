@@ -1,26 +1,27 @@
 import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'player_service.dart';
-import 'db_helper.dart';
 
-/// Adapter tipis di atas [PlayerService]. Menerjemahkan state pemutaran ke
-/// MediaSession Android untuk notifikasi, lockscreen, dan foreground service.
-/// Tombol notifikasi: Favorit | Sebelumnya | Play/Pause | Berikutnya | Tutup
+/// Adapter tipis di atas [PlayerService]. Menerjemahkan state ke MediaSession
+/// Android untuk notifikasi, lockscreen, dan foreground service.
+/// 
+/// Tombol notifikasi: Acak | Sebelumnya | Play/Pause | Berikutnya | Ulangi
+/// (menggunakan drawable bawaan yang sudah ada di res/)
 class SwaraAudioHandler extends BaseAudioHandler {
   Timer? _positionTicker;
 
-  static const _favoriteAction = MediaControl(
-    androidIcon: 'drawable/ic_notif_favorite',
-    label: 'Favorit',
+  static const _shuffleAction = MediaControl(
+    androidIcon: 'drawable/ic_notif_shuffle',
+    label: 'Acak',
     action: MediaAction.custom,
-    customAction: CustomMediaAction(name: 'favorite'),
+    customAction: CustomMediaAction(name: 'shuffle'),
   );
 
-  // Gunakan stop action bawaan sebagai tombol "Tutup"
-  static const _closeAction = MediaControl(
-    androidIcon: 'drawable/ic_notif_close',
-    label: 'Tutup',
-    action: MediaAction.stop,
+  static const _repeatAction = MediaControl(
+    androidIcon: 'drawable/ic_notif_repeat',
+    label: 'Ulangi',
+    action: MediaAction.custom,
+    customAction: CustomMediaAction(name: 'repeat'),
   );
 
   SwaraAudioHandler() {
@@ -54,17 +55,16 @@ class SwaraAudioHandler extends BaseAudioHandler {
     playbackState.add(
       playbackState.value.copyWith(
         controls: [
-          _favoriteAction,
+          _shuffleAction,
           MediaControl.skipToPrevious,
           playing ? MediaControl.pause : MediaControl.play,
           MediaControl.skipToNext,
-          _closeAction,
+          _repeatAction,
         ],
         systemActions: const {
           MediaAction.seek,
           MediaAction.skipToPrevious,
           MediaAction.skipToNext,
-          MediaAction.stop,
         },
         androidCompactActionIndices: const [1, 2, 3],
         processingState: AudioProcessingState.ready,
@@ -103,14 +103,11 @@ class SwaraAudioHandler extends BaseAudioHandler {
   Future<dynamic> customAction(String name,
       [Map<String, dynamic>? extras]) async {
     switch (name) {
-      case 'favorite':
-        final song = PlayerService.instance.currentSong;
-        if (song != null) {
-          final newVal = !song.isFavorite;
-          await DBHelper.instance.setFavorite(song.id, newVal);
-          song.isFavorite = newVal;
-          PlayerService.instance.notifyListeners();
-        }
+      case 'shuffle':
+        PlayerService.instance.toggleShuffle();
+        break;
+      case 'repeat':
+        PlayerService.instance.cycleRepeatMode();
         break;
     }
   }

@@ -6,8 +6,14 @@ const List<String> kAllLetters = [
   'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
 ];
 
-/// Scrollbar A-Z minimalis: hanya menampilkan garis tipis di kanan layar.
-/// Popup huruf muncul saat jari menyentuh/drag, hilang saat jari diangkat.
+class _PopupData {
+  final String letter;
+  final double globalY;
+  const _PopupData(this.letter, this.globalY);
+}
+
+/// Scrollbar A-Z minimalis: garis tipis di kanan layar.
+/// Popup huruf mengikuti posisi jari (Y), menghilang saat jari diangkat.
 class AzScrollbar extends StatefulWidget {
   final Set<String> availableLetters;
   final void Function(String letter) onLetterSelected;
@@ -24,8 +30,10 @@ class AzScrollbar extends StatefulWidget {
 
 class _AzScrollbarState extends State<AzScrollbar>
     with SingleTickerProviderStateMixin {
-  final _letterNotifier = ValueNotifier<String?>(null);
+  final _scrollbarKey = GlobalKey();
+  final _popupData = ValueNotifier<_PopupData?>(null);
   late final AnimationController _fadeCtrl;
+  late final Animation<double> _fadeAnim;
   OverlayEntry? _overlayEntry;
 
   @override
@@ -36,12 +44,13 @@ class _AzScrollbarState extends State<AzScrollbar>
       duration: const Duration(milliseconds: 120),
       reverseDuration: const Duration(milliseconds: 200),
     );
+    _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
   }
 
   @override
   void dispose() {
     _removeOverlay();
-    _letterNotifier.dispose();
+    _popupData.dispose();
     _fadeCtrl.dispose();
     super.dispose();
   }
@@ -63,68 +72,88 @@ class _AzScrollbarState extends State<AzScrollbar>
     final t = _nearest(idx);
     if (t == null) return;
 
+    // Hitung posisi Y global agar popup bisa mengikuti jari
+    final RenderBox? box =
+        _scrollbarKey.currentContext?.findRenderObject() as RenderBox?;
+    final double globalY =
+        box != null ? box.localToGlobal(local).dy : local.dy;
+
     if (_overlayEntry == null) _showOverlay();
 
-    if (_letterNotifier.value != t) {
-      _letterNotifier.value = t;
+    final current = _popupData.value;
+    _popupData.value = _PopupData(t, globalY);
+
+    if (current?.letter != t) {
       HapticFeedback.selectionClick();
       widget.onLetterSelected(t);
     }
   }
 
   void _showOverlay() {
-    final animation = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
-    final scaleAnimation = Tween<double>(begin: 0.7, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOutBack),
-    );
+    final scaleAnim = Tween<double>(begin: 0.7, end: 1.0)
+        .animate(CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOutBack));
+
     _overlayEntry = OverlayEntry(
       builder: (ctx) {
         final cs = Theme.of(ctx).colorScheme;
-        return Positioned.fill(
-          child: IgnorePointer(
-            child: Align(
-              alignment: const Alignment(0.65, 0),
-              child: FadeTransition(
-                opacity: animation,
-                child: ScaleTransition(
-                  scale: scaleAnimation,
-                  child: ValueListenableBuilder<String?>(
-                    valueListenable: _letterNotifier,
-                    builder: (_, letter, __) {
-                      if (letter == null) return const SizedBox.shrink();
-                      return Material(
-                        elevation: 6,
-                        shadowColor: cs.primary.withOpacity(0.3),
+        final screenH = MediaQuery.of(ctx).size.height;
+
+        return ValueListenableBuilder<_PopupData?>(
+          valueListenable: _popupData,
+          builder: (_, data, __) {
+            if (data == null) return const SizedBox.shrink();
+
+            // Clamp agar tidak keluar layar
+            final top = (data.globalY - 32).clamp(60.0, screenH - 80.0);
+
+            return Positioned(
+              right: 44,
+              top: top,
+              child: IgnorePointer(
+                child: FadeTransition(
+                  opacity: _fadeAnim,
+                  child: ScaleTransition(
+                    scale: scaleAnim,
+                    child: Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: cs.primary,
                         borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(30),
                           topRight: Radius.circular(30),
                           bottomLeft: Radius.circular(30),
+                          // bottomRight lancip seperti speech bubble mengarah kanan
+                          bottomRight: Radius.circular(4),
                         ),
-                        color: cs.primary,
-                        child: SizedBox(
-                          width: 64,
-                          height: 64,
-                          child: Center(
-                            child: Text(
-                              letter,
-                              style: TextStyle(
-                                color: cs.onPrimary,
-                                fontSize: 30,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: cs.primary.withOpacity(0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          data.letter,
+                          style: TextStyle(
+                            color: cs.onPrimary,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
+
     Overlay.of(context).insert(_overlayEntry!);
     _fadeCtrl.forward();
   }
@@ -137,35 +166,39 @@ class _AzScrollbarState extends State<AzScrollbar>
   void _onRelease() {
     _fadeCtrl.reverse().then((_) {
       _removeOverlay();
-      if (mounted) _letterNotifier.value = null;
+      if (mounted) _popupData.value = null;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      return GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onVerticalDragStart: (d) => _onTouch(d.localPosition, constraints.maxHeight),
-        onVerticalDragUpdate: (d) => _onTouch(d.localPosition, constraints.maxHeight),
-        onVerticalDragEnd: (_) => _onRelease(),
-        onTapDown: (d) => _onTouch(d.localPosition, constraints.maxHeight),
-        onTapUp: (_) => _onRelease(),
-        child: Container(
-          width: 20,
-          color: Colors.transparent,
+    return SizedBox(
+      key: _scrollbarKey,
+      width: 20,
+      child: LayoutBuilder(builder: (context, constraints) {
+        return GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onVerticalDragStart: (d) =>
+              _onTouch(d.localPosition, constraints.maxHeight),
+          onVerticalDragUpdate: (d) =>
+              _onTouch(d.localPosition, constraints.maxHeight),
+          onVerticalDragEnd: (_) => _onRelease(),
+          onTapDown: (d) =>
+              _onTouch(d.localPosition, constraints.maxHeight),
+          onTapUp: (_) => _onRelease(),
           child: Center(
             child: Container(
               width: 3,
               margin: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
+                color:
+                    Theme.of(context).colorScheme.outlineVariant.withOpacity(0.45),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
-        ),
-      );
-    });
+        );
+      }),
+    );
   }
 }
