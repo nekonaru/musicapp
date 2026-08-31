@@ -4,6 +4,11 @@ import '../utils/format.dart';
 
 enum _TimerMode { waktu, lagu }
 
+
+/// Fungsi top-level untuk kompatibilitas dengan pemanggil lama (player_screen.dart, dll).
+Future<void> showSleepTimerSheet(BuildContext context) =>
+    SleepTimerSheet.show(context);
+
 class SleepTimerSheet extends StatefulWidget {
   const SleepTimerSheet({super.key});
 
