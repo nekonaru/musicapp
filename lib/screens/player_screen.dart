@@ -45,22 +45,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void _onPreviousPressed() => _player.smartPrevious();
 
   Future<void> _pickSleepTimer() async {
-    final result = await showSleepTimerSheet(context);
-    if (result == null) return;
-
-    if (result.cancel) {
-      _player.cancelSleepTimer();
-      return;
-    }
-
-    if (result.songCount != null) {
-      _player.setSleepTimerBySongs(result.songCount!);
-      return;
-    }
-
-    if (result.duration != null) {
-      _player.setSleepTimer(result.duration!, finishCurrentSong: result.finishCurrentSong);
-    }
+    // Timer diset langsung di dalam SleepTimerSheet._start()
+    // sehingga tidak ada return value yang perlu diproses di sini.
+    await showSleepTimerSheet(context);
   }
 
   Future<void> _pickPlaybackSpeed() async {
