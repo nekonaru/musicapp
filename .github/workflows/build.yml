@@ -1,0 +1,253 @@
+name: Build & Draft Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout kode
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.0'
+          channel: 'stable'
+
+      - name: Regenerate folder android dari template resmi Flutter
+        run: |
+          rm -rf android
+          flutter create --platforms=android --org com.nikodwidharma --project-name offline_music_player .
+
+      - name: Tambahkan permission yang dibutuhkan (audio, internet, background playback)
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i 's#<manifest xmlns:android="http://schemas.android.com/apk/res/android">#<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />#' "$MANIFEST"
+          sed -i 's/android:label="offline_music_player"/android:label="Swara"/' "$MANIFEST"
+          cat "$MANIFEST"
+
+      - name: Deklarasi eksplisit service audio_service (wajib Android 14+/API 34+)
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i 's#</application>#    <service\n        android:name="com.ryanheise.audioservice.AudioService"\n        android:foregroundServiceType="mediaPlayback"\n        android:exported="true">\n        <intent-filter>\n            <action android:name="android.media.browse.MediaBrowserService" />\n        </intent-filter>\n    </service>\n    <receiver\n        android:name="com.ryanheise.audioservice.MediaButtonReceiver"\n        android:exported="true">\n        <intent-filter>\n            <action android:name="android.intent.action.MEDIA_BUTTON" />\n        </intent-filter>\n    </receiver>\n</application>#' "$MANIFEST"
+          cat "$MANIFEST"
+
+      - name: Ubah MainActivity.kt jadi extends AudioServiceFragmentActivity
+        run: |
+          MAINACTIVITY=$(find android/app/src/main/kotlin -name "MainActivity.kt")
+          echo "Ditemukan di: $MAINACTIVITY"
+          sed -i 's/import io.flutter.embedding.android.FlutterActivity/import com.ryanheise.audioservice.AudioServiceFragmentActivity/' "$MAINACTIVITY"
+          sed -i 's/import com.ryanheise.audioservice.AudioServiceActivity/import com.ryanheise.audioservice.AudioServiceFragmentActivity/' "$MAINACTIVITY"
+          sed -i 's/FlutterActivity()/AudioServiceFragmentActivity()/' "$MAINACTIVITY"
+          sed -i 's/AudioServiceActivity()/AudioServiceFragmentActivity()/' "$MAINACTIVITY"
+          cat "$MAINACTIVITY"
+
+      - name: Salin ikon status bar & tombol notifikasi dari repo
+        run: |
+          mkdir -p android/app/src/main/res/drawable
+          cp android_res_extra/ic_stat_swara.xml android/app/src/main/res/drawable/ic_stat_swara.xml
+          cp android_res_extra/ic_notif_shuffle.xml android/app/src/main/res/drawable/ic_notif_shuffle.xml
+          cp android_res_extra/ic_notif_repeat.xml android/app/src/main/res/drawable/ic_notif_repeat.xml
+          echo "=== isi folder drawable setelah disalin ==="
+          ls -la android/app/src/main/res/drawable/
+
+      - name: Cegah icon custom kebuang R8 resource shrinker
+        run: |
+          mkdir -p android/app/src/main/res/raw
+          cat > android/app/src/main/res/raw/keep.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@drawable/*" />
+          EOF
+          cat android/app/src/main/res/raw/keep.xml
+
+      - name: Install dependency
+        run: flutter pub get
+
+      - name: Patch namespace untuk plugin lama yang belum kompatibel AGP terbaru
+        run: |
+          mkdir -p "$HOME/.gradle/init.d"
+          cat > "$HOME/.gradle/init.d/fix-namespace.gradle" << 'GROOVY'
+          allprojects {
+              buildscript {}
+              afterEvaluate {
+                  if (it.hasProperty('android')) {
+                      def android = it.extensions.findByName('android')
+                      if (android != null) {
+                          try {
+                              if (android.namespace == null || android.namespace.isEmpty()) {
+                                  android.namespace = it.group?.toString() ?: it.name
+                              }
+                          } catch (ignored) {}
+                          try {
+                              android.compileOptions {
+                                  sourceCompatibility JavaVersion.VERSION_17
+                                  targetCompatibility JavaVersion.VERSION_17
+                              }
+                          } catch (ignored) {}
+                      }
+                  }
+              }
+          }
+          GROOVY
+          echo "Init script dibuat:"
+          cat "$HOME/.gradle/init.d/fix-namespace.gradle"
+
+      - name: Ganti tema LaunchTheme/NormalTheme jadi turunan Theme.AppCompat
+        run: |
+          STYLES="android/app/src/main/res/values/styles.xml"
+          STYLES_NIGHT="android/app/src/main/res/values-night/styles.xml"
+          sed -i 's#@android:style/Theme.Light.NoTitleBar#Theme.AppCompat.Light.NoActionBar#g' "$STYLES"
+          sed -i 's#@android:style/Theme.Black.NoTitleBar#Theme.AppCompat.NoActionBar#g' "$STYLES_NIGHT"
+          echo "=== styles.xml ==="
+          cat "$STYLES"
+          echo "=== styles.xml (night) ==="
+          cat "$STYLES_NIGHT"
+
+      - name: Aktifkan core library desugaring di app/build.gradle.kts
+        run: |
+          APP_GRADLE="android/app/build.gradle.kts"
+          if grep -q "isCoreLibraryDesugaringEnabled" "$APP_GRADLE"; then
+            sed -i 's/isCoreLibraryDesugaringEnabled\s*=\s*false/isCoreLibraryDesugaringEnabled = true/' "$APP_GRADLE"
+          else
+            sed -i '/sourceCompatibility/a\        isCoreLibraryDesugaringEnabled = true' "$APP_GRADLE"
+          fi
+          if ! grep -q "multiDexEnabled" "$APP_GRADLE"; then
+            sed -i '/minSdk/a\        multiDexEnabled = true' "$APP_GRADLE"
+          fi
+          cat >> "$APP_GRADLE" << 'GRADLEOF'
+
+          // === Patch oleh CI: desugar + Kotlin JVM target ===
+          dependencies {
+              coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+              implementation("androidx.appcompat:appcompat:1.7.0")
+          }
+          tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+          }
+          GRADLEOF
+          echo "=== app/build.gradle.kts setelah patch ==="
+          cat "$APP_GRADLE"
+
+      - name: Build APK
+        run: flutter build apk --release
+        continue-on-error: true
+
+      - name: Cari file APK di manapun lokasinya
+        run: |
+          mkdir -p build/app/outputs/flutter-apk
+          FOUND=$(find . -name "app-release.apk" -not -path "*/node_modules/*" | head -n 1)
+          if [ -z "$FOUND" ]; then
+            echo "APK tidak ditemukan, menampilkan semua file .apk yang ada:"
+            find . -name "*.apk"
+            exit 1
+          fi
+          echo "APK ditemukan di: $FOUND"
+          cp "$FOUND" build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Baca versi dari pubspec.yaml
+        id: version
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | sed 's/+.*//')
+          BUILD=$(grep '^version:' pubspec.yaml | sed 's/.*+//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "build=$BUILD" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+          echo "Versi: $VERSION | Build: $BUILD"
+
+      - name: Upload APK sebagai artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: swara-${{ steps.version.outputs.version }}-release
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Buat GitHub Release Draft
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "Swara ${{ steps.version.outputs.version }}"
+          draft: true
+          prerelease: false
+          generate_release_notes: false
+          body: |
+            ## Swara ${{ steps.version.outputs.version }} — Release Notes
+
+            ### Apa yang baru
+
+            #### Perpustakaan & Navigasi
+            - Halaman "Musik" berganti nama menjadi **Perpustakaan**
+            - Tab Perpustakaan kini bisa dikonfigurasi: **Lagu, Album, Artis, Folder, Genre**
+            - Icon ⚙ di samping tab membuka sheet **Pengaturan Tab** — aktifkan/nonaktifkan tab dan ubah urutannya lewat drag-and-drop
+            - Tab **Album** baru dengan tampilan grid cover art 2 kolom
+
+            #### Koleksi
+            - Tampilan Koleksi didesain ulang: 4 kartu akses cepat berwarna di bagian atas (**Favorit, Baru Ditambahkan, Baru Diputar, Paling Sering Diputar**), diikuti daftar playlist di bawahnya
+            - Semua sub-halaman Koleksi kini punya AppBar dengan judul dan tombol kembali yang jelas
+            - Mini Player selalu terlihat di semua sub-halaman
+
+            #### Performa & Scanning
+            - **Scan satu kali** — musik langsung muncul dari database lokal saat app dibuka, tanpa scan ulang tiap buka app
+            - Scan device hanya berjalan jika lagu belum ada atau sudah >30 menit sejak scan terakhir
+            - Refresh manual via swipe-down atau tombol Scan tetap tersedia
+
+            #### Pencarian
+            - Halaman **Search** baru yang bisa diakses lewat icon kaca pembesar di AppBar
+            - Filter hasil pencarian: **Lagu, Album, Artis, Folder, Genre**
+
+            #### Sorting & Header Collapsible
+            - Semua halaman yang punya daftar lagu mendukung **header collapsible** — tombol Mulai Putar + Acak naik saat di-scroll untuk memaksimalkan ruang tampilan
+            - Sorting menggunakan chip dengan arrow (Judul ↑/↓, Artis ↑/↓, Album ↑/↓, dll)
+
+            #### AZ Scrollbar
+            - Popup huruf pada scrollbar kini **mengikuti posisi jari secara real-time** (bukan fixed di tengah layar)
+            - Shape popup speech bubble dengan sudut kiri tiga rounded, sudut kanan bawah lancip
+            - Popup hilang dengan animasi fade saat jari diangkat
+
+            #### Timer Tidur
+            - UI timer didesain ulang dengan **drum picker scrollable** (sama seperti iOS): pilih jam dan menit secara terpisah, atau pilih jumlah lagu
+            - Saat timer sudah aktif, sheet menampilkan **countdown besar** (HH:MM:SS) atau sisa lagu
+            - Tombol **Berhenti** (merah) untuk membatalkan timer langsung dari sheet
+            - Tombol **Tutup** untuk menutup sheet tanpa menghentikan timer
+
+            #### Multi-Select Lagu
+            - Long press pada lagu untuk masuk mode multi-select
+            - Pilih beberapa lagu sekaligus untuk: tambahkan ke favorit, tambahkan ke playlist
+
+            #### Warna Aksen Kustom
+            - Pilih dari 10 warna aksen (Ungu, Biru, Teal, Hijau, Oranye, Merah, dll)
+            - Tersimpan antar sesi, berlaku ke seluruh elemen interaktif aplikasi
+
+            #### Equalizer
+            - Preset EQ: Flat, Pop, Rock, Classical, Jazz, Electronic, Hip-Hop, Bass Boost, Vocal
+            - Visualizer bar EQ animasi di halaman Pengaturan
+
+            #### Dashboard
+            - Tidak lagi menduplikasi konten dari Koleksi
+            - Berisi: grafik bar aktivitas 7 hari, Top 5 Lagu + Artis, distribusi Genre, lagu yang belum pernah diputar (interaktif), aktivitas mingguan
+
+            ---
+
+            ### Instalasi
+            1. Download file APK di bawah
+            2. Buka APK di HP dan izinkan instalasi dari sumber tidak dikenal jika diminta
+            3. Izinkan akses ke penyimpanan audio saat aplikasi pertama kali dibuka
+
+            **Minimum Android**: 8.0 (API 26)
+          files: |
+            build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

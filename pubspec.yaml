@@ -1,7 +1,7 @@
 name: offline_music_player
 description: Swara - Aplikasi pemutar musik offline dengan metadata otomatis, lirik, dan dashboard analitik pendengaran.
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.6.0+6
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
