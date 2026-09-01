@@ -1,13 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/player_service.dart';
-import '../utils/format.dart';
 
 enum _TimerMode { waktu, lagu }
-
-
-/// Fungsi top-level untuk kompatibilitas dengan pemanggil lama (player_screen.dart, dll).
-Future<void> showSleepTimerSheet(BuildContext context) =>
-    SleepTimerSheet.show(context);
 
 class SleepTimerSheet extends StatefulWidget {
   const SleepTimerSheet({super.key});
@@ -28,74 +23,77 @@ class SleepTimerSheet extends StatefulWidget {
 class _SleepTimerSheetState extends State<SleepTimerSheet> {
   _TimerMode _mode = _TimerMode.waktu;
   bool _finishSong = false;
+  Timer? _ticker;
 
-  // Waktu mode
   late final FixedExtentScrollController _hourCtrl;
   late final FixedExtentScrollController _minCtrl;
-
-  // Lagu mode
   late final FixedExtentScrollController _songCtrl;
 
-  // Pilihan menit: 00, 05, 10, ..., 55
-  static final List<int> _minuteOptions =
-      List.generate(12, (i) => i * 5); // 0,5,10,...,55
-
-  static const int _defaultHour = 0;
+  static final List<int> _minuteOptions = List.generate(12, (i) => i * 5);
   static const int _defaultMinuteIndex = 3; // 15 menit
   static const int _defaultSongIndex = 4;   // 5 lagu
 
   @override
   void initState() {
     super.initState();
-    _hourCtrl = FixedExtentScrollController(initialItem: _defaultHour);
-    _minCtrl =
-        FixedExtentScrollController(initialItem: _defaultMinuteIndex);
-    _songCtrl =
-        FixedExtentScrollController(initialItem: _defaultSongIndex);
+    _hourCtrl = FixedExtentScrollController(initialItem: 0);
+    _minCtrl  = FixedExtentScrollController(initialItem: _defaultMinuteIndex);
+    _songCtrl = FixedExtentScrollController(initialItem: _defaultSongIndex);
+
+    // Jika timer sudah berjalan, tick setiap detik untuk update countdown
+    if (_isTimerActive) {
+      _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    }
   }
 
   @override
   void dispose() {
+    _ticker?.cancel();
     _hourCtrl.dispose();
     _minCtrl.dispose();
     _songCtrl.dispose();
     super.dispose();
   }
 
+  bool get _isTimerActive {
+    final ps = PlayerService.instance;
+    return ps.sleepTimerRemaining != null || ps.sleepSongsRemaining != null;
+  }
+
   void _start() {
     final ps = PlayerService.instance;
     if (_mode == _TimerMode.waktu) {
-      final hours = _hourCtrl.selectedItem;
+      final hours   = _hourCtrl.selectedItem;
       final minutes = _minuteOptions[_minCtrl.selectedItem];
-      final total = hours * 60 + minutes;
+      final total   = hours * 60 + minutes;
       if (total == 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Set waktu lebih dari 0')),
         );
         return;
       }
-      ps.setSleepTimer(
-        Duration(minutes: total),
-        finishCurrentSong: _finishSong,
-      );
+      ps.setSleepTimer(Duration(minutes: total), finishCurrentSong: _finishSong);
     } else {
-      final count = _songCtrl.selectedItem + 1;
-      ps.setSleepTimerBySongs(count);
+      ps.setSleepTimerBySongs(_songCtrl.selectedItem + 1);
     }
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_mode == _TimerMode.waktu
-            ? 'Timer tidur diaktifkan (${_hourCtrl.selectedItem}j ${_minuteOptions[_minCtrl.selectedItem]}m)'
-            : 'Timer tidur: ${_songCtrl.selectedItem + 1} lagu lagi'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  }
+
+  String _fmt(Duration d) {
+    final h = d.inHours.toString().padLeft(2, '0');
+    final m = (d.inMinutes % 60).toString().padLeft(2, '0');
+    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$h:$m:$s';
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final ps = PlayerService.instance;
+    final isActive = _isTimerActive;
+
     return Container(
       decoration: BoxDecoration(
         color: cs.surfaceContainerHigh,
@@ -108,8 +106,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
           // Handle
           Container(
             margin: const EdgeInsets.only(top: 12, bottom: 20),
-            width: 36,
-            height: 4,
+            width: 36, height: 4,
             decoration: BoxDecoration(
               color: cs.outlineVariant,
               borderRadius: BorderRadius.circular(2),
@@ -119,113 +116,238 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
           // Judul
           const Align(
             alignment: Alignment.centerLeft,
-            child: Text(
-              'Timer tidur',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Mode toggle: Waktu | Lagu
-          Container(
-            height: 44,
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(22),
-            ),
-            child: Row(
-              children: [
-                _ModeButton(
-                  label: 'Waktu',
-                  selected: _mode == _TimerMode.waktu,
-                  onTap: () => setState(() => _mode = _TimerMode.waktu),
-                  color: cs.primary,
-                ),
-                _ModeButton(
-                  label: 'Lagu',
-                  selected: _mode == _TimerMode.lagu,
-                  onTap: () => setState(() => _mode = _TimerMode.lagu),
-                  color: cs.primary,
-                ),
-              ],
-            ),
+            child: Text('Timer tidur',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           ),
           const SizedBox(height: 24),
 
-          // Picker area
-          SizedBox(
-            height: 160,
-            child: _mode == _TimerMode.waktu
-                ? _buildTimePicker(cs)
-                : _buildSongPicker(cs),
-          ),
-          const SizedBox(height: 12),
+          // Konten: timer aktif ATAU picker
+          if (isActive)
+            _buildActiveState(ps, cs)
+          else
+            _buildPickerState(cs),
 
-          // Checkbox "Selesaikan lagu terakhir" - hanya untuk mode waktu
-          if (_mode == _TimerMode.waktu)
-            InkWell(
-              onTap: () => setState(() => _finishSong = !_finishSong),
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: Checkbox(
-                        value: _finishSong,
-                        onChanged: (v) =>
-                            setState(() => _finishSong = v ?? false),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(4)),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    const Text('Selesaikan lagu terakhir',
-                        style: TextStyle(fontSize: 14)),
-                  ],
-                ),
-              ),
-            ),
-
-          const SizedBox(height: 20),
-
-          // Buttons
-          Row(
-            children: [
-              Expanded(
-                child: TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: TextButton.styleFrom(
-                    backgroundColor: cs.surfaceContainerHighest,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: Text('Tutup',
-                      style: TextStyle(
-                          color: cs.onSurface, fontWeight: FontWeight.w600)),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: FilledButton(
-                  onPressed: _start,
-                  style: FilledButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: const Text('Mulai',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 8),
         ],
       ),
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // STATE AKTIF: Countdown + Berhenti
+  // ──────────────────────────────────────────────────────────
+
+  Widget _buildActiveState(PlayerService ps, ColorScheme cs) {
+    final remaining  = ps.sleepTimerRemaining;
+    final songsLeft  = ps.sleepSongsRemaining;
+    final isTimeMode = remaining != null;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Countdown besar
+        if (isTimeMode) ...[
+          Text(
+            _fmt(remaining!),
+            style: const TextStyle(
+              fontSize: 52,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 2,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text('tersisa', style: TextStyle(fontSize: 14, color: Colors.grey[500])),
+          const SizedBox(height: 20),
+          // Checkbox selesaikan lagu terakhir
+          InkWell(
+            onTap: () {
+              setState(() => _finishSong = !_finishSong);
+              // Update ke PlayerService jika ada cara (opsional)
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 24, height: 24,
+                    child: Checkbox(
+                      value: _finishSong,
+                      onChanged: (v) => setState(() => _finishSong = v ?? false),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text('Selesaikan lagu terakhir',
+                      style: TextStyle(fontSize: 14)),
+                ],
+              ),
+            ),
+          ),
+        ] else ...[
+          // Mode lagu
+          Text(
+            '${songsLeft ?? 0}',
+            style: const TextStyle(
+              fontSize: 72,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text('lagu tersisa',
+              style: TextStyle(fontSize: 16, color: Colors.grey[500])),
+        ],
+        const SizedBox(height: 24),
+
+        // Tombol: Tutup | Berhenti
+        Row(
+          children: [
+            Expanded(
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                style: TextButton.styleFrom(
+                  backgroundColor: cs.surfaceContainerHighest,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: Text('Tutup',
+                    style: TextStyle(
+                        color: cs.onSurface,
+                        fontWeight: FontWeight.w600)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton(
+                onPressed: () {
+                  ps.cancelSleepTimer();
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Timer tidur dihentikan'),
+                        duration: Duration(seconds: 2)),
+                  );
+                },
+                style: FilledButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: Colors.red[700],
+                ),
+                child: const Text('Berhenti',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // STATE PICKER: Atur timer baru
+  // ──────────────────────────────────────────────────────────
+
+  Widget _buildPickerState(ColorScheme cs) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Mode toggle: Waktu | Lagu
+        Container(
+          height: 44,
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Row(
+            children: [
+              _ModeButton(
+                label: 'Waktu',
+                selected: _mode == _TimerMode.waktu,
+                onTap: () => setState(() => _mode = _TimerMode.waktu),
+                color: cs.primary,
+              ),
+              _ModeButton(
+                label: 'Lagu',
+                selected: _mode == _TimerMode.lagu,
+                onTap: () => setState(() => _mode = _TimerMode.lagu),
+                color: cs.primary,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Picker wheel
+        SizedBox(
+          height: 160,
+          child: _mode == _TimerMode.waktu
+              ? _buildTimePicker(cs)
+              : _buildSongPicker(cs),
+        ),
+        const SizedBox(height: 12),
+
+        // Checkbox selesaikan lagu - hanya mode waktu
+        if (_mode == _TimerMode.waktu)
+          InkWell(
+            onTap: () => setState(() => _finishSong = !_finishSong),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 24, height: 24,
+                    child: Checkbox(
+                      value: _finishSong,
+                      onChanged: (v) => setState(() => _finishSong = v ?? false),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text('Selesaikan lagu terakhir',
+                      style: TextStyle(fontSize: 14)),
+                ],
+              ),
+            ),
+          ),
+        const SizedBox(height: 20),
+
+        // Tutup | Mulai
+        Row(
+          children: [
+            Expanded(
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                style: TextButton.styleFrom(
+                  backgroundColor: cs.surfaceContainerHighest,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: Text('Tutup',
+                    style: TextStyle(
+                        color: cs.onSurface, fontWeight: FontWeight.w600)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton(
+                onPressed: _start,
+                style: FilledButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text('Mulai',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -233,7 +355,6 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
     return Stack(
       alignment: Alignment.center,
       children: [
-        // Divider lines (highlight area picker aktif)
         Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -242,12 +363,9 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
             Divider(height: 1, color: cs.outlineVariant.withOpacity(0.6)),
           ],
         ),
-
-        // Dua kolom picker: jam dan menit
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Jam (0-12)
             SizedBox(
               width: 100,
               child: _WheelPicker(
@@ -256,8 +374,6 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                 labelBuilder: (i) => '$i',
               ),
             ),
-
-            // Separator ":"
             Padding(
               padding: const EdgeInsets.only(bottom: 2),
               child: Text(':',
@@ -266,8 +382,6 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                       fontWeight: FontWeight.bold,
                       color: cs.onSurface)),
             ),
-
-            // Menit (00, 05, 10, ..., 55)
             SizedBox(
               width: 100,
               child: _WheelPicker(
@@ -287,7 +401,6 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
     return Stack(
       alignment: Alignment.center,
       children: [
-        // Divider lines
         Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -296,8 +409,6 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
             Divider(height: 1, color: cs.outlineVariant.withOpacity(0.6)),
           ],
         ),
-
-        // Picker lagu (1-100)
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -312,7 +423,8 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
             const SizedBox(width: 12),
             Text('lagu',
                 style: TextStyle(
-                    fontSize: 16, color: cs.onSurface.withOpacity(0.7))),
+                    fontSize: 16,
+                    color: cs.onSurface.withOpacity(0.7))),
           ],
         ),
       ],
@@ -320,44 +432,38 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
   }
 }
 
-// Drum-roll wheel picker menggunakan ListWheelScrollView
+// ─────────────────────────────────────────────────────────────
+// Drum-roll wheel picker
+// ─────────────────────────────────────────────────────────────
+
 class _WheelPicker extends StatefulWidget {
   final FixedExtentScrollController controller;
   final int itemCount;
-  final String Function(int index) labelBuilder;
-
-  const _WheelPicker({
-    required this.controller,
-    required this.itemCount,
-    required this.labelBuilder,
-  });
-
+  final String Function(int) labelBuilder;
+  const _WheelPicker(
+      {required this.controller,
+      required this.itemCount,
+      required this.labelBuilder});
   @override
   State<_WheelPicker> createState() => _WheelPickerState();
 }
 
 class _WheelPickerState extends State<_WheelPicker> {
-  int _selectedIndex = 0;
-
+  int _sel = 0;
   @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.controller.initialItem;
+    _sel = widget.controller.initialItem;
     widget.controller.addListener(_onScroll);
   }
-
   void _onScroll() {
-    if (mounted) {
-      setState(() => _selectedIndex = widget.controller.selectedItem);
-    }
+    if (mounted) setState(() => _sel = widget.controller.selectedItem);
   }
-
   @override
   void dispose() {
     widget.controller.removeListener(_onScroll);
     super.dispose();
   }
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -371,16 +477,13 @@ class _WheelPickerState extends State<_WheelPicker> {
       childDelegate: ListWheelChildBuilderDelegate(
         builder: (context, index) {
           if (index < 0 || index >= widget.itemCount) return null;
-          final isSelected = index == _selectedIndex;
+          final isSel = index == _sel;
           return AnimatedDefaultTextStyle(
             duration: const Duration(milliseconds: 150),
             style: TextStyle(
-              fontSize: isSelected ? 26 : 18,
-              fontWeight:
-                  isSelected ? FontWeight.bold : FontWeight.normal,
-              color: isSelected
-                  ? cs.onSurface
-                  : cs.onSurface.withOpacity(0.35),
+              fontSize: isSel ? 26 : 18,
+              fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+              color: isSel ? cs.onSurface : cs.onSurface.withOpacity(0.35),
             ),
             child: Center(child: Text(widget.labelBuilder(index))),
           );
@@ -391,20 +494,20 @@ class _WheelPickerState extends State<_WheelPicker> {
   }
 }
 
-// Toggle button untuk mode Waktu / Lagu
+// ─────────────────────────────────────────────────────────────
+// Toggle Waktu/Lagu
+// ─────────────────────────────────────────────────────────────
+
 class _ModeButton extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
   final Color color;
-
-  const _ModeButton({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    required this.color,
-  });
-
+  const _ModeButton(
+      {required this.label,
+      required this.selected,
+      required this.onTap,
+      required this.color});
   @override
   Widget build(BuildContext context) {
     return Expanded(
@@ -426,7 +529,10 @@ class _ModeButton extends StatelessWidget {
               fontWeight: FontWeight.w600,
               color: selected
                   ? Theme.of(context).colorScheme.onPrimary
-                  : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  : Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withOpacity(0.6),
             ),
           ),
         ),
@@ -434,3 +540,7 @@ class _ModeButton extends StatelessWidget {
     );
   }
 }
+
+/// Fungsi top-level untuk kompatibilitas dengan pemanggil lama (player_screen.dart).
+Future<void> showSleepTimerSheet(BuildContext context) =>
+    SleepTimerSheet.show(context);

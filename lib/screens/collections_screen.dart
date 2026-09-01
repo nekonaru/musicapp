@@ -11,6 +11,7 @@ import '../utils/song_options.dart';
 import 'extra_screens.dart';
 import 'history_screen.dart';
 import 'playlist_detail_screen.dart';
+import '../widgets/mini_player.dart';
 
 // Warna kartu referensi (sesuai gambar Nomad Music)
 const _cardColors = [
@@ -379,34 +380,45 @@ class _QuickCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Wrapper screens (dibuka dari quick cards)
+// Wrapper screens (dibuka dari quick cards) - dengan AppBar + MiniPlayer
 // ─────────────────────────────────────────────────────────────
 
 class _FavSheet extends StatelessWidget {
   const _FavSheet();
   @override
-  Widget build(BuildContext context) => const Scaffold(
-      body: FavoritesScreen());
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Favorit')),
+    body: const FavoritesScreen(),
+    bottomNavigationBar: const MiniPlayer(),
+  );
 }
 
 class _RecentlySheet extends StatelessWidget {
   const _RecentlySheet();
   @override
-  Widget build(BuildContext context) =>
-      const Scaffold(body: RecentlyAddedScreen());
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Baru Ditambahkan')),
+    body: const RecentlyAddedScreen(),
+    bottomNavigationBar: const MiniPlayer(),
+  );
 }
 
 class _HistorySheet extends StatelessWidget {
   const _HistorySheet();
   @override
-  Widget build(BuildContext context) =>
-      Scaffold(appBar: AppBar(title: const Text('Baru Diputar')),
-          body: HistoryScreen());
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Baru Diputar')),
+    body: HistoryScreen(),
+    bottomNavigationBar: const MiniPlayer(),
+  );
 }
 
 class _MostPlayedSheet extends StatelessWidget {
   const _MostPlayedSheet();
   @override
-  Widget build(BuildContext context) =>
-      const Scaffold(body: MostPlayedScreen());
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Paling Sering Diputar')),
+    body: const MostPlayedScreen(),
+    bottomNavigationBar: const MiniPlayer(),
+  );
 }

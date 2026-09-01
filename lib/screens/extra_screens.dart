@@ -1359,44 +1359,41 @@ class _RecentlyAddedScreenState extends State<RecentlyAddedScreen> {
       return const Center(child: Text('Belum ada lagu yang ditambahkan.'));
     }
     final totalMs = _songs.fold(0, (sum, s) => sum + s.durationMs);
-    return Column(
-      children: [
-        buildCollectionHeader(
-            context: context,
-            songCount: _songs.length,
-            totalMs: totalMs,
-            songs: _songs),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: _load,
-            child: AnimatedBuilder(
-              animation: PlayerService.instance,
-              builder: (context, _) => CustomScrollView(
-                slivers: [
-                  SliverFixedExtentList(
-                    itemExtent: 72,
-                    delegate: SliverChildBuilderDelegate(
-                      (context, i) {
-                        final song = _songs[i];
-                        return buildSongTile(context, song, _songs, i,
-                            leading: CircleAvatar(
-                              backgroundImage: song.albumArtUrl != null
-                                  ? CachedNetworkImageProvider(song.albumArtUrl!)
-                                  : null,
-                              child: song.albumArtUrl == null
-                                  ? const Icon(Icons.music_note, size: 20)
-                                  : null,
-                            ));
-                      },
-                      childCount: _songs.length,
-                    ),
-                  ),
-                ],
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: AnimatedBuilder(
+        animation: PlayerService.instance,
+        builder: (context, _) => CustomScrollView(
+          slivers: [
+            // Header play buttons - collapse saat scroll
+            SliverToBoxAdapter(
+              child: buildCollectionHeader(
+                  context: context,
+                  songCount: _songs.length,
+                  totalMs: totalMs,
+                  songs: _songs),
+            ),
+            SliverFixedExtentList(
+              itemExtent: 72,
+              delegate: SliverChildBuilderDelegate(
+                (context, i) {
+                  final song = _songs[i];
+                  return buildSongTile(context, song, _songs, i,
+                      leading: CircleAvatar(
+                        backgroundImage: song.albumArtUrl != null
+                            ? CachedNetworkImageProvider(song.albumArtUrl!)
+                            : null,
+                        child: song.albumArtUrl == null
+                            ? const Icon(Icons.music_note, size: 20)
+                            : null,
+                      ));
+                },
+                childCount: _songs.length,
               ),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -1457,24 +1454,23 @@ class _MostPlayedScreenState extends State<MostPlayedScreen> {
       );
     }
     final totalMs = _songs.fold(0, (sum, s) => sum + s.durationMs);
-    return Column(
-      children: [
-        buildCollectionHeader(
-            context: context,
-            songCount: _songs.length,
-            totalMs: totalMs,
-            songs: _songs),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: _load,
-            child: AnimatedBuilder(
-              animation: PlayerService.instance,
-              builder: (context, _) => CustomScrollView(
-                slivers: [
-                  SliverFixedExtentList(
-                    itemExtent: 72,
-                    delegate: SliverChildBuilderDelegate(
-                      (context, i) => buildSongTile(
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: AnimatedBuilder(
+        animation: PlayerService.instance,
+        builder: (context, _) => CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: buildCollectionHeader(
+                  context: context,
+                  songCount: _songs.length,
+                  totalMs: totalMs,
+                  songs: _songs),
+            ),
+            SliverFixedExtentList(
+              itemExtent: 72,
+              delegate: SliverChildBuilderDelegate(
+                (context, i) => buildSongTile(
                   context, _songs[i], _songs, i,
                   leading: SizedBox(
                     width: 40, height: 40,
@@ -1515,15 +1511,12 @@ class _MostPlayedScreenState extends State<MostPlayedScreen> {
                     ),
                   ),
                 ),
-                      childCount: _songs.length,
-                    ),
-                  ),
-                ],
+                childCount: _songs.length,
               ),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
