@@ -5,7 +5,7 @@
 Aplikasi pemutar musik offline berbasis Flutter, dengan metadata otomatis, lirik, dan dashboard analitik pendengaran.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Flutter](https://img.shields.io/badge/Flutter-3.35-02569B?logo=flutter)](https://flutter.dev)
+[![Flutter](https://img.shields.io/badge/Flutter-3.47-02569B?logo=flutter)](https://flutter.dev)
 [![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?logo=android)](https://github.com/nekonaru/musicapp)
 
 </div>
