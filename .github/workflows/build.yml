@@ -156,7 +156,8 @@ jobs:
 
       - name: Cari file APK di manapun lokasinya
         run: |
-          mkdir -p build/app/outputs/flutter-apk
+          DEST="build/app/outputs/flutter-apk"
+          mkdir -p "$DEST"
           FOUND=$(find . -name "app-release.apk" -not -path "*/node_modules/*" | head -n 1)
           if [ -z "$FOUND" ]; then
             echo "APK tidak ditemukan, menampilkan semua file .apk yang ada:"
@@ -164,7 +165,11 @@ jobs:
             exit 1
           fi
           echo "APK ditemukan di: $FOUND"
-          cp "$FOUND" build/app/outputs/flutter-apk/app-release.apk
+          if [ "$FOUND" != "./$DEST/app-release.apk" ] && [ "$FOUND" != "$DEST/app-release.apk" ]; then
+            cp "$FOUND" "$DEST/app-release.apk"
+          else
+            echo "APK sudah di lokasi yang benar, lewati copy."
+          fi
 
       - name: Baca versi dari pubspec.yaml
         id: version
