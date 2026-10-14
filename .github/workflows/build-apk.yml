@@ -112,6 +112,15 @@ jobs:
                               }
                           } catch (ignored) {}
                           try {
+                              // Paksa compileSdk 36 (samakan dengan app) supaya AAR metadata
+                              // check tidak gagal: plugin lama (on_audio_query) compileSdk 33
+                              // padahal androidx butuh minimal 34.
+                              android.compileSdk = 36
+                          } catch (ignored) {}
+                          try {
+                              android.compileSdkVersion = 36
+                          } catch (ignored) {}
+                          try {
                               android.compileOptions {
                                   sourceCompatibility JavaVersion.VERSION_17
                                   targetCompatibility JavaVersion.VERSION_17
@@ -160,25 +169,20 @@ jobs:
             sed -i '/minSdk/a\        multiDexEnabled = true' "$APP_GRADLE"
           fi
 
-          # 3. Append desugar dependency + kotlinOptions ke akhir file.
+          # 3. Append desugar dependency ke akhir file.
           #    Gradle merge beberapa blok dependencies{} secara otomatis.
-          #    kotlinOptions.jvmTarget harus "17" supaya match dengan compileOptions Java 17.
+          #
+          #    CATATAN: jangan append blok kotlinOptions/jvmTarget di sini — di
+          #    AGP 9 + Kotlin 2.x itu script-compilation ERROR. Template Flutter
+          #    3.47 sudah set JVM target sendiri via `kotlin { compilerOptions }`.
           cat >> "$APP_GRADLE" << 'GRADLEOF'
 
-          // === Patch oleh CI: desugar + Kotlin JVM target ===
+          // === Patch oleh CI: desugar ===
           dependencies {
               coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
               // Wajib buat resource tema Theme.AppCompat.* di styles.xml (dipakai
               // AudioServiceFragmentActivity, lihat step "Ganti tema LaunchTheme/NormalTheme")
               implementation("androidx.appcompat:appcompat:1.7.0")
-          }
-
-          // Samakan jvmTarget Kotlin dengan Java — tanpa ini build gagal:
-          // "Inconsistent JVM-target: compileReleaseJavaWithJavac(17) vs compileReleaseKotlin(11)"
-          tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-              kotlinOptions {
-                  jvmTarget = "17"
-              }
           }
           GRADLEOF
 

@@ -92,6 +92,15 @@ jobs:
                               }
                           } catch (ignored) {}
                           try {
+                              // Paksa compileSdk 36 (samakan dengan app) supaya AAR metadata
+                              // check tidak gagal: plugin lama (on_audio_query) compileSdk 33
+                              // padahal androidx butuh minimal 34.
+                              android.compileSdk = 36
+                          } catch (ignored) {}
+                          try {
+                              android.compileSdkVersion = 36
+                          } catch (ignored) {}
+                          try {
                               android.compileOptions {
                                   sourceCompatibility JavaVersion.VERSION_17
                                   targetCompatibility JavaVersion.VERSION_17
@@ -129,15 +138,13 @@ jobs:
           fi
           cat >> "$APP_GRADLE" << 'GRADLEOF'
 
-          // === Patch oleh CI: desugar + Kotlin JVM target ===
+          // === Patch oleh CI: desugar ===
+          // CATATAN: jangan append blok kotlinOptions/jvmTarget di sini — di
+          // AGP 9 + Kotlin 2.x itu script-compilation ERROR. Template Flutter
+          // 3.47 sudah set JVM target sendiri via `kotlin { compilerOptions }`.
           dependencies {
               coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
               implementation("androidx.appcompat:appcompat:1.7.0")
-          }
-          tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-              kotlinOptions {
-                  jvmTarget = "17"
-              }
           }
           GRADLEOF
           echo "=== app/build.gradle.kts setelah patch ==="
