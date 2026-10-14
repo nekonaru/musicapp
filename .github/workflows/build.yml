@@ -196,69 +196,79 @@ jobs:
           prerelease: false
           generate_release_notes: false
           body: |
-            ## Swara ${{ steps.version.outputs.version }} — Release Notes
+            # English
 
-            ### Apa yang baru
+            **Swara v1.7.0 - Stability and performance overhaul**
 
-            #### Perpustakaan & Navigasi
-            - Halaman "Musik" berganti nama menjadi **Perpustakaan**
-            - Tab Perpustakaan kini bisa dikonfigurasi: **Lagu, Album, Artis, Folder, Genre**
-            - Icon ⚙ di samping tab membuka sheet **Pengaturan Tab** — aktifkan/nonaktifkan tab dan ubah urutannya lewat drag-and-drop
-            - Tab **Album** baru dengan tampilan grid cover art 2 kolom
+            This release is a deep clean-up under the hood: player leaks fixed, database queries optimized, bulk actions are instant, and the app is verified with zero `flutter analyze` issues.
 
-            #### Koleksi
-            - Tampilan Koleksi didesain ulang: 4 kartu akses cepat berwarna di bagian atas (**Favorit, Baru Ditambahkan, Baru Diputar, Paling Sering Diputar**), diikuti daftar playlist di bawahnya
-            - Semua sub-halaman Koleksi kini punya AppBar dengan judul dan tombol kembali yang jelas
-            - Mini Player selalu terlihat di semua sub-halaman
+            ## ✨ New features
 
-            #### Performa & Scanning
-            - **Scan satu kali** — musik langsung muncul dari database lokal saat app dibuka, tanpa scan ulang tiap buka app
-            - Scan device hanya berjalan jika lagu belum ada atau sudah >30 menit sejak scan terakhir
-            - Refresh manual via swipe-down atau tombol Scan tetap tersedia
+            - Bulk favorite: select many songs and favorite them all in one action.
+            - Dashboard shows an error state with retry instead of loading forever when the database fails.
+            - Sleep-timer label updates live for song-count mode.
 
-            #### Pencarian
-            - Halaman **Search** baru yang bisa diakses lewat icon kaca pembesar di AppBar
-            - Filter hasil pencarian: **Lagu, Album, Artis, Folder, Genre**
+            ## ⚡ Optimizations
 
-            #### Sorting & Header Collapsible
-            - Semua halaman yang punya daftar lagu mendukung **header collapsible** — tombol Mulai Putar + Acak naik saat di-scroll untuk memaksimalkan ruang tampilan
-            - Sorting menggunakan chip dengan arrow (Judul ↑/↓, Artis ↑/↓, Album ↑/↓, dll)
+            - Most-played query is now a single JOIN instead of loading the whole library into memory; new database indexes for sorting and dashboard queries.
+            - Folder screen loads with one query and groups in memory (was one full table scan per folder).
+            - Search input is debounced and results are computed once per build.
+            - Dashboard loads all statistics in parallel.
+            - Lyrics auto-fetch no longer overwrites your manual title/artist/album edits.
+            - Migrated to Flutter 3.47 APIs (RadioGroup, onReorderItem, withValues).
 
-            #### AZ Scrollbar
-            - Popup huruf pada scrollbar kini **mengikuti posisi jari secara real-time** (bukan fixed di tengah layar)
-            - Shape popup speech bubble dengan sudut kiri tiga rounded, sudut kanan bawah lancip
-            - Popup hilang dengan animasi fade saat jari diangkat
+            ## 🐛 Bug fixes
 
-            #### Timer Tidur
-            - UI timer didesain ulang dengan **drum picker scrollable** (sama seperti iOS): pilih jam dan menit secara terpisah, atau pilih jumlah lagu
-            - Saat timer sudah aktif, sheet menampilkan **countdown besar** (HH:MM:SS) atau sisa lagu
-            - Tombol **Berhenti** (merah) untuk membatalkan timer langsung dari sheet
-            - Tombol **Tutup** untuk menutup sheet tanpa menghentikan timer
+            - Fixed audio player and stream-subscription leaks (proper dispose, no more stuck play/pause icon after crossfade).
+            - Fixed queue race when adding songs to an empty queue.
+            - Fixed repeat/shuffle/speed acting on the wrong internal player during crossfade.
+            - Fixed crashes from empty titles/artists, corrupt database rows, and missing art files in notifications.
+            - Fixed misleading EQ text (it is a visual preset, it does not change actual sound).
+            - Removed dead notification service that referenced a dropped dependency.
 
-            #### Multi-Select Lagu
-            - Long press pada lagu untuk masuk mode multi-select
-            - Pilih beberapa lagu sekaligus untuk: tambahkan ke favorit, tambahkan ke playlist
+            ## 📦 Install / Update
 
-            #### Warna Aksen Kustom
-            - Pilih dari 10 warna aksen (Ungu, Biru, Teal, Hijau, Oranye, Merah, dll)
-            - Tersimpan antar sesi, berlaku ke seluruh elemen interaktif aplikasi
+            Download `app-release.apk` below, open it on your phone, and allow installs from unknown sources if asked. Minimum Android 8.0 (API 26).
 
-            #### Equalizer
-            - Preset EQ: Flat, Pop, Rock, Classical, Jazz, Electronic, Hip-Hop, Bass Boost, Vocal
-            - Visualizer bar EQ animasi di halaman Pengaturan
-
-            #### Dashboard
-            - Tidak lagi menduplikasi konten dari Koleksi
-            - Berisi: grafik bar aktivitas 7 hari, Top 5 Lagu + Artis, distribusi Genre, lagu yang belum pernah diputar (interaktif), aktivitas mingguan
+            <br>
 
             ---
 
-            ### Instalasi
-            1. Download file APK di bawah
-            2. Buka APK di HP dan izinkan instalasi dari sumber tidak dikenal jika diminta
-            3. Izinkan akses ke penyimpanan audio saat aplikasi pertama kali dibuka
+            <br>
 
-            **Minimum Android**: 8.0 (API 26)
+            # Bahasa Indonesia
+
+            **Swara v1.7.0 - Perombakan stabilitas dan performa**
+
+            Rilis ini bersih-bersih besar di balik layar: kebocoran player diperbaiki, query database dioptimalkan, aksi massal jadi instan, dan app terverifikasi dengan nol masalah `flutter analyze`.
+
+            ## ✨ Fitur baru
+
+            - Favorit massal: pilih banyak lagu dan favoritkan sekaligus dalam satu aksi.
+            - Dashboard menampilkan status error + tombol coba lagi bila database gagal, tidak loading selamanya.
+            - Label sleep-timer mode jumlah lagu ter-update secara live.
+
+            ## ⚡ Pengoptimalan
+
+            - Query lagu tersering kini satu JOIN, tidak lagi memuat seluruh library ke memori; index database baru untuk sorting dan query dashboard.
+            - Layar folder cukup satu query lalu grouping di memori (sebelumnya satu full scan per folder).
+            - Input pencarian di-debounce dan hasil dihitung sekali per build.
+            - Dashboard memuat semua statistik secara paralel.
+            - Auto-fetch lirik tidak lagi menimpa edit manual judul/artis/album.
+            - Migrasi ke API Flutter 3.47 (RadioGroup, onReorderItem, withValues).
+
+            ## 🐛 Perbaikan bug
+
+            - Perbaiki kebocoran audio player dan stream-subscription (dispose benar, ikon play/pause tidak macet setelah crossfade).
+            - Perbaiki race antrean saat menambah lagu ke antrean kosong.
+            - Perbaiki repeat/shuffle/speed yang bekerja ke player internal yang salah saat crossfade.
+            - Perbaiki crash dari judul/artis kosong, baris database korup, dan file art hilang di notifikasi.
+            - Perbaiki teks EQ yang menyesatkan (itu preset visual, tidak mengubah suara asli).
+            - Hapus notification service mati yang mereferensikan dependency yang sudah dibuang.
+
+            ## 📦 Instalasi / Update
+
+            Download `app-release.apk` di bawah, buka di HP, dan izinkan instalasi dari sumber tidak dikenal bila diminta. Minimum Android 8.0 (API 26).
           files: |
             build/app/outputs/flutter-apk/app-release.apk
         env:
