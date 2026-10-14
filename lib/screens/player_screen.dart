@@ -76,27 +76,48 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _searchLyricsOnGoogle(Song song) async {
     final query = Uri.encodeComponent('${song.artist} ${song.title} lirik lyrics');
     final url = Uri.parse('https://www.google.com/search?q=$query');
-    await launchUrl(url, mode: LaunchMode.externalApplication);
-  }
-
-  Future<void> _autoFetchLyrics(Song song) async {
-    setState(() => _isFetchingLyrics = true);
-    await MetadataService.instance.enrichSong(song);
-    if (mounted) {
-      await context.read<LibraryProvider>().loadFromDb();
-      if (mounted) {
-        setState(() => _isFetchingLyrics = false);
-        final found = song.lyrics != null && song.lyrics.toString().isNotEmpty;
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(found ? 'Lirik ditemukan!' : 'Lirik tetap tidak ditemukan, coba tambah manual'),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-            margin: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(context).size.height * 0.55),
-          ),
+          const SnackBar(content: Text('Tidak bisa membuka browser')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal membuka pencarian')),
         );
       }
     }
+  }
+
+  Future<void> _autoFetchLyrics(Song song) async {
+    if (_isFetchingLyrics) return;
+    setState(() => _isFetchingLyrics = true);
+    var found = false;
+    try {
+      // fetchLyricsOnly TIDAK menimpa judul/artis/album (tidak seperti enrichSong),
+      // jadi edit manual user aman; ia hanya mengisi song.lyrics.
+      found = await MetadataService.instance.fetchLyricsOnly(song);
+      if (found && mounted) {
+        await context.read<LibraryProvider>().updateMetadata(song);
+        found = song.lyrics?.trim().isNotEmpty ?? false;
+      }
+    } catch (_) {
+      found = song.lyrics?.trim().isNotEmpty ?? false;
+    }
+    if (!mounted) return;
+    setState(() => _isFetchingLyrics = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(found ? 'Lirik ditemukan!' : 'Lirik tetap tidak ditemukan, coba tambah manual'),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        margin: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(context).size.height * 0.55),
+      ),
+    );
   }
 
   /// Label singkat buat hitungan mundur sleep timer, ditampilkan langsung di
@@ -117,7 +138,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Future<void> _addLyricsManually(Song song) async {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => EditLyricsScreen(song: song)));
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   @override
@@ -394,7 +415,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               IconButton(
                 icon: Icon(Icons.shuffle,
                     color: _player.isShuffle ? Theme.of(context).colorScheme.primary : Colors.grey),
-                onPressed: () => setState(() => _player.toggleShuffle()),
+                onPressed: _player.toggleShuffle,
               ),
               IconButton(
                 icon: const Icon(Icons.skip_previous),
@@ -415,10 +436,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         key: ValueKey(playing),
                       ),
                     ),
-                    onPressed: () async {
-                      await _player.togglePlayPause();
-                      setState(() {});
-                    },
+                    onPressed: _player.togglePlayPause,
                   );
                 },
               ),
@@ -447,28 +465,36 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 tooltip: 'Tambah ke Playlist',
                 onPressed: () => pickPlaylist(context, song, context.read<PlaylistProvider>()),
               ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      Icons.bedtime_outlined,
-                      color: (_player.sleepTimerRemaining != null || _player.sleepSongsRemaining != null)
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.grey,
-                    ),
-                    tooltip: 'Timer Tidur',
-                    onPressed: _pickSleepTimer,
-                  ),
-                  if (_sleepTimerLabel() != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Text(
-                        _sleepTimerLabel()!,
-                        style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.primary),
+              // ListenableBuilder supaya label "N lagu lagi" ikut ter-update
+              // tiap sleepSongsRemaining berubah (tanpa menunggu rebuild lain).
+              ListenableBuilder(
+                listenable: _player,
+                builder: (context, _) {
+                  final label = _sleepTimerLabel();
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                          Icons.bedtime_outlined,
+                          color: (_player.sleepTimerRemaining != null || _player.sleepSongsRemaining != null)
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.grey,
+                        ),
+                        tooltip: 'Timer Tidur',
+                        onPressed: _pickSleepTimer,
                       ),
-                    ),
-                ],
+                      if (label != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Text(
+                            label,
+                            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.primary),
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
               IconButton(
                 icon: Icon(
@@ -498,7 +524,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final isActive = mode != SwaraRepeatMode.off;
 
     return GestureDetector(
-      onTap: () => setState(() => _player.cycleRepeatMode()),
+      onTap: _player.cycleRepeatMode,
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
@@ -515,6 +541,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   String _fmt(Duration d) {
     String two(int n) => n.toString().padLeft(2, '0');
-    return '${two(d.inMinutes)}:${two(d.inSeconds % 60)}';
+    final h = d.inHours;
+    if (h > 0) return '$h:${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}';
+    return '${d.inMinutes}:${two(d.inSeconds % 60)}';
   }
 }

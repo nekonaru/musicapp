@@ -155,7 +155,7 @@ class _PlaceholderCover extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         color: cs.primaryContainer,
         child: Icon(Icons.album_outlined,
-            size: 48, color: cs.onPrimaryContainer.withOpacity(0.4)),
+            size: 48, color: cs.onPrimaryContainer.withValues(alpha: 0.4)),
       );
 }
 

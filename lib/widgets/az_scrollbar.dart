@@ -35,6 +35,7 @@ class _AzScrollbarState extends State<AzScrollbar>
   late final AnimationController _fadeCtrl;
   late final Animation<double> _fadeAnim;
   OverlayEntry? _overlayEntry;
+  DateTime _lastHaptic = DateTime.fromMillisecondsSinceEpoch(0);
 
   @override
   void initState() {
@@ -84,7 +85,13 @@ class _AzScrollbarState extends State<AzScrollbar>
     _popupData.value = _PopupData(t, globalY);
 
     if (current?.letter != t) {
-      HapticFeedback.selectionClick();
+      // Throttle haptic: hanya bila huruf berubah + jeda minimal ~50ms
+      // supaya drag cepat tidak membanjiri haptic.
+      final now = DateTime.now();
+      if (now.difference(_lastHaptic).inMilliseconds >= 50) {
+        _lastHaptic = now;
+        HapticFeedback.selectionClick();
+      }
       widget.onLetterSelected(t);
     }
   }
@@ -128,7 +135,7 @@ class _AzScrollbarState extends State<AzScrollbar>
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: cs.primary.withOpacity(0.35),
+                            color: cs.primary.withValues(alpha: 0.35),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -154,8 +161,14 @@ class _AzScrollbarState extends State<AzScrollbar>
       },
     );
 
-    Overlay.of(context).insert(_overlayEntry!);
-    _fadeCtrl.forward();
+    try {
+      final overlay = Overlay.maybeOf(context);
+      if (overlay == null || !mounted) return;
+      overlay.insert(_overlayEntry!);
+      _fadeCtrl.forward();
+    } catch (_) {
+      _overlayEntry = null;
+    }
   }
 
   void _removeOverlay() {
@@ -164,9 +177,12 @@ class _AzScrollbarState extends State<AzScrollbar>
   }
 
   void _onRelease() {
+    if (!mounted) return;
     _fadeCtrl.reverse().then((_) {
+      // Guard: jangan set ValueNotifier / sentuh overlay setelah dispose.
+      if (!mounted) return;
       _removeOverlay();
-      if (mounted) _popupData.value = null;
+      _popupData.value = null;
     });
   }
 
@@ -192,7 +208,7 @@ class _AzScrollbarState extends State<AzScrollbar>
               margin: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
                 color:
-                    Theme.of(context).colorScheme.outlineVariant.withOpacity(0.45),
+                    Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.45),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),

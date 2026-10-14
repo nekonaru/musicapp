@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/song.dart';
 import '../providers/library_provider.dart';
 import '../providers/playlist_provider.dart';
+import '../services/db_helper.dart';
 import '../services/player_service.dart';
 import '../screens/edit_metadata_screen.dart';
 
@@ -63,8 +64,17 @@ Future<void> showSongOptions(
             leading: Icon(song.isFavorite ? Icons.favorite : Icons.favorite_border,
                 color: song.isFavorite ? Colors.red : null),
             title: Text(song.isFavorite ? 'Hapus dari Favorit' : 'Tambah ke Favorit'),
-            onTap: () {
-              lib.toggleFavorite(song, !song.isFavorite);
+            onTap: () async {
+              try {
+                await lib.toggleFavorite(song, !song.isFavorite);
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Gagal update favorit: $e')),
+                  );
+                }
+                return;
+              }
               Navigator.pop(ctx);
             },
           ),
@@ -96,9 +106,19 @@ Future<void> showSongOptions(
             ListTile(
               leading: const Icon(Icons.playlist_remove, color: Colors.red),
               title: const Text('Hapus dari Playlist Ini', style: TextStyle(color: Colors.red)),
-              onTap: () {
-                playlistProvider.removeSong(playlistId, song.id);
+              onTap: () async {
+                try {
+                  await playlistProvider.removeSong(playlistId, song.id);
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Gagal hapus dari playlist: $e')),
+                    );
+                  }
+                  return;
+                }
                 Navigator.pop(ctx);
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Dihapus dari playlist ini saja')),
                 );
@@ -122,7 +142,17 @@ Future<void> showSongOptions(
                     ],
                   ),
                 );
-                if (confirm == true) lib.deleteSong(song);
+                if (confirm == true) {
+                  try {
+                    await lib.deleteSong(song);
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Gagal hapus lagu: $e')),
+                      );
+                    }
+                  }
+                }
               },
             ),
         ],
@@ -133,20 +163,34 @@ Future<void> showSongOptions(
 
 Future<void> _renameSong(BuildContext context, Song song, LibraryProvider lib) async {
   final controller = TextEditingController(text: song.title);
-  final newName = await showDialog<String>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('Ganti Nama Lagu'),
-      content: TextField(controller: controller, autofocus: true),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, controller.text), child: const Text('Simpan')),
-      ],
-    ),
-  );
-  if (newName != null && newName.trim().isNotEmpty) {
-    song.title = newName.trim();
-    await lib.updateMetadata(song);
+  try {
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Ganti Nama Lagu'),
+        content: TextField(controller: controller, autofocus: true),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, controller.text), child: const Text('Simpan')),
+        ],
+      ),
+    );
+    final trimmed = newName?.trim() ?? '';
+    if (trimmed.isEmpty || trimmed == song.title) return;
+    final oldTitle = song.title;
+    song.title = trimmed;
+    try {
+      await lib.updateMetadata(song);
+    } catch (e) {
+      song.title = oldTitle;
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal ganti nama: $e')),
+        );
+      }
+    }
+  } finally {
+    controller.dispose();
   }
 }
 
@@ -160,8 +204,17 @@ Future<void> pickPlaylist(BuildContext context, Song song, PlaylistProvider prov
           for (final p in provider.playlists)
             ListTile(
               title: Text(p['name']),
-              onTap: () {
-                provider.addSong(p['id'], song.id);
+              onTap: () async {
+                try {
+                  await provider.addSong(p['id'], song.id);
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Gagal tambah ke playlist: $e')),
+                    );
+                  }
+                  return;
+                }
                 Navigator.pop(ctx);
               },
             ),
@@ -171,20 +224,41 @@ Future<void> pickPlaylist(BuildContext context, Song song, PlaylistProvider prov
             onTap: () async {
               Navigator.pop(ctx);
               final controller = TextEditingController();
-              final name = await showDialog<String>(
-                context: context,
-                builder: (c) => AlertDialog(
-                  title: const Text('Nama Playlist'),
-                  content: TextField(controller: controller, autofocus: true),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(c, controller.text), child: const Text('Buat')),
-                  ],
-                ),
-              );
-              if (name != null && name.isNotEmpty) {
-                await provider.create(name);
-                final newest = provider.playlists.first;
-                await provider.addSong(newest['id'], song.id);
+              try {
+                final name = await showDialog<String>(
+                  context: context,
+                  builder: (c) => AlertDialog(
+                    title: const Text('Nama Playlist'),
+                    content: TextField(controller: controller, autofocus: true),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(c), child: const Text('Batal')),
+                      TextButton(onPressed: () => Navigator.pop(c, controller.text), child: const Text('Buat')),
+                    ],
+                  ),
+                );
+                final trimmed = name?.trim() ?? '';
+                if (trimmed.isEmpty || !context.mounted) return;
+                try {
+                  // Ambil id dari hasil insert — bukan playlists.first,
+                  // karena urutan load (createdAt DESC) tidak dijamin.
+                  final newId = await DBHelper.instance.createPlaylist(trimmed);
+                  await provider.load();
+                  await provider.addSong(newId, song.id);
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Playlist "$trimmed" dibuat & lagu ditambahkan')),
+                  );
+                } catch (e) {
+                  if (!context.mounted) return;
+                  final msg = e.toString().contains('UNIQUE')
+                      ? 'Playlist "$trimmed" sudah ada, pilih dari daftar'
+                      : 'Gagal membuat playlist: $e';
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(msg)),
+                  );
+                }
+              } finally {
+                controller.dispose();
               }
             },
           ),

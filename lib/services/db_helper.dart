@@ -226,6 +226,22 @@ class DBHelper {
         where: 'id = ?', whereArgs: [songId]);
   }
 
+  /// Set favorit banyak lagu sekaligus dalam satu batch + single commit.
+  Future<void> setFavoritesBulk(List<int> songIds, bool value) async {
+    if (songIds.isEmpty) return;
+    try {
+      final database = await db;
+      final batch = database.batch();
+      for (final id in songIds) {
+        batch.update('songs', {'isFavorite': value ? 1 : 0},
+            where: 'id = ?', whereArgs: [id]);
+      }
+      await batch.commit(noResult: true);
+    } catch (e) {
+      throw StateError('Gagal mengubah favorit ${songIds.length} lagu: $e');
+    }
+  }
+
   Future<List<Song>> getFavorites() async {
     final database = await db;
     final rows =

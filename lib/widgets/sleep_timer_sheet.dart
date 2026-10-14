@@ -358,9 +358,9 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
         Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Divider(height: 1, color: cs.outlineVariant.withOpacity(0.6)),
+            Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.6)),
             const SizedBox(height: 52),
-            Divider(height: 1, color: cs.outlineVariant.withOpacity(0.6)),
+            Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.6)),
           ],
         ),
         Row(
@@ -404,9 +404,9 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
         Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Divider(height: 1, color: cs.outlineVariant.withOpacity(0.6)),
+            Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.6)),
             const SizedBox(height: 52),
-            Divider(height: 1, color: cs.outlineVariant.withOpacity(0.6)),
+            Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.6)),
           ],
         ),
         Row(
@@ -424,7 +424,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
             Text('lagu',
                 style: TextStyle(
                     fontSize: 16,
-                    color: cs.onSurface.withOpacity(0.7))),
+                    color: cs.onSurface.withValues(alpha: 0.7))),
           ],
         ),
       ],
@@ -483,7 +483,7 @@ class _WheelPickerState extends State<_WheelPicker> {
             style: TextStyle(
               fontSize: isSel ? 26 : 18,
               fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-              color: isSel ? cs.onSurface : cs.onSurface.withOpacity(0.35),
+              color: isSel ? cs.onSurface : cs.onSurface.withValues(alpha: 0.35),
             ),
             child: Center(child: Text(widget.labelBuilder(index))),
           );
@@ -532,7 +532,7 @@ class _ModeButton extends StatelessWidget {
                   : Theme.of(context)
                       .colorScheme
                       .onSurface
-                      .withOpacity(0.6),
+                      .withValues(alpha: 0.6),
             ),
           ),
         ),

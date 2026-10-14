@@ -22,6 +22,7 @@ class DashboardScreenState extends State<DashboardScreen> {
   int _thisMonthMs = 0;
   List<Song> _neverPlayed = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -32,32 +33,68 @@ class DashboardScreenState extends State<DashboardScreen> {
   Future<void> reload() => _load();
 
   Future<void> _load() async {
-    if (mounted) setState(() => _loading = true);
+    if (mounted) setState(() {
+      _loading = true;
+      _error = null;
+    });
 
-    final daily = await DBHelper.instance.getDailyListeningLast7Days();
-    final topSongs = await DBHelper.instance.getTopSongIds(limit: 5);
-    final topArtists = await DBHelper.instance.getTopArtists(limit: 5);
-    final genreDist = await DBHelper.instance.getGenreDistribution();
-    final allSongs = await DBHelper.instance.getAllSongs();
-    final totalMs = await DBHelper.instance.getTotalListeningMs();
-    final monthMs = await DBHelper.instance.getThisMonthListeningMs();
-    final neverPlayed = await DBHelper.instance.getNeverPlayedSongs();
+    try {
+      // Jalankan semua query DB secara paralel, bukan serial.
+      final dailyFuture = DBHelper.instance.getDailyListeningLast7Days();
+      final topSongsFuture = DBHelper.instance.getTopSongIds(limit: 5);
+      final topArtistsFuture = DBHelper.instance.getTopArtists(limit: 5);
+      final genreDistFuture = DBHelper.instance.getGenreDistribution();
+      final allSongsFuture = DBHelper.instance.getAllSongs();
+      final totalMsFuture = DBHelper.instance.getTotalListeningMs();
+      final monthMsFuture = DBHelper.instance.getThisMonthListeningMs();
+      final neverPlayedFuture = DBHelper.instance.getNeverPlayedSongs();
 
-    if (mounted) {
-      setState(() {
-        _daily = daily;
-        _topSongIds = topSongs;
-        _topArtists = topArtists;
-        _genreDist = genreDist;
-        _songLookup = {for (final s in allSongs) s.id: s};
-        _totalSongs = allSongs.length;
-        _totalListeningMs = totalMs;
-        _thisMonthMs = monthMs;
-        _neverPlayed = neverPlayed;
-        _loading = false;
-      });
+      final results = await Future.wait([
+        dailyFuture,
+        topSongsFuture,
+        topArtistsFuture,
+        genreDistFuture,
+        allSongsFuture,
+        totalMsFuture,
+        monthMsFuture,
+        neverPlayedFuture,
+      ]);
+
+      final daily = results[0] as Map<DateTime, int>;
+      final topSongs = results[1] as List<MapEntry<int, int>>;
+      final topArtists = results[2] as List<MapEntry<String, int>>;
+      final genreDist = results[3] as Map<String, int>;
+      final allSongs = results[4] as List<Song>;
+      final totalMs = results[5] as int;
+      final monthMs = results[6] as int;
+      final neverPlayed = results[7] as List<Song>;
+
+      if (mounted) {
+        setState(() {
+          _daily = daily;
+          _topSongIds = topSongs;
+          _topArtists = topArtists;
+          _genreDist = genreDist;
+          _songLookup = {for (final s in allSongs) s.id: s};
+          _totalSongs = allSongs.length;
+          _totalListeningMs = totalMs;
+          _thisMonthMs = monthMs;
+          _neverPlayed = neverPlayed;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = e.toString();
+        });
+      }
     }
   }
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.day == b.day && a.month == b.month && a.year == b.year;
 
   bool get _hasAnyData =>
       _daily.values.any((ms) => ms > 0) || _topSongIds.isNotEmpty;
@@ -66,6 +103,41 @@ class DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 64, color: Colors.grey[300]),
+              const SizedBox(height: 20),
+              Text(
+                'Gagal memuat dashboard',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[500]),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: _load,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Coba Lagi'),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     if (!_hasAnyData) {
@@ -173,11 +245,20 @@ class DashboardScreenState extends State<DashboardScreen> {
                       trailing: '${_topSongIds[i].value}x diputar',
                       maxValue: _topSongIds.first.value,
                       value: _topSongIds[i].value,
-                      onTap: () {
+                      onTap: () async {
                         final song = _songLookup[_topSongIds[i].key];
                         if (song != null) {
-                          PlayerService.instance
-                              .setQueueAndPlay([song], 0);
+                          try {
+                            await PlayerService.instance
+                                .setQueueAndPlay([song], 0);
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text('Gagal memutar lagu: $e')),
+                              );
+                            }
+                          }
                         }
                       },
                     ),
@@ -294,7 +375,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                     value: ratio,
                     minHeight: 6,
                     backgroundColor:
-                        Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                        Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                     valueColor: AlwaysStoppedAnimation(
                         Theme.of(context).colorScheme.primary),
                   ),
@@ -314,6 +395,7 @@ class DashboardScreenState extends State<DashboardScreen> {
     final days = _daily.keys.toList()..sort();
     final dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
     if (days.isEmpty) return const Text('Belum ada aktivitas minggu ini.');
+    final now = DateTime.now();
     final activeDays = days.where((d) => (_daily[d] ?? 0) > 0).length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,8 +407,7 @@ class DashboardScreenState extends State<DashboardScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: days.map((d) {
             final ms = _daily[d] ?? 0;
-            final isToday = d.day == DateTime.now().day &&
-                d.month == DateTime.now().month;
+            final isToday = _isSameDay(d, now);
             final hasData = ms > 0;
             return Column(
               children: [
@@ -391,9 +472,18 @@ class DashboardScreenState extends State<DashboardScreen> {
                       style: const TextStyle(fontWeight: FontWeight.bold)),
                   const Spacer(),
                   TextButton(
-                    onPressed: () {
+                    onPressed: () async {
                       Navigator.pop(ctx);
-                      PlayerService.instance.setQueueAndPlay(_neverPlayed, 0);
+                      try {
+                        await PlayerService.instance
+                            .setQueueAndPlay(_neverPlayed, 0);
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Gagal memutar lagu: $e')),
+                          );
+                        }
+                      }
                     },
                     child: const Text('Putar Semua'),
                   ),
@@ -416,9 +506,18 @@ class DashboardScreenState extends State<DashboardScreen> {
                         maxLines: 1, overflow: TextOverflow.ellipsis),
                     trailing: Text(formatDuration(s.durationMs),
                         style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                    onTap: () {
+                    onTap: () async {
                       Navigator.pop(ctx);
-                      PlayerService.instance.setQueueAndPlay(_neverPlayed, i);
+                      try {
+                        await PlayerService.instance
+                            .setQueueAndPlay(_neverPlayed, i);
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Gagal memutar lagu: $e')),
+                          );
+                        }
+                      }
                     },
                   );
                 },
@@ -432,6 +531,7 @@ class DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildBarChart() {
     final days = _daily.keys.toList()..sort();
+    final now = DateTime.now();
     final maxMs = _daily.values.isEmpty
         ? 1
         : _daily.values.reduce((a, b) => a > b ? a : b);
@@ -463,7 +563,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                 final idx = value.toInt();
                 if (idx < 0 || idx >= days.length) return const SizedBox();
                 const hariSingkat = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-                final isToday = days[idx].day == DateTime.now().day;
+                final isToday = _isSameDay(days[idx], now);
                 return Text(
                   hariSingkat[days[idx].weekday % 7],
                   style: TextStyle(
@@ -483,7 +583,7 @@ class DashboardScreenState extends State<DashboardScreen> {
             drawVerticalLine: false,
             horizontalInterval: maxHours / 3 < 0.1 ? 0.1 : maxHours / 3,
             getDrawingHorizontalLine: (value) => FlLine(
-              color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.4),
+              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
               strokeWidth: 1,
             )),
         borderData: FlBorderData(show: false),
@@ -520,9 +620,9 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.15)),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
       ),
       child: Column(
         children: [
@@ -657,7 +757,7 @@ class _RankTile extends StatelessWidget {
                     child: LinearProgressIndicator(
                       value: ratio.toDouble(),
                       minHeight: 3,
-                      backgroundColor: color.withOpacity(0.1),
+                      backgroundColor: color.withValues(alpha: 0.1),
                       valueColor: AlwaysStoppedAnimation(color),
                     ),
                   ),

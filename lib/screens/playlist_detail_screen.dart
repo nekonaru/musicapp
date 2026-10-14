@@ -34,12 +34,13 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _loadPrefs().then((_) => _load());
+    _loadPrefs().catchError((Object _) {}).then((_) => _load());
   }
 
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     final idx = prefs.getInt(_kPlsSort) ?? 0;
+    if (!mounted) return;
     setState(() => _sortOption = _PlsSortOption.values[idx.clamp(0, _PlsSortOption.values.length - 1)]);
   }
 
@@ -56,24 +57,50 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   }
 
   Future<void> _load() async {
-    final songs = await context.read<PlaylistProvider>().songsIn(widget.playlistId);
-    setState(() => _songs = songs);
+    try {
+      final songs = await context.read<PlaylistProvider>().songsIn(widget.playlistId);
+      if (!mounted) return;
+      setState(() => _songs = songs);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat playlist: $e')),
+      );
+    }
   }
 
   Future<void> _onReorder(int oldIndex, int newIndex) async {
-    if (newIndex > oldIndex) newIndex -= 1;
+    final previousOrder = List<Song>.of(_songs);
     setState(() {
       final song = _songs.removeAt(oldIndex);
       _songs.insert(newIndex, song);
     });
-    await context.read<PlaylistProvider>().reorder(widget.playlistId, _songs.map((s) => s.id).toList());
+    try {
+      await context.read<PlaylistProvider>().reorder(widget.playlistId, _songs.map((s) => s.id).toList());
+    } catch (e) {
+      if (!mounted) return;
+      // DB gagal — rollback ke urutan sebelumnya.
+      setState(() => _songs = previousOrder);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menyimpan urutan: $e')),
+      );
+    }
   }
 
   Future<void> _removeSong(Song song) async {
-    await context.read<PlaylistProvider>().removeSong(widget.playlistId, song.id);
-    if (mounted) {
-      setState(() => _songs.removeWhere((s) => s.id == song.id));
+    try {
+      await context.read<PlaylistProvider>().removeSong(widget.playlistId, song.id);
+    } catch (e) {
+      if (!mounted) return;
+      // Gagal — bangun ulang supaya tile yang ter-dismiss muncul lagi.
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menghapus lagu: $e')),
+      );
+      return;
     }
+    if (!mounted) return;
+    setState(() => _songs.removeWhere((s) => s.id == song.id));
   }
 
   List<Song> get _displayed {
@@ -231,7 +258,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                                 ? ReorderableListView.builder(
                                 scrollController: _scrollController,
                                 itemCount: displayed.length,
-                                onReorder: _onReorder,
+                                onReorderItem: _onReorder,
                                 itemBuilder: (context, i) => _buildTile(displayed, i, reorderable: true),
                               )
                                 : ListView.builder(
@@ -262,7 +289,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     final currentSong = PlayerService.instance.currentSong;
     final isCurrentlyPlaying = currentSong != null && currentSong.id == song.id;
     final tile = Dismissible(
-      key: ValueKey('pls_${song.id}_$i'),
+      key: ValueKey('pls_${song.id}'),
       direction: DismissDirection.endToStart,
       onDismissed: (_) => _removeSong(song),
       background: Container(

@@ -14,16 +14,30 @@ class _QueueScreenState extends State<QueueScreen> {
   bool _scrolledOnce = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Scroll awal sekali setelah frame pertama; perubahan antrean berikutnya
+    // dipantau lewat listener — tidak ada side-effect di build.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToCurrentIfNeeded());
+    _player.addListener(_onQueueChanged);
+  }
+
+  @override
   void dispose() {
+    _player.removeListener(_onQueueChanged);
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _scrollToCurrentIfNeeded(int currentIndex) {
+  void _onQueueChanged() => _scrollToCurrentIfNeeded();
+
+  void _scrollToCurrentIfNeeded() {
     if (_scrolledOnce) return;
+    if (_player.queue.isEmpty) return;
     _scrolledOnce = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
+      if (!mounted || !_scrollController.hasClients) return;
+      final currentIndex = _player.currentIndex;
       // Tampilkan lagu yang sedang diputar di dekat bagian atas layar (bukan mepet atas banget)
       final target = (currentIndex * _itemHeight - _itemHeight).clamp(0, _scrollController.position.maxScrollExtent);
       _scrollController.jumpTo(target.toDouble());
@@ -38,7 +52,6 @@ class _QueueScreenState extends State<QueueScreen> {
         final queue = _player.queue;
         final slotIds = _player.queueSlotIds;
         final currentIndex = _player.currentIndex;
-        if (queue.isNotEmpty) _scrollToCurrentIfNeeded(currentIndex);
 
         return Scaffold(
           appBar: AppBar(
@@ -65,7 +78,7 @@ class _QueueScreenState extends State<QueueScreen> {
                       child: ReorderableListView.builder(
                         scrollController: _scrollController,
                         itemCount: queue.length,
-                        onReorder: (oldIndex, newIndex) => _player.reorderQueue(oldIndex, newIndex),
+                        onReorderItem: (oldIndex, newIndex) => _player.reorderQueue(oldIndex, newIndex),
                         itemBuilder: (context, i) {
                           final song = queue[i];
                           final slotId = slotIds[i]; // ID stabil - tidak berubah meski list ke-refresh

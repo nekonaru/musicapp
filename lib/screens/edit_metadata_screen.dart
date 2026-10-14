@@ -42,20 +42,85 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
   }
 
   Future<void> _save() async {
-    final s = widget.song;
-    s.title = _title.text.trim();
-    s.artist = _artist.text.trim();
-    s.album = _album.text.trim();
-    s.genre = _genre.text.trim().isEmpty ? null : _genre.text.trim();
-    s.region = _region.text.trim().isEmpty ? null : _region.text.trim();
+    final title = _title.text.trim();
+    final artist = _artist.text.trim();
+    final album = _album.text.trim();
+    final genre = _genre.text.trim().isEmpty ? null : _genre.text.trim();
+    final region = _region.text.trim().isEmpty ? null : _region.text.trim();
 
-    await context.read<LibraryProvider>().updateMetadata(s);
+    if (title.isEmpty || artist.isEmpty || album.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Judul, artis, dan album tidak boleh kosong')),
+        );
+      }
+      return;
+    }
+
+    // Salin ke objek terpisah dulu — widget.song baru dimutasi setelah DB sukses,
+    // supaya memori tidak kotor kalau penyimpanan gagal.
+    final s = widget.song;
+    final updated = Song(
+      id: s.id,
+      filePath: s.filePath,
+      title: title,
+      artist: artist,
+      album: album,
+      genre: genre,
+      region: region,
+      albumArtPath: s.albumArtPath,
+      albumArtUrl: s.albumArtUrl,
+      lyrics: s.lyrics,
+      durationMs: s.durationMs,
+      isFavorite: s.isFavorite,
+      addedAt: s.addedAt,
+      metadataScanned: s.metadataScanned,
+    );
+    try {
+      await context.read<LibraryProvider>().updateMetadata(updated);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menyimpan: $e')),
+        );
+      }
+      return;
+    }
+    s.title = title;
+    s.artist = artist;
+    s.album = album;
+    s.genre = genre;
+    s.region = region;
     if (mounted) Navigator.pop(context);
   }
 
   Future<void> _rescanFromInternet() async {
+    // Rescan menimpa edit manual — minta konfirmasi dulu.
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Scan Ulang dari Internet?'),
+        content: const Text(
+            'Data dari internet akan menimpa edit manual Anda di form ini. Lanjutkan?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Batal')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Ya, Timpa')),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
     setState(() => _isScanning = true);
-    await context.read<LibraryProvider>().rescanSingleMetadata(widget.song);
+    try {
+      await context.read<LibraryProvider>().rescanSingleMetadata(widget.song);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isScanning = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal scan ulang: $e')),
+      );
+      return;
+    }
+    if (!mounted) return;
     setState(() {
       _isScanning = false;
       _title.text = widget.song.title;
@@ -64,11 +129,9 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
       _genre.text = widget.song.genre ?? '';
       _region.text = widget.song.region ?? '';
     });
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Metadata berhasil diperbarui dari internet')),
-      );
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Metadata berhasil diperbarui dari internet')),
+    );
   }
 
   @override

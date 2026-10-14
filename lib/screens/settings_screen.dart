@@ -39,6 +39,20 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  // Guard agar tap cepat beruntun pada preferensi tidak balapan:
+  // Future penyimpanan di-await dan input dinonaktifkan selama menyimpan.
+  bool _savingPrefs = false;
+
+  Future<void> _savePrefs(Future<void> Function() save) async {
+    if (_savingPrefs) return;
+    setState(() => _savingPrefs = true);
+    try {
+      await save();
+    } finally {
+      if (mounted) setState(() => _savingPrefs = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
@@ -50,23 +64,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           // ── TAMPILAN ──────────────────────────────────────────
           _SectionHeader('Tampilan'),
-          RadioListTile<ThemeMode>(
-            title: const Text('Ikuti sistem'),
-            value: ThemeMode.system,
+          RadioGroup<ThemeMode>(
             groupValue: themeProvider.themeMode,
-            onChanged: (v) => themeProvider.setThemeMode(v!),
-          ),
-          RadioListTile<ThemeMode>(
-            title: const Text('Terang'),
-            value: ThemeMode.light,
-            groupValue: themeProvider.themeMode,
-            onChanged: (v) => themeProvider.setThemeMode(v!),
-          ),
-          RadioListTile<ThemeMode>(
-            title: const Text('Gelap'),
-            value: ThemeMode.dark,
-            groupValue: themeProvider.themeMode,
-            onChanged: (v) => themeProvider.setThemeMode(v!),
+            onChanged: (v) {
+              if (_savingPrefs || v == null) return;
+              _savePrefs(() => themeProvider.setThemeMode(v));
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<ThemeMode>(
+                  title: const Text('Ikuti sistem'),
+                  value: ThemeMode.system,
+                ),
+                RadioListTile<ThemeMode>(
+                  title: const Text('Terang'),
+                  value: ThemeMode.light,
+                ),
+                RadioListTile<ThemeMode>(
+                  title: const Text('Gelap'),
+                  value: ThemeMode.dark,
+                ),
+              ],
+            ),
           ),
           const Divider(),
 
@@ -90,7 +110,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: List.generate(kAccentColors.length, (i) {
                     final isSelected = i == themeProvider.accentColorIndex;
                     return GestureDetector(
-                      onTap: () => themeProvider.setAccentColor(i),
+                      onTap: _savingPrefs
+                          ? null
+                          : () => _savePrefs(
+                              () => themeProvider.setAccentColor(i)),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         width: 36,
@@ -106,7 +129,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           boxShadow: isSelected
                               ? [
                                   BoxShadow(
-                                    color: kAccentColors[i].withOpacity(0.4),
+                                    color: kAccentColors[i].withValues(alpha: 0.4),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   )
@@ -143,7 +166,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
             child: Text(
-              'Pilih preset untuk menyesuaikan suara. Pengaturan disimpan antar sesi.',
+              'Preset ini hanya tampilan visualisasi, belum mengubah suara aktual. Pilihan disimpan antar sesi.',
               style: TextStyle(fontSize: 12, color: Colors.grey[500]),
             ),
           ),
@@ -158,7 +181,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 return ChoiceChip(
                   label: Text(preset),
                   selected: isSelected,
-                  onSelected: (_) => themeProvider.setEqualizerPreset(preset),
+                  onSelected: _savingPrefs
+                      ? null
+                      : (_) => _savePrefs(
+                          () => themeProvider.setEqualizerPreset(preset)),
                 );
               }).toList(),
             ),
@@ -271,7 +297,7 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// Visual bar EQ sederhana untuk menunjukkan efek per preset
+// Visual bar EQ sederhana untuk menunjukkan preset yang dipilih (hanya tampilan, bukan pemrosesan audio)
 class _EqVisualizer extends StatelessWidget {
   final String preset;
   const _EqVisualizer({required this.preset});
@@ -310,7 +336,7 @@ class _EqVisualizer extends StatelessWidget {
                   color: gain > 0
                       ? color
                       : gain < 0
-                          ? color.withOpacity(0.4)
+                          ? color.withValues(alpha: 0.4)
                           : Theme.of(context).colorScheme.outlineVariant,
                   borderRadius: BorderRadius.circular(4),
                 ),

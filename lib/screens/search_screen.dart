@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -22,9 +24,19 @@ class _SearchScreenState extends State<SearchScreen> {
   final _controller = TextEditingController();
   String _query = '';
   _SearchFilter _filter = _SearchFilter.lagu;
+  Timer? _debounce;
+
+  void _onQueryChanged(String v) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      setState(() => _query = v);
+    });
+  }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -124,7 +136,7 @@ class _SearchScreenState extends State<SearchScreen> {
               height: 40,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: PlayingIndicator(
@@ -158,13 +170,21 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ],
       ),
-      onTap: () => PlayerService.instance.setQueueAndPlay(queue, index),
+      onTap: () async {
+        try {
+          await PlayerService.instance.setQueueAndPlay(queue, index);
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Gagal memutar lagu: $e')),
+            );
+          }
+        }
+      },
     );
   }
 
-  Widget _buildResults(List<Song> songs) {
-    final results = _getResults(songs);
-
+  Widget _buildResults(List<Song> results) {
     if (_query.trim().isEmpty) {
       return Center(
         child: Column(
@@ -267,6 +287,8 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final lib = context.watch<LibraryProvider>();
+    // Hitung sekali per build, pakai ulang untuk count + list.
+    final results = _getResults(lib.songs);
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
@@ -282,13 +304,14 @@ class _SearchScreenState extends State<SearchScreen> {
                 ? IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: () {
+                      _debounce?.cancel();
                       _controller.clear();
                       setState(() => _query = '');
                     },
                   )
                 : null,
           ),
-          onChanged: (v) => setState(() => _query = v),
+          onChanged: _onQueryChanged,
         ),
       ),
       body: Column(
@@ -305,7 +328,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   key: ValueKey(_query + _filter.name),
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    '${_getResults(lib.songs).length} hasil',
+                    '${results.length} hasil',
                     style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                   ),
                 ),
@@ -314,7 +337,7 @@ class _SearchScreenState extends State<SearchScreen> {
           Expanded(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
-              child: _buildResults(lib.songs),
+              child: _buildResults(results),
             ),
           ),
         ],

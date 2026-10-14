@@ -13,6 +13,7 @@ class HistoryScreen extends StatefulWidget {
 
 class HistoryScreenState extends State<HistoryScreen> {
   List<Song> _history = [];
+  String? _error;
 
   @override
   void initState() {
@@ -25,12 +26,30 @@ class HistoryScreenState extends State<HistoryScreen> {
   Future<void> reload() => _load();
 
   Future<void> _load() async {
-    final history = await DBHelper.instance.getRecentlyPlayed();
-    setState(() => _history = history);
+    try {
+      final history = await DBHelper.instance.getRecentlyPlayed();
+      if (!mounted) return;
+      setState(() {
+        _history = history;
+        _error = null;
+      });
+    } catch (e) {
+      // DB korup/rusak — tampilkan pesan error, jangan red screen.
+      if (!mounted) return;
+      setState(() => _error = 'Gagal memuat riwayat: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(_error!, textAlign: TextAlign.center),
+        ),
+      );
+    }
     if (_history.isEmpty) {
       return const Center(child: Text('Belum ada riwayat pemutaran'));
     }

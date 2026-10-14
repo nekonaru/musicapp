@@ -52,12 +52,18 @@ class _LibraryScreenState extends State<LibraryScreen> {
       });
 
   void _jumpToLetter(String letter, List<Song> songs) {
+    if (!_scrollController.hasClients) return;
     final index = letter == '#'
-        ? songs.indexWhere((s) => !RegExp(r'^[a-zA-Z]').hasMatch(s.title))
-        : songs.indexWhere((s) => s.title.toUpperCase().startsWith(letter));
+        ? songs.indexWhere((s) =>
+            s.title.isEmpty || !RegExp(r'^[a-zA-Z]').hasMatch(s.title))
+        : songs.indexWhere((s) =>
+            s.title.isNotEmpty &&
+            s.title.toUpperCase().startsWith(letter));
     if (index == -1) return;
+    final offset =
+        (index * _itemHeight).clamp(0.0, _scrollController.position.maxScrollExtent);
     _scrollController.animateTo(
-      index * _itemHeight,
+      offset,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOut,
     );
@@ -131,10 +137,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   leading: const Icon(Icons.queue_music),
                   title: Text(p['name']),
                   onTap: () async {
-                    for (final s in songs) {
-                      await provider.addSong(p['id'], s.id);
-                    }
+                    await Future.wait(
+                        songs.map((s) => provider.addSong(p['id'], s.id)));
                     if (ctx.mounted) Navigator.pop(ctx);
+                    if (!mounted) return;
                     _exitMultiSelect();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -172,9 +178,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
               onPressed: selected.isEmpty
                   ? null
                   : () async {
-                      for (final s in selected) {
-                        await lib.toggleFavorite(s, true);
-                      }
+                      await lib.setFavoritesBulk(selected, true);
+                      if (!mounted) return;
                       _exitMultiSelect();
                     }),
           IconButton(
@@ -201,7 +206,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: cs.primary.withOpacity(0.1),
+                    color: cs.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -316,7 +321,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       final available = <String>{
         for (final s in songs)
           RegExp(r'^[a-zA-Z]').hasMatch(s.title)
-              ? s.title[0].toUpperCase()
+              ? safeInitial(s.title)
               : '#'
       };
 
@@ -466,9 +471,9 @@ class _SongTile extends StatelessWidget {
       onLongPress: onLongPress,
       child: Container(
         color: isSelected
-            ? cs.primaryContainer.withOpacity(0.5)
+            ? cs.primaryContainer.withValues(alpha: 0.5)
             : isPlaying
-                ? cs.primaryContainer.withOpacity(0.25)
+                ? cs.primaryContainer.withValues(alpha: 0.25)
                 : null,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         height: 72,
@@ -490,7 +495,7 @@ class _SongTile extends StatelessWidget {
                               height: 40,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                  color: cs.primary.withOpacity(0.15),
+                                  color: cs.primary.withValues(alpha: 0.15),
                                   shape: BoxShape.circle),
                               child: PlayingIndicator(
                                   isPlaying: PlayerService

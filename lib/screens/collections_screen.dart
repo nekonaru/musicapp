@@ -180,7 +180,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
-                              color: cs.primary.withOpacity(0.1),
+                              color: cs.primary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
@@ -339,7 +339,7 @@ class _QuickCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Row(
             children: [
-              Icon(icon, color: Colors.white.withOpacity(0.9), size: 22),
+              Icon(icon, color: Colors.white.withValues(alpha: 0.9), size: 22),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -359,7 +359,7 @@ class _QuickCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(subtitle,
                           style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
+                              color: Colors.white.withValues(alpha: 0.7),
                               fontSize: 11)),
                     ],
                   ],

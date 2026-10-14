@@ -215,6 +215,20 @@ class LibraryProvider extends ChangeNotifier {
     await loadFromDb();
   }
 
+  /// Set favorit banyak lagu sekaligus: satu tulis batch ke DB lalu
+  /// SATU kali reload + notify (via loadFromDb). Gagal -> scanError.
+  Future<void> setFavoritesBulk(List<Song> songs, bool value) async {
+    if (songs.isEmpty) return;
+    try {
+      await DBHelper.instance
+          .setFavoritesBulk(songs.map((s) => s.id).toList(), value);
+      await loadFromDb();
+    } catch (e) {
+      scanError = e.toString();
+      notifyListeners();
+    }
+  }
+
   Future<void> deleteSong(Song song) async {
     await DBHelper.instance.deleteSong(song.id);
     songs.removeWhere((s) => s.id == song.id);

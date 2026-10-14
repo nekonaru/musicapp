@@ -16,6 +16,10 @@ class EditLyricsScreen extends StatefulWidget {
 class _EditLyricsScreenState extends State<EditLyricsScreen> {
   late final TextEditingController _controller;
 
+  /// Batas panjang lirik (100KB) supaya DB tidak bloat — sama dengan
+  /// cap di MetadataService.fetchLyricsOnly.
+  static const _kMaxLyricsChars = 100 * 1024;
+
   @override
   void initState() {
     super.initState();
@@ -77,9 +81,52 @@ class _EditLyricsScreenState extends State<EditLyricsScreen> {
   }
 
   Future<void> _save() async {
-    widget.song.lyrics = _controller.text.trim().isEmpty ? null : _controller.text.trim();
-    await context.read<LibraryProvider>().updateMetadata(widget.song);
-    if (mounted) Navigator.pop(context);
+    var text = _controller.text.trim();
+    var truncated = false;
+    if (text.length > _kMaxLyricsChars) {
+      text = text.substring(0, _kMaxLyricsChars);
+      truncated = true;
+    }
+    final newLyrics = text.isEmpty ? null : text;
+
+    // Simpan via salinan dulu — widget.song.lyrics baru dimutasi setelah DB sukses.
+    final s = widget.song;
+    final updated = Song(
+      id: s.id,
+      filePath: s.filePath,
+      title: s.title,
+      artist: s.artist,
+      album: s.album,
+      genre: s.genre,
+      region: s.region,
+      albumArtPath: s.albumArtPath,
+      albumArtUrl: s.albumArtUrl,
+      lyrics: newLyrics,
+      durationMs: s.durationMs,
+      isFavorite: s.isFavorite,
+      addedAt: s.addedAt,
+      metadataScanned: s.metadataScanned,
+    );
+    try {
+      await context.read<LibraryProvider>().updateMetadata(updated);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menyimpan lirik: $e')),
+        );
+      }
+      return;
+    }
+    s.lyrics = newLyrics;
+    if (!mounted) return;
+    // ScaffoldMessenger hidup di atas route, jadi snackbar tetap tampil
+    // di layar sebelumnya walau halaman ini langsung di-pop.
+    if (truncated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lirik melebihi 100KB dan dipotong saat disimpan')),
+      );
+    }
+    Navigator.pop(context);
   }
 
   @override

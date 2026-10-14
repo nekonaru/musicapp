@@ -65,6 +65,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late TabController _libTabController;
 
   final _dashboardKey = GlobalKey<DashboardScreenState>();
+  DateTime? _lastDashboardReload;
 
   @override
   void initState() {
@@ -125,14 +126,34 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _initLibrary() async {
-    final lib = context.read<LibraryProvider>();
-    await lib.autoLoadAndScanIfNeeded();
+    if (!mounted) return;
+    try {
+      final lib = context.read<LibraryProvider>();
+      await lib.autoLoadAndScanIfNeeded();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat library: $e')),
+      );
+    }
   }
 
   @override
   void dispose() {
     _libTabController.dispose();
     super.dispose();
+  }
+
+  // Reload dashboard dengan guard waktu: lewati bila data baru saja dimuat
+  // (< 2 detik) agar pindah tab cepat tidak memicu reload berulang.
+  void _maybeReloadDashboard() {
+    final now = DateTime.now();
+    if (_lastDashboardReload != null &&
+        now.difference(_lastDashboardReload!) < const Duration(seconds: 2)) {
+      return;
+    }
+    _lastDashboardReload = now;
+    _dashboardKey.currentState?.reload();
   }
 
   Future<bool> _onBackPressed() async {
@@ -233,9 +254,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final enabledTabs = _allTabDefs.where((t) => t.visible).toList();
 
     return PopScope(
+      // canPop: false hanya mem-veto pop untuk route Home (root) ini.
+      // Dialog/bottom-sheet/halaman push adalah route terpisah di atasnya,
+      // sehingga tombol back saat itu terbuka tetap mem-pop route tersebut
+      // sekali tekan tanpa memicu logika double-back di bawah.
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
-        if (!didPop) await _onBackPressed();
+        if (didPop || !mounted) return;
+        await _onBackPressed();
       },
       child: Scaffold(
         appBar: AppBar(
@@ -286,7 +312,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               selectedIndex: _groupIndex,
               onDestinationSelected: (i) {
                 setState(() => _groupIndex = i);
-                if (i == 2) _dashboardKey.currentState?.reload();
+                if (i == 2) _maybeReloadDashboard();
               },
               destinations: const [
                 NavigationDestination(
@@ -382,9 +408,8 @@ class _TabSettingsSheetState extends State<_TabSettingsSheet> {
             child: ReorderableListView(
               shrinkWrap: true,
               buildDefaultDragHandles: false,
-              onReorder: (oldIdx, newIdx) {
+              onReorderItem: (oldIdx, newIdx) {
                 setState(() {
-                  if (newIdx > oldIdx) newIdx--;
                   final item = _defs.removeAt(oldIdx);
                   _defs.insert(newIdx, item);
                 });
@@ -403,7 +428,7 @@ class _TabSettingsSheetState extends State<_TabSettingsSheet> {
                       style: TextStyle(
                         color: _defs[i].visible
                             ? cs.onSurface
-                            : cs.onSurface.withOpacity(0.4),
+                            : cs.onSurface.withValues(alpha: 0.4),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -431,7 +456,7 @@ class _TabSettingsSheetState extends State<_TabSettingsSheet> {
                           border: Border.all(
                             color: _defs[i].visible
                                 ? cs.primary
-                                : cs.outline.withOpacity(0.5),
+                                : cs.outline.withValues(alpha: 0.5),
                             width: 2,
                           ),
                         ),

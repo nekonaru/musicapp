@@ -365,7 +365,6 @@ class PlayerService extends ChangeNotifier {
   /// Drag reorder di halaman Antrean - yang diubah urutannya adalah _playOrder
   void reorderQueue(int oldIndex, int newIndex) {
     if (oldIndex < 0 || oldIndex >= _playOrder.length) return;
-    if (newIndex > oldIndex) newIndex -= 1;
     if (newIndex < 0 || newIndex >= _playOrder.length) return;
 
     final moved = _playOrder.removeAt(oldIndex);

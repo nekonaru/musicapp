@@ -6,7 +6,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/song.dart';
 import '../providers/library_provider.dart';
 import '../providers/playlist_provider.dart';
-import '../services/library_scanner.dart';
 import '../services/player_service.dart';
 import '../services/metadata_service.dart';
 import '../services/db_helper.dart';
@@ -34,7 +33,7 @@ Widget buildSongTile(
   final cs = Theme.of(context).colorScheme;
   return ListTile(
     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-    tileColor: isPlaying ? cs.primaryContainer.withOpacity(0.25) : null,
+    tileColor: isPlaying ? cs.primaryContainer.withValues(alpha: 0.25) : null,
     leading: leading ??
         (isPlaying
             ? Container(
@@ -42,7 +41,7 @@ Widget buildSongTile(
                 height: 40,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(0.15),
+                  color: cs.primary.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: PlayingIndicator(
@@ -73,7 +72,19 @@ Widget buildSongTile(
       overflow: TextOverflow.ellipsis,
       style: const TextStyle(fontSize: 12),
     ),
-    onTap: () => PlayerService.instance.setQueueAndPlay(queue, index),
+    onTap: () async {
+      // setQueueAndPlay bisa gagal (file hilang/format tak didukung) —
+      // tangkap supaya error putar tidak hilang tanpa jejak.
+      try {
+        await PlayerService.instance.setQueueAndPlay(queue, index);
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal memutar lagu: $e')),
+          );
+        }
+      }
+    },
     trailing: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -118,7 +129,17 @@ Widget buildCollectionHeader({
               child: FilledButton.icon(
                 onPressed: songs.isEmpty
                     ? null
-                    : () => PlayerService.instance.setQueueAndPlay(songs, 0),
+                    : () async {
+                        try {
+                          await PlayerService.instance.setQueueAndPlay(songs, 0);
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Gagal memutar lagu: $e')),
+                            );
+                          }
+                        }
+                      },
                 icon: const Icon(Icons.play_arrow, size: 18),
                 label: const Text('Mulai Putar'),
                 style: FilledButton.styleFrom(
@@ -175,12 +196,15 @@ class _FoldersScreenState extends State<FoldersScreen> {
   @override
   void initState() {
     super.initState();
-    _loadPrefs().then((_) => _load());
+    // Prefs gagal (corrupt/tidak tersedia) tidak boleh bikin layar kosong —
+    // tetap lanjut tampilkan folder dari DB.
+    _loadPrefs().catchError((Object _) {}).then((_) => _load());
   }
 
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     final idx = prefs.getInt(_kFolderSort) ?? 0;
+    if (!mounted) return;
     setState(() => _sortOption =
         FolderSortOption.values[idx.clamp(0, FolderSortOption.values.length - 1)]);
   }
@@ -191,18 +215,33 @@ class _FoldersScreenState extends State<FoldersScreen> {
   }
 
   Future<void> _load() async {
-    final folders = await LibraryScanner().listMusicFolders();
-    final excluded = await DBHelper.instance.getExcludedFolders();
-    final songsByFolder = <String, List<Song>>{};
-    for (final f in folders) {
-      songsByFolder[f] = await LibraryScanner().getSongsInFolder(f);
-    }
-    if (mounted) {
+    try {
+      // SATU getAllSongs() lalu grouping di memori pakai folderOf.
+      // Sebelumnya N+1: listMusicFolders + getSongsInFolder per folder,
+      // yang tiap panggilannya full-table-scan getAllSongs().
+      final all = await DBHelper.instance.getAllSongs();
+      final excluded = await DBHelper.instance.getExcludedFolders();
+      final songsByFolder = <String, List<Song>>{};
+      for (final s in all) {
+        final folder = folderOf(s.filePath);
+        (songsByFolder[folder] ??= []).add(s);
+      }
+      final folders = songsByFolder.keys.toList()..sort();
+      if (!mounted) return;
       setState(() {
         _folders = folders;
         _excluded = excluded;
         _songsByFolder = songsByFolder;
       });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _folders = [];
+        _songsByFolder = {};
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat folder: $e')),
+      );
     }
   }
 
@@ -689,7 +728,7 @@ class ArtistsScreen extends StatelessWidget {
                         backgroundColor:
                             Theme.of(context).colorScheme.primaryContainer,
                         child: Text(
-                          artist.isNotEmpty ? artist[0].toUpperCase() : '?',
+                          safeInitial(artist),
                           style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Theme.of(context).colorScheme.onPrimaryContainer),
@@ -1017,7 +1056,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
@@ -1046,7 +1085,19 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 children: [
                   Expanded(
                     child: FilledButton.icon(
-                      onPressed: favs.isEmpty ? null : () => PlayerService.instance.setQueueAndPlay(favs, 0),
+                      onPressed: favs.isEmpty
+                          ? null
+                          : () async {
+                              try {
+                                await PlayerService.instance.setQueueAndPlay(favs, 0);
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Gagal memutar lagu: $e')),
+                                  );
+                                }
+                              }
+                            },
                       icon: const Icon(Icons.play_arrow, size: 18),
                       label: const Text('Mulai Putar'),
                       style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 10)),
@@ -1092,7 +1143,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                           width: 40, height: 40,
                                           alignment: Alignment.center,
                                           decoration: BoxDecoration(
-                                            color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
                                             shape: BoxShape.circle,
                                           ),
                                           child: PlayingIndicator(
