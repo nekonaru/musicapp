@@ -68,6 +68,14 @@ class DBHelper {
             includeInLibrary INTEGER DEFAULT 1
           )
         ''');
+        // Index supaya ORDER BY / filter dashboard tidak full-scan.
+        await db.execute('CREATE INDEX idx_songs_title ON songs(title)');
+        await db.execute(
+            'CREATE INDEX idx_songs_lastPlayedAt ON songs(lastPlayedAt)');
+        await db.execute(
+            'CREATE INDEX idx_listening_song_ts ON listening_entries(songId, timestamp)');
+        await db.execute(
+            'CREATE INDEX idx_playlist_songs_pid_pos ON playlist_songs(playlistId, position)');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -92,10 +100,23 @@ class DBHelper {
           // supaya fitur "scan yang belum ada metadata saja" akurat.
           try {
             await db.execute('ALTER TABLE songs ADD COLUMN metadataScanned INTEGER DEFAULT 0');
-            await db.execute("UPDATE songs SET metadataScanned = 1 WHERE genre IS NOT NULL OR lyrics IS NOT NULL");
+            // Jangan tandai 'Tidak diketahui' sebagai scanned — itu nilai
+            // fallback, bukan hasil fetch sungguhan. Hanya genre/lirik asli.
+            await db.execute(
+                "UPDATE songs SET metadataScanned = 1 WHERE (genre IS NOT NULL AND genre != 'Tidak diketahui') OR lyrics IS NOT NULL");
           } catch (_) {
             // Kolom mungkin sudah ada, abaikan
           }
+          // Index untuk DB lama (v1-v3) yang belum punya index.
+          try {
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_songs_title ON songs(title)');
+            await db.execute(
+                'CREATE INDEX IF NOT EXISTS idx_songs_lastPlayedAt ON songs(lastPlayedAt)');
+            await db.execute(
+                'CREATE INDEX IF NOT EXISTS idx_listening_song_ts ON listening_entries(songId, timestamp)');
+            await db.execute(
+                'CREATE INDEX IF NOT EXISTS idx_playlist_songs_pid_pos ON playlist_songs(playlistId, position)');
+          } catch (_) {}
         }
       },
     );
@@ -394,16 +415,19 @@ class DBHelper {
     return rows.map((r) => r['path'] as String).toSet();
   }
 
-  /// Lagu diurutkan berdasarkan jumlah diputar (paling sering dulu)
+  /// Lagu diurutkan berdasarkan jumlah diputar (paling sering dulu).
+  /// Satu query JOIN — tidak lagi load seluruh tabel songs ke memori.
   Future<List<Song>> getMostPlayedSongs({int limit = 50}) async {
-    final topIds = await getTopSongIds(limit: limit);
-    if (topIds.isEmpty) return [];
-    final allSongs = await getAllSongs();
-    final songMap = <int, Song>{for (final s in allSongs) s.id: s};
-    return topIds
-        .map((e) => songMap[e.key])
-        .whereType<Song>()
-        .toList();
+    final database = await db;
+    final rows = await database.rawQuery('''
+      SELECT s.*, COUNT(le.id) as playCount
+      FROM songs s
+      JOIN listening_entries le ON le.songId = s.id
+      GROUP BY s.id
+      ORDER BY playCount DESC
+      LIMIT ?
+    ''', [limit]);
+    return rows.map((r) => Song.fromMap(r)).toList();
   }
 
   /// Lagu yang belum pernah diputar sama sekali

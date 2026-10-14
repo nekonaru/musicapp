@@ -68,21 +68,33 @@ class MiniPlayer extends StatelessWidget {
                 ),
                 IconButton(
                   icon: const Icon(Icons.skip_previous),
-                  onPressed: player.previous,
+                  onPressed: () {
+                    player.previous().catchError((_) {});
+                  },
                 ),
                 StreamBuilder(
+                  // Key berdasarkan player aktif supaya StreamBuilder re-subscribe
+                  // setelah crossfade (player instance berganti). Tanpa ini
+                  // ikon play/pause macet di state lama.
+                  key: ValueKey(
+                      'mp_state_${player.player.hashCode}_${song.id}'),
                   stream: player.player.playerStateStream,
                   builder: (context, snapshot) {
-                    final playing = snapshot.data?.playing ?? false;
+                    final playing =
+                        snapshot.data?.playing ?? player.player.playing;
                     return IconButton(
                       icon: Icon(playing ? Icons.pause : Icons.play_arrow),
-                      onPressed: player.togglePlayPause,
+                      onPressed: () {
+                        player.togglePlayPause().catchError((_) {});
+                      },
                     );
                   },
                 ),
                 IconButton(
                   icon: const Icon(Icons.skip_next),
-                  onPressed: player.next,
+                  onPressed: () {
+                    player.next().catchError((_) {});
+                  },
                 ),
                 const SizedBox(width: 4),
               ],

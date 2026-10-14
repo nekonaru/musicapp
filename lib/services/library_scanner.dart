@@ -72,11 +72,17 @@ class LibraryScanner {
       final song = Song(
         id: track.id,
         filePath: track.data,
-        title: (track.title.isNotEmpty) ? track.title : _titleFromFilename(track.data),
-        artist: (track.artist != null && track.artist != '<unknown>')
+        title: (track.title.isNotEmpty)
+            ? track.title
+            : _titleFromFilename(track.data),
+        artist: (track.artist != null &&
+                track.artist!.isNotEmpty &&
+                track.artist != '<unknown>')
             ? track.artist!
             : 'Unknown Artist',
-        album: track.album ?? 'Unknown Album',
+        album: (track.album?.isNotEmpty == true)
+            ? track.album!
+            : 'Unknown Album',
         durationMs: track.duration ?? 0,
       );
       await DBHelper.instance.upsertSong(song);
@@ -124,7 +130,13 @@ class LibraryScanner {
   }
 
   String _titleFromFilename(String path) {
-    final name = path.substring(path.lastIndexOf('/') + 1);
-    return name.replaceAll(RegExp(r'\.(mp3|flac|wav|m4a|ogg)$'), '');
+    final normalized = path.replaceAll('\\', '/');
+    final name = normalized.substring(normalized.lastIndexOf('/') + 1);
+    return name
+        .replaceAll(
+            RegExp(r'\.(mp3|flac|wav|m4a|ogg|opus|aac|wma)$',
+                caseSensitive: false),
+            '')
+        .trim();
   }
 }

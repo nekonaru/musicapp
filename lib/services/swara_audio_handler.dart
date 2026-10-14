@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/foundation.dart';
 import 'player_service.dart';
 
 /// Adapter tipis di atas [PlayerService]. Menerjemahkan state ke MediaSession
@@ -27,9 +29,38 @@ class SwaraAudioHandler extends BaseAudioHandler {
   SwaraAudioHandler() {
     PlayerService.instance.addListener(_syncState);
     _positionTicker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (PlayerService.instance.player.playing) _syncState();
+      if (_disposed) return;
+      try {
+        if (PlayerService.instance.player.playing) _syncState();
+      } catch (e) {
+        debugPrint('Gagal sync audio handler: $e');
+      }
     });
     _syncState();
+  }
+
+  bool _disposed = false;
+
+  /// Bersihkan listener + ticker supaya tidak bocor saat handler dibuang.
+  void disposeHandler() {
+    _disposed = true;
+    _positionTicker?.cancel();
+    _positionTicker = null;
+    try {
+      PlayerService.instance.removeListener(_syncState);
+    } catch (_) {}
+  }
+
+  Uri? _safeArtUri(String? path) {
+    if (path == null || path.isEmpty) return null;
+    try {
+      final file = File(path);
+      // Cegah path traversal / file yang sudah dihapus merusak notifikasi.
+      if (!file.existsSync()) return null;
+      return Uri.file(path);
+    } catch (_) {
+      return null;
+    }
   }
 
   void _syncState() {
@@ -45,9 +76,7 @@ class SwaraAudioHandler extends BaseAudioHandler {
               artist: song.artist,
               album: song.album,
               duration: Duration(milliseconds: song.durationMs),
-              artUri: song.albumArtPath != null
-                  ? Uri.file(song.albumArtPath!)
-                  : null,
+              artUri: _safeArtUri(song.albumArtPath),
             ),
     );
 

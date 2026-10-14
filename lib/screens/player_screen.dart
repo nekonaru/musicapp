@@ -495,7 +495,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget _buildRepeatButton() {
     final mode = _player.repeatMode;
     final color = Theme.of(context).colorScheme.primary;
-    final isActive = mode != RepeatMode.off;
+    final isActive = mode != SwaraRepeatMode.off;
 
     return GestureDetector(
       onTap: () => setState(() => _player.cycleRepeatMode()),
@@ -506,7 +506,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           shape: BoxShape.circle,
         ),
         child: Icon(
-          mode == RepeatMode.one ? Icons.repeat_one : Icons.repeat,
+          mode == SwaraRepeatMode.one ? Icons.repeat_one : Icons.repeat,
           color: isActive ? color : Colors.grey,
         ),
       ),

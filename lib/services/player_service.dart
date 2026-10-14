@@ -5,7 +5,7 @@ import 'package:just_audio/just_audio.dart';
 import '../models/song.dart';
 import 'db_helper.dart';
 
-enum RepeatMode { off, all, one }
+enum SwaraRepeatMode { off, all, one }
 
 class PlayerService extends ChangeNotifier {
   PlayerService._();
@@ -24,7 +24,7 @@ class PlayerService extends ChangeNotifier {
   int _posInOrder = 0;
 
   bool _shuffle = false;
-  RepeatMode _repeatMode = RepeatMode.off;
+  SwaraRepeatMode _repeatMode = SwaraRepeatMode.off;
   bool crossfadeEnabled = false;
   static const Duration crossfadeDuration = Duration(seconds: 3);
 
@@ -39,8 +39,11 @@ class PlayerService extends ChangeNotifier {
   int _accumulatedListenedMs = 0;
 
   StreamSubscription? _positionSub;
+  StreamSubscription? _playerStateSub;
+  StreamSubscription? _crossfadeStateSub;
   bool _crossfadeTriggeredForCurrent = false;
   bool _crossfadeCancelled = false;
+  bool _disposed = false;
 
   /// Player yang SEDANG terdengar sekarang (berganti tiap kali crossfade selesai)
   AudioPlayer get _activePlayer => _usingCrossfadePlayer ? _crossfadePlayer : _player;
@@ -55,20 +58,23 @@ class PlayerService extends ChangeNotifier {
   }
 
   bool get isShuffle => _shuffle;
-  RepeatMode get repeatMode => _repeatMode;
+  SwaraRepeatMode get repeatMode => _repeatMode;
 
   /// Antrean sesuai urutan pemutaran sebenarnya (dipakai halaman Antrean)
   List<Song> get queue => _playOrder.map((i) => _queue[i]).toList();
   int get currentIndex => _posInOrder;
 
   Future<void> init() async {
-    _player.playerStateStream.listen((state) {
+    await _playerStateSub?.cancel();
+    await _crossfadeStateSub?.cancel();
+    await _positionSub?.cancel();
+    _playerStateSub = _player.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed && !_usingCrossfadePlayer) {
         _logListening();
         _onTrackFinished();
       }
     });
-    _crossfadePlayer.playerStateStream.listen((state) {
+    _crossfadeStateSub = _crossfadePlayer.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed && _usingCrossfadePlayer) {
         _logListening();
         _onTrackFinished();
@@ -111,12 +117,12 @@ class PlayerService extends ChangeNotifier {
       final stepDuration = crossfadeDuration ~/ steps;
       for (int i = 1; i <= steps; i++) {
         await Future.delayed(stepDuration);
-        if (_crossfadeCancelled) break; // user pencet next/previous di tengah crossfade
+        if (_crossfadeCancelled || _disposed) break; // user pencet next/previous di tengah crossfade
         final v = i / steps;
-        incoming.setVolume(v);
-        outgoing.setVolume(1 - v);
+        await incoming.setVolume(v);
+        await outgoing.setVolume(1 - v);
       }
-      if (_crossfadeCancelled) {
+      if (_crossfadeCancelled || _disposed) {
         // Dibatalkan di tengah jalan - bersihkan player cadangan, jangan lanjut swap
         await incoming.pause();
         await incoming.setVolume(1);
@@ -132,6 +138,7 @@ class PlayerService extends ChangeNotifier {
       // menunjuk ke lagu lama, sebelum _posInOrder berpindah), baru reset jam mulai
       // untuk lagu BARU - supaya listening_entries tidak salah atribusi/durasi dobel.
       _logListening();
+      if (_disposed) return;
       _usingCrossfadePlayer = !_usingCrossfadePlayer;
       _posInOrder = nextPos;
       _playStartedAt = DateTime.now();
@@ -139,7 +146,8 @@ class PlayerService extends ChangeNotifier {
       _crossfadeTriggeredForCurrent = false;
       await DBHelper.instance.markPlayed(nextSong.id);
 
-      _positionSub?.cancel();
+      await _positionSub?.cancel();
+      if (_disposed) return;
       _positionSub = _activePlayer.positionStream.listen(_maybeStartCrossfade);
 
       notifyListeners();
@@ -150,11 +158,11 @@ class PlayerService extends ChangeNotifier {
   }
 
   int? _computeNextPosition() {
-    // RepeatMode.one harus dicek DULUAN sebelum kondisi lainnya,
+    // SwaraRepeatMode.one harus dicek DULUAN sebelum kondisi lainnya,
     // supaya crossfade juga mengulang lagu yang sama bukan maju ke berikutnya.
-    if (_repeatMode == RepeatMode.one) return _posInOrder;
+    if (_repeatMode == SwaraRepeatMode.one) return _posInOrder;
     if (_posInOrder < _playOrder.length - 1) return _posInOrder + 1;
-    if (_repeatMode == RepeatMode.all) return 0;
+    if (_repeatMode == SwaraRepeatMode.all) return 0;
     return null;
   }
 
@@ -208,7 +216,8 @@ class PlayerService extends ChangeNotifier {
     lastError = null;
     // Pasang ulang listener posisi ke player yang sekarang aktif, supaya
     // crossfade tetap terpicu untuk lagu-lagu berikutnya juga (bukan cuma sekali).
-    _positionSub?.cancel();
+    await _positionSub?.cancel();
+    if (_disposed) return;
     _positionSub = player.positionStream.listen(_maybeStartCrossfade);
     notifyListeners();
   }
@@ -234,7 +243,7 @@ class PlayerService extends ChangeNotifier {
     _crossfadeTriggeredForCurrent = false;
     if (_posInOrder < _playOrder.length - 1) {
       _posInOrder++;
-    } else if (_repeatMode == RepeatMode.all) {
+    } else if (_repeatMode == SwaraRepeatMode.all) {
       _posInOrder = 0;
     } else {
       return; // sudah di lagu terakhir, tidak ada repeat
@@ -252,7 +261,7 @@ class PlayerService extends ChangeNotifier {
     _crossfadeTriggeredForCurrent = false;
     if (_posInOrder > 0) {
       _posInOrder--;
-    } else if (_repeatMode == RepeatMode.all) {
+    } else if (_repeatMode == SwaraRepeatMode.all) {
       _posInOrder = _playOrder.length - 1;
     } else {
       _posInOrder = 0;
@@ -273,7 +282,7 @@ class PlayerService extends ChangeNotifier {
       await previous();
     } else {
       _lastPreviousPressAt = now;
-      await player.seek(Duration.zero);
+      await _activePlayer.seek(Duration.zero);
       notifyListeners();
     }
   }
@@ -289,9 +298,9 @@ class PlayerService extends ChangeNotifier {
     await _playCurrent();
   }
 
-  void playNext(Song song) {
+  Future<void> playNext(Song song) async {
     if (_queue.isEmpty) {
-      setQueueAndPlay([song], 0);
+      await setQueueAndPlay([song], 0);
       return;
     }
     _queue.add(song);
@@ -299,9 +308,9 @@ class PlayerService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addToQueueEnd(Song song) {
+  Future<void> addToQueueEnd(Song song) async {
     if (_queue.isEmpty) {
-      setQueueAndPlay([song], 0);
+      await setQueueAndPlay([song], 0);
       return;
     }
     _queue.add(song);
@@ -372,11 +381,16 @@ class PlayerService extends ChangeNotifier {
     notifyListeners();
   }
 
-  double get playbackSpeed => _player.speed;
+  double get playbackSpeed => _activePlayer.speed;
 
   Future<void> setPlaybackSpeed(double speed) async {
-    await _player.setSpeed(speed);
-    await _crossfadePlayer.setSpeed(speed);
+    try {
+      await _activePlayer.setSpeed(speed);
+      // Samakan juga player cadangan supaya tidak lompat speed saat crossfade.
+      await _fadeTargetPlayer.setSpeed(speed);
+    } catch (e) {
+      debugPrint('Gagal set kecepatan: $e');
+    }
     notifyListeners();
   }
 
@@ -411,7 +425,7 @@ class PlayerService extends ChangeNotifier {
   }
 
   void cycleRepeatMode() {
-    _repeatMode = RepeatMode.values[(_repeatMode.index + 1) % RepeatMode.values.length];
+    _repeatMode = SwaraRepeatMode.values[(_repeatMode.index + 1) % SwaraRepeatMode.values.length];
     notifyListeners();
   }
 
@@ -474,8 +488,14 @@ class PlayerService extends ChangeNotifier {
       if (sleepSongsRemaining! <= 0) {
         sleepSongsRemaining = null;
         _logListening();
-        _player.pause();
-        _crossfadePlayer.pause();
+        // Fire-and-forget dengan error guard — _onTrackFinished dipicu dari
+        // stream listener yang tidak bisa async.
+        _player.pause().catchError((e) {
+          debugPrint('Gagal pause saat sleep-timer: $e');
+        });
+        _crossfadePlayer.pause().catchError((e) {
+          debugPrint('Gagal pause saat sleep-timer: $e');
+        });
         notifyListeners();
         return;
       }
@@ -484,41 +504,69 @@ class PlayerService extends ChangeNotifier {
     if (_pendingSleepStop) {
       _pendingSleepStop = false;
       _logListening();
-      _player.pause();
-      _crossfadePlayer.pause();
+      _player.pause().catchError((e) {
+        debugPrint('Gagal pause saat sleep-timer: $e');
+      });
+      _crossfadePlayer.pause().catchError((e) {
+        debugPrint('Gagal pause saat sleep-timer: $e');
+      });
       notifyListeners();
       return;
     }
 
-    if (_repeatMode == RepeatMode.one) {
+    if (_repeatMode == SwaraRepeatMode.one) {
       _usingCrossfadePlayer = false;
       _crossfadeTriggeredForCurrent = false;
-      _playCurrent();
+      _playCurrent().then((_) {}, onError: (e) {
+        debugPrint('Gagal repeat-one: $e');
+      });
       return;
     }
-    next();
+    next().then((_) {}, onError: (e) {
+      debugPrint('Gagal next: $e');
+    });
   }
 
   void _logListening() {
+    if (_disposed) return;
     if (_playStartedAt == null || currentSong == null) return;
     final elapsed = DateTime.now().difference(_playStartedAt!).inMilliseconds;
     _accumulatedListenedMs += elapsed;
     _playStartedAt = null;
 
     if (_accumulatedListenedMs > 1000) {
-      DBHelper.instance.addListeningEntry(ListeningEntry(
+      // Jangan await di sini (dipanggil dari listener sync) tapi tangkap
+      // error supaya tidak jadi unhandled async error saat DB korup/disk penuh.
+      DBHelper.instance
+          .addListeningEntry(ListeningEntry(
         songId: currentSong!.id,
         timestamp: DateTime.now(),
         listenedMs: _accumulatedListenedMs,
-      ));
+      ))
+          .catchError((e) {
+        debugPrint('Gagal simpan riwayat dengar: $e');
+      });
     }
     _accumulatedListenedMs = 0;
   }
 
-  Future<void> dispose() async {
+  @override
+  void dispose() {
+    _disposed = true;
+    _crossfadeCancelled = true;
     _logListening();
+    _sleepTimer?.cancel();
     _positionSub?.cancel();
-    await _player.dispose();
-    await _crossfadePlayer.dispose();
+    _playerStateSub?.cancel();
+    _crossfadeStateSub?.cancel();
+    // ChangeNotifier.dispose() itu sync void — jangan jadikan Future.
+    // Player dibuang fire-and-forget karena singleton hidup selama app berjalan.
+    _player.dispose().catchError((e) {
+      debugPrint('Gagal dispose player: $e');
+    });
+    _crossfadePlayer.dispose().catchError((e) {
+      debugPrint('Gagal dispose crossfade player: $e');
+    });
+    super.dispose();
   }
 }

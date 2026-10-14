@@ -1,16 +1,10 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/song.dart';
 import '../providers/library_provider.dart';
 import '../services/player_service.dart';
-import '../utils/format.dart';
-import '../utils/song_options.dart';
 import '../widgets/mini_player.dart';
-import '../widgets/playing_indicator.dart';
-import 'extra_screens.dart';
-import '../widgets/playing_indicator.dart';
 import 'extra_screens.dart';
 
 class AlbumsScreen extends StatelessWidget {

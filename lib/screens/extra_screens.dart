@@ -1396,15 +1396,6 @@ class _RecentlyAddedScreenState extends State<RecentlyAddedScreen> {
       ),
     );
   }
-
-  String _relativeDate(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inDays == 0) return 'Hari ini';
-    if (diff.inDays == 1) return 'Kemarin';
-    if (diff.inDays < 7) return '${diff.inDays} hari lalu';
-    if (diff.inDays < 30) return '${(diff.inDays / 7).floor()} minggu lalu';
-    return '${(diff.inDays / 30).floor()} bulan lalu';
-  }
 }
 
 // ─────────────────────────────────────────────────────────────

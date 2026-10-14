@@ -48,22 +48,40 @@ class Song {
         'metadataScanned': metadataScanned ? 1 : 0,
       };
 
-  factory Song.fromMap(Map<String, dynamic> map) => Song(
-        id: map['id'],
-        filePath: map['filePath'],
-        title: map['title'] ?? 'Unknown Title',
-        artist: map['artist'] ?? 'Unknown Artist',
-        album: map['album'] ?? 'Unknown Album',
-        genre: map['genre'],
-        region: map['region'],
-        albumArtPath: map['albumArtPath'],
-        albumArtUrl: map['albumArtUrl'],
-        lyrics: map['lyrics'],
-        durationMs: map['durationMs'] ?? 0,
+  factory Song.fromMap(Map<String, dynamic> map) {
+    final rawId = map['id'];
+    final rawPath = map['filePath'];
+    if (rawId is! int || rawPath is! String || rawPath.isEmpty) {
+      throw const FormatException('Baris songs korup: id/filePath tidak valid');
+    }
+    DateTime? parsedAddedAt;
+    final rawAdded = map['addedAt'];
+    if (rawAdded is String && rawAdded.isNotEmpty) {
+      parsedAddedAt = DateTime.tryParse(rawAdded);
+    }
+    return Song(
+      id: rawId,
+      filePath: rawPath,
+      title: (map['title'] as String?)?.isNotEmpty == true
+          ? map['title'] as String
+          : 'Unknown Title',
+      artist: (map['artist'] as String?)?.isNotEmpty == true
+          ? map['artist'] as String
+          : 'Unknown Artist',
+      album: (map['album'] as String?)?.isNotEmpty == true
+          ? map['album'] as String
+          : 'Unknown Album',
+        genre: map['genre'] as String?,
+        region: map['region'] as String?,
+        albumArtPath: map['albumArtPath'] as String?,
+        albumArtUrl: map['albumArtUrl'] as String?,
+        lyrics: map['lyrics'] as String?,
+        durationMs: (map['durationMs'] as num?)?.toInt() ?? 0,
         isFavorite: (map['isFavorite'] ?? 0) == 1,
-        addedAt: map['addedAt'] != null ? DateTime.tryParse(map['addedAt']) : null,
+        addedAt: parsedAddedAt,
         metadataScanned: (map['metadataScanned'] ?? 0) == 1,
       );
+  }
 }
 
 /// Satu baris riwayat dengar, dicatat tiap sesi putar lagu selesai/berhenti.
@@ -87,10 +105,14 @@ class ListeningEntry {
         'listenedMs': listenedMs,
       };
 
-  factory ListeningEntry.fromMap(Map<String, dynamic> map) => ListeningEntry(
-        id: map['id'],
-        songId: map['songId'],
-        timestamp: DateTime.parse(map['timestamp']),
-        listenedMs: map['listenedMs'],
-      );
+  factory ListeningEntry.fromMap(Map<String, dynamic> map) {
+    final rawTs = map['timestamp'];
+    final parsedTs = rawTs is String ? DateTime.tryParse(rawTs) : null;
+    return ListeningEntry(
+      id: map['id'] as int?,
+      songId: (map['songId'] as num?)?.toInt() ?? 0,
+      timestamp: parsedTs ?? DateTime.fromMillisecondsSinceEpoch(0),
+      listenedMs: (map['listenedMs'] as num?)?.toInt() ?? 0,
+    );
+  }
 }

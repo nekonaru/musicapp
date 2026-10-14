@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/song.dart';
 import 'db_helper.dart';
@@ -29,22 +30,32 @@ class MetadataService {
 
   Future<void> enrichSong(Song song) async {
     try {
-      final query = Uri.encodeComponent('${song.artist} ${song.title}'.trim());
-      final url = Uri.parse('https://itunes.apple.com/search?term=$query&entity=song&limit=1');
-      final res = await http.get(url).timeout(const Duration(seconds: 8));
+      final url = Uri.https('itunes.apple.com', '/search', {
+        'term': '${song.artist} ${song.title}'.trim(),
+        'entity': 'song',
+        'limit': '1',
+      });
+      final res = await http
+          .get(url, headers: {'User-Agent': 'Swara/1.0'})
+          .timeout(const Duration(seconds: 8));
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         if (data['resultCount'] != null && data['resultCount'] > 0) {
           final track = data['results'][0];
-          song.title = (track['trackName'] ?? song.title).toString();
-          song.artist = (track['artistName'] ?? song.artist).toString();
-          song.album = (track['collectionName'] ?? song.album).toString();
-          song.genre = track['primaryGenreName']?.toString();
+          song.title = _sanitizeField(track['trackName'], song.title);
+          song.artist = _sanitizeField(track['artistName'], song.artist);
+          song.album = _sanitizeField(track['collectionName'], song.album);
+          final genre = track['primaryGenreName']?.toString();
+          song.genre = genre != null ? _sanitizeField(genre, genre) : song.genre;
           song.albumArtUrl = (track['artworkUrl100'] as String?)
               ?.replaceAll('100x100', '600x600');
           song.region = _guessRegion(track['country']?.toString(), song.artist);
         }
+      } else if (res.statusCode == 429) {
+        // Rate-limit iTunes saat bulk scan — jangan tandai gagal permanen,
+        // biarkan retry di scan berikutnya.
+        debugPrint('iTunes rate-limit (429), skip enrich ${song.title}');
       }
     } catch (_) {
       // Gagal fetch (offline/error jaringan) - biarkan metadata apa adanya
@@ -56,22 +67,52 @@ class MetadataService {
     song.genre ??= 'Tidak diketahui';
 
     // Fetch lirik terpisah
+    await fetchLyricsOnly(song);
+
+    song.metadataScanned = true;
+    await DBHelper.instance.upsertSong(song);
+  }
+
+  /// Fetch lirik saja TANPA menimpa judul/artis/album — dipakai PlayerScreen
+  /// auto-fetch supaya edit manual user tidak ketimpa.
+  Future<bool> fetchLyricsOnly(Song song) async {
+    // Jangan panggil API dengan field kosong/unknown — pasti 404 + buang kuota.
+    if (song.artist.isEmpty ||
+        song.title.isEmpty ||
+        song.artist == 'Unknown Artist' ||
+        song.title == 'Unknown Title') {
+      return false;
+    }
     try {
-      final lyricsUrl = Uri.parse(
-          'https://api.lyrics.ovh/v1/${Uri.encodeComponent(song.artist)}/${Uri.encodeComponent(song.title)}');
-      final res = await http.get(lyricsUrl).timeout(const Duration(seconds: 8));
+      final lyricsUrl = Uri.https('api.lyrics.ovh', '/v1/${song.artist}/${song.title}');
+      final res = await http
+          .get(lyricsUrl, headers: {'User-Agent': 'Swara/1.0'})
+          .timeout(const Duration(seconds: 8));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         if (data['lyrics'] != null) {
-          song.lyrics = data['lyrics'].toString();
+          var lyrics = data['lyrics'].toString().trim();
+          // Cap 100KB supaya DB tidak bloat / OOM saat lagu punya lirik anomali.
+          if (lyrics.length > 100 * 1024) {
+            lyrics = lyrics.substring(0, 100 * 1024);
+          }
+          if (lyrics.isNotEmpty) {
+            song.lyrics = lyrics;
+            return true;
+          }
         }
       }
     } catch (_) {
       // lirik tidak ditemukan, biarkan null — user bisa isi manual lewat fitur edit
     }
+    return false;
+  }
 
-    song.metadataScanned = true;
-    await DBHelper.instance.upsertSong(song);
+  /// Batasi panjang field metadata (cegah HTML raksasa masuk DB) + trim.
+  String _sanitizeField(dynamic raw, String fallback) {
+    final s = (raw ?? fallback).toString().trim();
+    if (s.isEmpty) return fallback;
+    return s.length > 300 ? s.substring(0, 300) : s;
   }
 
   String _guessRegion(String? countryCode, String artist) {

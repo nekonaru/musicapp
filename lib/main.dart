@@ -11,7 +11,13 @@ import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await PlayerService.instance.init();
+  try {
+    await PlayerService.instance.init();
+  } catch (e) {
+    // Jangan biarkan splash hitam — lanjut dengan player yang belum init,
+    // halaman home akan menampilkan error state yang bisa di-retry.
+    debugPrint('PlayerService init gagal: $e');
+  }
 
   try {
     await Permission.notification.request();
