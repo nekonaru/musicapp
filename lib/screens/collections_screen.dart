@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import '../providers/library_provider.dart';
 import '../providers/playlist_provider.dart';
 import 'extra_screens.dart';
@@ -7,12 +8,12 @@ import 'history_screen.dart';
 import 'playlist_detail_screen.dart';
 import '../widgets/mini_player.dart';
 
-// Warna kartu referensi (sesuai gambar Nomad Music)
+// Reference card colors (matching the Nomad Music artwork)
 const _cardColors = [
-  Color(0xFF7B1A1A), // Favorit - merah tua
-  Color(0xFF6B5200), // Baru ditambahkan - emas
-  Color(0xFF1A3A6B), // Baru diputar - biru
-  Color(0xFF1A5C30), // Paling sering - hijau
+  Color(0xFF7B1A1A), // Favorites - dark red
+  Color(0xFF6B5200), // Recently added - gold
+  Color(0xFF1A3A6B), // Recently played - blue
+  Color(0xFF1A5C30), // Most played - green
 ];
 
 class CollectionsScreen extends StatefulWidget {
@@ -23,8 +24,12 @@ class CollectionsScreen extends StatefulWidget {
 }
 
 class _CollectionsScreenState extends State<CollectionsScreen> {
-  String _sortLabel = 'Nama \u2191';
   bool _sortAZ = true;
+
+  String _sortLabel(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return _sortAZ ? l.collectionsSortNameAsc : l.collectionsSortNameDesc;
+  }
 
   @override
   void initState() {
@@ -34,22 +39,23 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
   }
 
   Future<void> _createPlaylist() async {
+    final l = AppLocalizations.of(context)!;
     final controller = TextEditingController();
     final name = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Playlist Baru'),
+        title: Text(l.collectionsNewPlaylist),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(hintText: 'Nama playlist'),
+          decoration: InputDecoration(hintText: l.collectionsPlaylistNameHint),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+              onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-              child: const Text('Buat')),
+              child: Text(l.create)),
         ],
       ),
     );
@@ -61,19 +67,20 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
 
   Future<void> _confirmDelete(
       BuildContext ctx, PlaylistProvider prov, int id, String name) async {
+    final l = AppLocalizations.of(ctx)!;
     final ok = await showDialog<bool>(
       context: ctx,
       builder: (c) => AlertDialog(
-        title: const Text('Hapus Playlist'),
-        content: Text('Hapus "$name"?'),
+        title: Text(l.collectionsDeletePlaylist),
+        content: Text(l.collectionsDeleteConfirm(name)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(c, false),
-              child: const Text('Batal')),
+              child: Text(l.cancel)),
           TextButton(
               onPressed: () => Navigator.pop(c, true),
               style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Hapus')),
+              child: Text(l.delete)),
         ],
       ),
     );
@@ -98,6 +105,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
 
     return Consumer2<PlaylistProvider, LibraryProvider>(
@@ -117,7 +125,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
           children: [
             CustomScrollView(
               slivers: [
-                // ── Quick-access cards (Favorit, Baru ditambahkan, Baru diputar, Paling sering) ──
+                // ── Quick-access cards (Favorites, Recently added, Recently played, Most played) ──
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -130,14 +138,14 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                       childAspectRatio: 2.6,
                       children: [
                         _QuickCard(
-                          title: 'Favorit',
-                          subtitle: '${lib.favorites.length} lagu',
+                          title: l.collectionsFavorites,
+                          subtitle: l.librarySongCount(lib.favorites.length),
                           icon: Icons.favorite,
                           bgColor: _cardColors[0],
                           onTap: () => _openPage(context, const _FavSheet()),
                         ),
                         _QuickCard(
-                          title: 'Baru ditambahkan',
+                          title: l.collectionsRecentlyAdded,
                           subtitle: '',
                           icon: Icons.add_box_outlined,
                           bgColor: _cardColors[1],
@@ -145,7 +153,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                               _openPage(context, const _RecentlySheet()),
                         ),
                         _QuickCard(
-                          title: 'Baru diputar',
+                          title: l.collectionsRecentlyPlayed,
                           subtitle: '',
                           icon: Icons.history_outlined,
                           bgColor: _cardColors[2],
@@ -153,7 +161,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                               _openPage(context, const _HistorySheet()),
                         ),
                         _QuickCard(
-                          title: 'Paling sering diputar',
+                          title: l.collectionsMostPlayed,
                           subtitle: '',
                           icon: Icons.trending_up_outlined,
                           bgColor: _cardColors[3],
@@ -174,7 +182,6 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                         GestureDetector(
                           onTap: () => setState(() {
                             _sortAZ = !_sortAZ;
-                            _sortLabel = _sortAZ ? 'Nama \u2191' : 'Nama \u2193';
                           }),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
@@ -188,7 +195,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                               children: [
                                 const Icon(Icons.sort, size: 14),
                                 const SizedBox(width: 4),
-                                Text(_sortLabel,
+                                Text(_sortLabel(context),
                                     style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
@@ -199,7 +206,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                         ),
                         const Spacer(),
                         Text(
-                          '${pl.length} daftar putar',
+                          l.collectionsPlaylistCount(pl.length),
                           style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                         ),
                       ],
@@ -207,7 +214,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                   ),
                 ),
 
-                // ── Daftar playlist ──
+                // ── Playlist list ──
                 pl.isEmpty
                     ? SliverFillRemaining(
                         hasScrollBody: false,
@@ -218,8 +225,8 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                               Icon(Icons.queue_music_outlined,
                                   size: 64, color: Colors.grey[300]),
                               const SizedBox(height: 12),
-                              const Text('Belum ada playlist',
-                                  style: TextStyle(
+                              Text(l.collectionsNoPlaylists,
+                                  style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600)),
                             ],
@@ -269,9 +276,9 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                                     }
                                   },
                                   itemBuilder: (_) => [
-                                    const PopupMenuItem(
+                                    PopupMenuItem(
                                         value: 'delete',
-                                        child: Text('Hapus')),
+                                        child: Text(l.delete)),
                                   ],
                                 ),
                                 onTap: () => _openPage(
@@ -291,7 +298,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
               ],
             ),
 
-            // FAB tambah playlist
+            // Add-playlist FAB
             Positioned(
               right: 16,
               bottom: 16,
@@ -374,14 +381,15 @@ class _QuickCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Wrapper screens (dibuka dari quick cards) - dengan AppBar + MiniPlayer
+// Wrapper screens (opened from the quick cards) - with AppBar + MiniPlayer
 // ─────────────────────────────────────────────────────────────
 
 class _FavSheet extends StatelessWidget {
   const _FavSheet();
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Favorit')),
+    appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.collectionsFavorites)),
     body: const FavoritesScreen(),
     bottomNavigationBar: const MiniPlayer(),
   );
@@ -391,7 +399,9 @@ class _RecentlySheet extends StatelessWidget {
   const _RecentlySheet();
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Baru Ditambahkan')),
+    appBar: AppBar(
+        title:
+            Text(AppLocalizations.of(context)!.collectionsRecentlyAddedTitle)),
     body: const RecentlyAddedScreen(),
     bottomNavigationBar: const MiniPlayer(),
   );
@@ -401,7 +411,9 @@ class _HistorySheet extends StatelessWidget {
   const _HistorySheet();
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Baru Diputar')),
+    appBar: AppBar(
+        title:
+            Text(AppLocalizations.of(context)!.collectionsRecentlyPlayedTitle)),
     body: HistoryScreen(),
     bottomNavigationBar: const MiniPlayer(),
   );
@@ -411,7 +423,8 @@ class _MostPlayedSheet extends StatelessWidget {
   const _MostPlayedSheet();
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Paling Sering Diputar')),
+    appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.collectionsMostPlayedTitle)),
     body: const MostPlayedScreen(),
     bottomNavigationBar: const MiniPlayer(),
   );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../models/song.dart';
 import '../providers/library_provider.dart';
@@ -50,15 +51,16 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
 
     if (title.isEmpty || artist.isEmpty || album.isEmpty) {
       if (mounted) {
+        final l = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Judul, artis, dan album tidak boleh kosong')),
+          SnackBar(content: Text(l.editMetadataValidationEmpty)),
         );
       }
       return;
     }
 
-    // Salin ke objek terpisah dulu - widget.song baru dimutasi setelah DB sukses,
-    // supaya memori tidak kotor kalau penyimpanan gagal.
+    // Copy into a separate object first - widget.song is only mutated after
+    // the DB write succeeds, so memory is not dirtied when saving fails.
     final s = widget.song;
     final updated = Song(
       id: s.id,
@@ -80,8 +82,9 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
       await context.read<LibraryProvider>().updateMetadata(updated);
     } catch (e) {
       if (mounted) {
+        final l = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal menyimpan: $e')),
+          SnackBar(content: Text(l.editMetadataSaveFailed(e.toString()))),
         );
       }
       return;
@@ -95,16 +98,16 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
   }
 
   Future<void> _rescanFromInternet() async {
-    // Rescan menimpa edit manual - minta konfirmasi dulu.
+    // Rescanning overwrites manual edits - ask for confirmation first.
+    final l = AppLocalizations.of(context)!;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Scan Ulang dari Internet?'),
-        content: const Text(
-            'Data dari internet akan menimpa edit manual Anda di form ini. Lanjutkan?'),
+        title: Text(l.editMetadataRescanTitle),
+        content: Text(l.editMetadataRescanMessage),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Batal')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Ya, Timpa')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(l.cancel)),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(l.editMetadataRescanConfirm)),
         ],
       ),
     );
@@ -116,7 +119,7 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
       if (!mounted) return;
       setState(() => _isScanning = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal scan ulang: $e')),
+        SnackBar(content: Text(l.editMetadataRescanFailed(e.toString()))),
       );
       return;
     }
@@ -130,15 +133,16 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
       _region.text = widget.song.region ?? '';
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Metadata berhasil diperbarui dari internet')),
+      SnackBar(content: Text(l.editMetadataRescanSuccess)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Edit Metadata'),
+        title: Text(l.editMetadataTitle),
         actions: [
           IconButton(icon: const Icon(Icons.check), onPressed: _save),
         ],
@@ -151,18 +155,18 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
             icon: _isScanning
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.cloud_sync_outlined),
-            label: Text(_isScanning ? 'Mengambil data...' : 'Scan Ulang dari Internet'),
+            label: Text(_isScanning ? l.editMetadataFetching : l.editMetadataRescanButton),
           ),
           const SizedBox(height: 16),
-          TextField(controller: _title, decoration: const InputDecoration(labelText: 'Judul')),
+          TextField(controller: _title, decoration: InputDecoration(labelText: l.editMetadataFieldTitle)),
           const SizedBox(height: 12),
-          TextField(controller: _artist, decoration: const InputDecoration(labelText: 'Artis')),
+          TextField(controller: _artist, decoration: InputDecoration(labelText: l.editMetadataFieldArtist)),
           const SizedBox(height: 12),
-          TextField(controller: _album, decoration: const InputDecoration(labelText: 'Album')),
+          TextField(controller: _album, decoration: InputDecoration(labelText: l.editMetadataFieldAlbum)),
           const SizedBox(height: 12),
-          TextField(controller: _genre, decoration: const InputDecoration(labelText: 'Genre')),
+          TextField(controller: _genre, decoration: InputDecoration(labelText: l.editMetadataFieldGenre)),
           const SizedBox(height: 12),
-          TextField(controller: _region, decoration: const InputDecoration(labelText: 'Asal Region')),
+          TextField(controller: _region, decoration: InputDecoration(labelText: l.editMetadataFieldRegion)),
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: () => Navigator.push(
@@ -170,10 +174,10 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
               MaterialPageRoute(builder: (_) => EditLyricsScreen(song: widget.song)),
             ),
             icon: const Icon(Icons.lyrics_outlined),
-            label: const Text('Edit Lirik (halaman terpisah)'),
+            label: Text(l.editMetadataEditLyricsButton),
           ),
           const SizedBox(height: 24),
-          FilledButton(onPressed: _save, child: const Text('Simpan Perubahan')),
+          FilledButton(onPressed: _save, child: Text(l.editMetadataSaveButton)),
         ],
       ),
     );

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import '../services/player_service.dart';
 
 enum _TimerMode { waktu, lagu }
@@ -40,7 +41,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
     _minCtrl  = FixedExtentScrollController(initialItem: _defaultMinuteIndex);
     _songCtrl = FixedExtentScrollController(initialItem: _defaultSongIndex);
 
-    // Jika timer sudah berjalan, tick setiap detik untuk update countdown
+    // If a timer is already running, tick every second to update the countdown
     if (_isTimerActive) {
       _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
         if (mounted) setState(() {});
@@ -70,7 +71,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
       final total   = hours * 60 + minutes;
       if (total == 0) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Set waktu lebih dari 0')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.sleepSetTimeAboveZero)),
         );
         return;
       }
@@ -113,15 +114,15 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
             ),
           ),
 
-          // Judul
-          const Align(
+          // Title
+          Align(
             alignment: Alignment.centerLeft,
-            child: Text('Timer tidur',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            child: Text(AppLocalizations.of(context)!.sleepTitle,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           ),
           const SizedBox(height: 24),
 
-          // Konten: timer aktif ATAU picker
+          // Content: active timer OR picker
           if (isActive)
             _buildActiveState(ps, cs)
           else
@@ -133,9 +134,9 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
     );
   }
 
-  // ──────────────────────────────────────────────────────────
-  // STATE AKTIF: Countdown + Berhenti
-  // ──────────────────────────────────────────────────────────
+  // ----------------------------------------------------------
+  // ACTIVE STATE: Countdown + Stop
+  // ----------------------------------------------------------
 
   Widget _buildActiveState(PlayerService ps, ColorScheme cs) {
     final remaining  = ps.sleepTimerRemaining;
@@ -145,7 +146,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Countdown besar
+        // Large countdown
         if (isTimeMode) ...[
           Text(
             _fmt(remaining),
@@ -156,13 +157,13 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
             ),
           ),
           const SizedBox(height: 6),
-          Text('tersisa', style: TextStyle(fontSize: 14, color: Colors.grey[500])),
+          Text(AppLocalizations.of(context)!.sleepRemaining, style: TextStyle(fontSize: 14, color: Colors.grey[500])),
           const SizedBox(height: 20),
-          // Checkbox selesaikan lagu terakhir
+          // Finish-last-song checkbox
           InkWell(
             onTap: () {
               setState(() => _finishSong = !_finishSong);
-              // Update ke PlayerService jika ada cara (opsional)
+              // Update the PlayerService if there is a way to do so (optional)
             },
             borderRadius: BorderRadius.circular(8),
             child: Padding(
@@ -179,14 +180,14 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Text('Selesaikan lagu terakhir',
+                  Text(AppLocalizations.of(context)!.sleepFinishLastSong,
                       style: TextStyle(fontSize: 14)),
                 ],
               ),
             ),
           ),
         ] else ...[
-          // Mode lagu
+          // Song mode
           Text(
             '${songsLeft ?? 0}',
             style: const TextStyle(
@@ -194,12 +195,12 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          Text('lagu tersisa',
+          Text(AppLocalizations.of(context)!.sleepSongsRemaining,
               style: TextStyle(fontSize: 16, color: Colors.grey[500])),
         ],
         const SizedBox(height: 24),
 
-        // Tombol: Tutup | Berhenti
+        // Buttons: Close | Stop
         Row(
           children: [
             Expanded(
@@ -211,7 +212,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                       borderRadius: BorderRadius.circular(24)),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                child: Text('Tutup',
+                child: Text(AppLocalizations.of(context)!.close,
                     style: TextStyle(
                         color: cs.onSurface,
                         fontWeight: FontWeight.w600)),
@@ -224,9 +225,9 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                   ps.cancelSleepTimer();
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Timer tidur dihentikan'),
-                        duration: Duration(seconds: 2)),
+                    SnackBar(
+                        content: Text(AppLocalizations.of(context)!.sleepTimerStopped),
+                        duration: const Duration(seconds: 2)),
                   );
                 },
                 style: FilledButton.styleFrom(
@@ -235,8 +236,8 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   backgroundColor: Colors.red[700],
                 ),
-                child: const Text('Berhenti',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
+                child: Text(AppLocalizations.of(context)!.sleepStop,
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
               ),
             ),
           ],
@@ -245,15 +246,15 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
     );
   }
 
-  // ──────────────────────────────────────────────────────────
-  // STATE PICKER: Atur timer baru
-  // ──────────────────────────────────────────────────────────
+  // ----------------------------------------------------------
+  // PICKER STATE: Set a new timer
+  // ----------------------------------------------------------
 
   Widget _buildPickerState(ColorScheme cs) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Mode toggle: Waktu | Lagu
+        // Mode toggle: Time | Songs
         Container(
           height: 44,
           decoration: BoxDecoration(
@@ -263,13 +264,13 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
           child: Row(
             children: [
               _ModeButton(
-                label: 'Waktu',
+                label: AppLocalizations.of(context)!.sleepTimeMode,
                 selected: _mode == _TimerMode.waktu,
                 onTap: () => setState(() => _mode = _TimerMode.waktu),
                 color: cs.primary,
               ),
               _ModeButton(
-                label: 'Lagu',
+                label: AppLocalizations.of(context)!.sleepSongMode,
                 selected: _mode == _TimerMode.lagu,
                 onTap: () => setState(() => _mode = _TimerMode.lagu),
                 color: cs.primary,
@@ -288,7 +289,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
         ),
         const SizedBox(height: 12),
 
-        // Checkbox selesaikan lagu - hanya mode waktu
+        // Finish-song checkbox - time mode only
         if (_mode == _TimerMode.waktu)
           InkWell(
             onTap: () => setState(() => _finishSong = !_finishSong),
@@ -307,7 +308,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Text('Selesaikan lagu terakhir',
+                  Text(AppLocalizations.of(context)!.sleepFinishLastSong,
                       style: TextStyle(fontSize: 14)),
                 ],
               ),
@@ -315,7 +316,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
           ),
         const SizedBox(height: 20),
 
-        // Tutup | Mulai
+        // Close | Start
         Row(
           children: [
             Expanded(
@@ -327,7 +328,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                       borderRadius: BorderRadius.circular(24)),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                child: Text('Tutup',
+                child: Text(AppLocalizations.of(context)!.close,
                     style: TextStyle(
                         color: cs.onSurface, fontWeight: FontWeight.w600)),
               ),
@@ -341,8 +342,8 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                       borderRadius: BorderRadius.circular(24)),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                child: const Text('Mulai',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
+                child: Text(AppLocalizations.of(context)!.sleepStart,
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
               ),
             ),
           ],
@@ -421,7 +422,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
               ),
             ),
             const SizedBox(width: 12),
-            Text('lagu',
+            Text(AppLocalizations.of(context)!.sleepSongUnit,
                 style: TextStyle(
                     fontSize: 16,
                     color: cs.onSurface.withValues(alpha: 0.7))),
@@ -432,9 +433,9 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 // Drum-roll wheel picker
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 
 class _WheelPicker extends StatefulWidget {
   final FixedExtentScrollController controller;
@@ -494,9 +495,9 @@ class _WheelPickerState extends State<_WheelPicker> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Toggle Waktu/Lagu
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
+// Time/Songs toggle
+// -------------------------------------------------------------
 
 class _ModeButton extends StatelessWidget {
   final String label;
@@ -541,6 +542,6 @@ class _ModeButton extends StatelessWidget {
   }
 }
 
-/// Fungsi top-level untuk kompatibilitas dengan pemanggil lama (player_screen.dart).
+/// Top-level function for compatibility with the existing caller (player_screen.dart).
 Future<void> showSleepTimerSheet(BuildContext context) =>
     SleepTimerSheet.show(context);

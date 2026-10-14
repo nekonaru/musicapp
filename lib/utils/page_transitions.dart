@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Transisi slide dari bawah, dipakai saat membuka halaman player
-/// supaya terasa seperti bottom-sheet player pada umumnya.
+/// Slide-up transition, used when opening the player page
+/// so it feels like a standard bottom-sheet player.
 class SlideUpRoute<T> extends PageRouteBuilder<T> {
   final Widget page;
   SlideUpRoute({required this.page})

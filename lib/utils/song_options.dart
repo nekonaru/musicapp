@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../models/song.dart';
 import '../providers/library_provider.dart';
@@ -7,15 +8,15 @@ import '../services/db_helper.dart';
 import '../services/player_service.dart';
 import '../screens/edit_metadata_screen.dart';
 
-/// Menu opsi lagu (bottom sheet) yang dipakai bersama di semua layar.
+/// Shared song options menu (bottom sheet) used on all screens.
 ///
-/// - Dari Semua Lagu/Folder/Riwayat/Antrean: [showFullDelete] true (default) -
-///   "Hapus dari Library" menghapus dari SEMUA tempat (termasuk favorit & playlist),
-///   tapi file asli di HP tetap aman dan akan muncul lagi kalau folder di-scan ulang.
-/// - Dari Favorit: kirim [showFullDelete]=false - opsi hapus cuma "Hapus dari Favorit"
-///   (toggle biasa), lagu tetap ada di Semua Lagu/Folder/Playlist lain.
-/// - Dari Playlist tertentu: kirim [playlistId] - muncul opsi "Hapus dari Playlist Ini"
-///   yang cuma keluarkan lagu dari playlist itu saja, tidak menyentuh tempat lain.
+/// - From All Songs/Folders/History/Queue: [showFullDelete] true (default) -
+///   "Delete from Library" removes from ALL places (including favorites and playlists),
+///   but the original file on the phone stays safe and reappears when folders are rescanned.
+/// - From Favorites: pass [showFullDelete]=false - the delete option is just
+///   "Remove from Favorites" (a plain toggle), the song stays in All Songs/Folders/other playlists.
+/// - From a specific playlist: pass [playlistId] - a "Remove from This Playlist"
+///   option appears which only removes the song from that playlist and touches nothing else.
 Future<void> showSongOptions(
   BuildContext context,
   Song song, {
@@ -24,6 +25,7 @@ Future<void> showSongOptions(
 }) async {
   final lib = context.read<LibraryProvider>();
   final playlistProvider = context.read<PlaylistProvider>();
+  final l = AppLocalizations.of(context)!;
 
   await showModalBottomSheet(
     context: context,
@@ -40,37 +42,37 @@ Future<void> showSongOptions(
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.queue_music),
-            title: const Text('Putar Berikutnya'),
+            title: Text(l.songOptionsPlayNext),
             onTap: () {
               PlayerService.instance.playNext(song);
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Ditambahkan untuk diputar berikutnya')),
+                SnackBar(content: Text(l.songOptionsAddedPlayNext)),
               );
             },
           ),
           ListTile(
             leading: const Icon(Icons.playlist_add_check),
-            title: const Text('Tambah ke Akhir Antrean'),
+            title: Text(l.songOptionsAddToQueueEnd),
             onTap: () {
               PlayerService.instance.addToQueueEnd(song);
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Ditambahkan ke antrean')),
+                SnackBar(content: Text(l.songOptionsAddedToQueue)),
               );
             },
           ),
           ListTile(
             leading: Icon(song.isFavorite ? Icons.favorite : Icons.favorite_border,
                 color: song.isFavorite ? Colors.red : null),
-            title: Text(song.isFavorite ? 'Hapus dari Favorit' : 'Tambah ke Favorit'),
+            title: Text(song.isFavorite ? l.songOptionsRemoveFavorite : l.songOptionsAddFavorite),
             onTap: () async {
               try {
                 await lib.toggleFavorite(song, !song.isFavorite);
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Gagal update favorit: $e')),
+                    SnackBar(content: Text(l.songOptionsFavoriteFailed(e.toString()))),
                   );
                 }
                 return;
@@ -80,7 +82,7 @@ Future<void> showSongOptions(
           ),
           ListTile(
             leading: const Icon(Icons.playlist_add),
-            title: const Text('Tambah ke Playlist'),
+            title: Text(l.songOptionsAddToPlaylist),
             onTap: () async {
               Navigator.pop(ctx);
               pickPlaylist(context, song, playlistProvider);
@@ -88,7 +90,7 @@ Future<void> showSongOptions(
           ),
           ListTile(
             leading: const Icon(Icons.drive_file_rename_outline),
-            title: const Text('Ganti Nama Lagu'),
+            title: Text(l.songOptionsRename),
             onTap: () async {
               Navigator.pop(ctx);
               _renameSong(context, song, lib);
@@ -96,7 +98,7 @@ Future<void> showSongOptions(
           ),
           ListTile(
             leading: const Icon(Icons.edit),
-            title: const Text('Edit Metadata'),
+            title: Text(l.songOptionsEditMetadata),
             onTap: () {
               Navigator.pop(ctx);
               Navigator.push(context, MaterialPageRoute(builder: (_) => EditMetadataScreen(song: song)));
@@ -105,14 +107,14 @@ Future<void> showSongOptions(
           if (playlistId != null)
             ListTile(
               leading: const Icon(Icons.playlist_remove, color: Colors.red),
-              title: const Text('Hapus dari Playlist Ini', style: TextStyle(color: Colors.red)),
+              title: Text(l.songOptionsRemoveFromPlaylist, style: const TextStyle(color: Colors.red)),
               onTap: () async {
                 try {
                   await playlistProvider.removeSong(playlistId, song.id);
                 } catch (e) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Gagal hapus dari playlist: $e')),
+                      SnackBar(content: Text(l.songOptionsRemoveFromPlaylistFailed(e.toString()))),
                     );
                   }
                   return;
@@ -120,25 +122,24 @@ Future<void> showSongOptions(
                 Navigator.pop(ctx);
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Dihapus dari playlist ini saja')),
+                  SnackBar(content: Text(l.songOptionsRemovedFromPlaylist)),
                 );
               },
             ),
           if (showFullDelete)
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('Hapus dari Library', style: TextStyle(color: Colors.red)),
+              title: Text(l.songOptionsDeleteFromLibrary, style: const TextStyle(color: Colors.red)),
               onTap: () async {
                 Navigator.pop(ctx);
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (c) => AlertDialog(
-                    title: const Text('Hapus Lagu'),
-                    content: Text(
-                        'Hapus "${song.title}" dari Semua Lagu, Folder, Favorit, dan Playlist? File asli di HP tidak terhapus - lagu ini akan muncul lagi kalau folder di-scan ulang.'),
+                    title: Text(l.songOptionsDeleteTitle),
+                    content: Text(l.songOptionsDeleteConfirm(song.title)),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Batal')),
-                      TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Hapus')),
+                      TextButton(onPressed: () => Navigator.pop(c, false), child: Text(l.cancel)),
+                      TextButton(onPressed: () => Navigator.pop(c, true), child: Text(l.delete)),
                     ],
                   ),
                 );
@@ -148,7 +149,7 @@ Future<void> showSongOptions(
                   } catch (e) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Gagal hapus lagu: $e')),
+                        SnackBar(content: Text(l.songOptionsDeleteFailed(e.toString()))),
                       );
                     }
                   }
@@ -163,15 +164,16 @@ Future<void> showSongOptions(
 
 Future<void> _renameSong(BuildContext context, Song song, LibraryProvider lib) async {
   final controller = TextEditingController(text: song.title);
+  final l = AppLocalizations.of(context)!;
   try {
     final newName = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Ganti Nama Lagu'),
+        title: Text(l.songOptionsRename),
         content: TextField(controller: controller, autofocus: true),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, controller.text), child: const Text('Simpan')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
+          FilledButton(onPressed: () => Navigator.pop(ctx, controller.text), child: Text(l.save)),
         ],
       ),
     );
@@ -185,7 +187,7 @@ Future<void> _renameSong(BuildContext context, Song song, LibraryProvider lib) a
       song.title = oldTitle;
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal ganti nama: $e')),
+          SnackBar(content: Text(l.songOptionsRenameFailed(e.toString()))),
         );
       }
     }
@@ -195,6 +197,7 @@ Future<void> _renameSong(BuildContext context, Song song, LibraryProvider lib) a
 }
 
 Future<void> pickPlaylist(BuildContext context, Song song, PlaylistProvider provider) {
+  final l = AppLocalizations.of(context)!;
   return showModalBottomSheet(
     context: context,
     builder: (ctx) => SafeArea(
@@ -210,7 +213,7 @@ Future<void> pickPlaylist(BuildContext context, Song song, PlaylistProvider prov
                 } catch (e) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Gagal tambah ke playlist: $e')),
+                      SnackBar(content: Text(l.songOptionsAddToPlaylistFailed(e.toString()))),
                     );
                   }
                   return;
@@ -220,7 +223,7 @@ Future<void> pickPlaylist(BuildContext context, Song song, PlaylistProvider prov
             ),
           ListTile(
             leading: const Icon(Icons.add),
-            title: const Text('Buat Playlist Baru'),
+            title: Text(l.songOptionsCreatePlaylist),
             onTap: () async {
               Navigator.pop(ctx);
               final controller = TextEditingController();
@@ -228,31 +231,31 @@ Future<void> pickPlaylist(BuildContext context, Song song, PlaylistProvider prov
                 final name = await showDialog<String>(
                   context: context,
                   builder: (c) => AlertDialog(
-                    title: const Text('Nama Playlist'),
+                    title: Text(l.songOptionsPlaylistNameTitle),
                     content: TextField(controller: controller, autofocus: true),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(c), child: const Text('Batal')),
-                      TextButton(onPressed: () => Navigator.pop(c, controller.text), child: const Text('Buat')),
+                      TextButton(onPressed: () => Navigator.pop(c), child: Text(l.cancel)),
+                      TextButton(onPressed: () => Navigator.pop(c, controller.text), child: Text(l.create)),
                     ],
                   ),
                 );
                 final trimmed = name?.trim() ?? '';
                 if (trimmed.isEmpty || !context.mounted) return;
                 try {
-                  // Ambil id dari hasil insert - bukan playlists.first,
-                  // karena urutan load (createdAt DESC) tidak dijamin.
+                  // Take the id from the insert result - not playlists.first,
+                  // because load order (createdAt DESC) is not guaranteed.
                   final newId = await DBHelper.instance.createPlaylist(trimmed);
                   await provider.load();
                   await provider.addSong(newId, song.id);
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Playlist "$trimmed" dibuat & lagu ditambahkan')),
+                    SnackBar(content: Text(l.songOptionsPlaylistCreated(trimmed))),
                   );
                 } catch (e) {
                   if (!context.mounted) return;
                   final msg = e.toString().contains('UNIQUE')
-                      ? 'Playlist "$trimmed" sudah ada, pilih dari daftar'
-                      : 'Gagal membuat playlist: $e';
+                      ? l.songOptionsPlaylistExists(trimmed)
+                      : l.songOptionsCreatePlaylistFailed(e.toString());
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(msg)),
                   );

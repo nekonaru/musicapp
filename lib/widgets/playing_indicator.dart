@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Indikator "sedang diputar" berupa 3 batang yang naik-turun animasi,
-/// dipasang di samping lagu yang aktif dalam daftar.
+/// "Now playing" indicator with 3 animated bars moving up and down,
+/// placed next to the active song in lists.
 class PlayingIndicator extends StatefulWidget {
   final bool isPlaying;
   final Color color;

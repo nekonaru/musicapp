@@ -4,11 +4,11 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'player_service.dart';
 
-/// Adapter tipis di atas [PlayerService]. Menerjemahkan state ke MediaSession
-/// Android untuk notifikasi, lockscreen, dan foreground service.
-/// 
-/// Tombol notifikasi: Acak | Sebelumnya | Play/Pause | Berikutnya | Ulangi
-/// (menggunakan drawable bawaan yang sudah ada di res/)
+/// Thin adapter over [PlayerService]. Translates state into the Android
+/// MediaSession for notifications, the lockscreen, and the foreground service.
+///
+/// Notification buttons: Shuffle | Previous | Play/Pause | Next | Repeat
+/// (using the built-in drawables already present in res/)
 class SwaraAudioHandler extends BaseAudioHandler {
   Timer? _positionTicker;
 
@@ -41,7 +41,7 @@ class SwaraAudioHandler extends BaseAudioHandler {
 
   bool _disposed = false;
 
-  /// Bersihkan listener + ticker supaya tidak bocor saat handler dibuang.
+  /// Dispose listeners + ticker so nothing leaks when the handler is discarded.
   void disposeHandler() {
     _disposed = true;
     _positionTicker?.cancel();
@@ -55,7 +55,7 @@ class SwaraAudioHandler extends BaseAudioHandler {
     if (path == null || path.isEmpty) return null;
     try {
       final file = File(path);
-      // Cegah path traversal / file yang sudah dihapus merusak notifikasi.
+      // Guard against path traversal / deleted files breaking the notification.
       if (!file.existsSync()) return null;
       return Uri.file(path);
     } catch (_) {

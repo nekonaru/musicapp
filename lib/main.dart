@@ -1,7 +1,9 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'providers/language_provider.dart';
 import 'providers/library_provider.dart';
 import 'providers/playlist_provider.dart';
 import 'providers/theme_provider.dart';
@@ -14,15 +16,15 @@ void main() async {
   try {
     await PlayerService.instance.init();
   } catch (e) {
-    // Jangan biarkan splash hitam - lanjut dengan player yang belum init,
-    // halaman home akan menampilkan error state yang bisa di-retry.
-    debugPrint('PlayerService init gagal: $e');
+    // Keep the app usable when the player fails to init:
+    // the home page shows a retryable error state instead of a black splash.
+    debugPrint('PlayerService init failed: $e');
   }
 
   try {
     await Permission.notification.request();
   } catch (e) {
-    debugPrint('Izin notifikasi tidak bisa diminta: $e');
+    debugPrint('Notification permission could not be requested: $e');
   }
 
   try {
@@ -38,18 +40,31 @@ void main() async {
       ),
     );
   } catch (e) {
-    debugPrint('AudioService gagal diinisialisasi: $e');
+    debugPrint('AudioService failed to initialize: $e');
   }
 
   final themeProvider = ThemeProvider();
   await themeProvider.load();
 
-  runApp(MusicApp(themeProvider: themeProvider));
+  // Load the saved app language before startup (defaults to English).
+  final languageProvider = LanguageProvider.instance;
+  try {
+    await languageProvider.load();
+  } catch (e) {
+    debugPrint('LanguageProvider failed to load: $e');
+  }
+
+  runApp(MusicApp(
+      themeProvider: themeProvider, languageProvider: languageProvider));
 }
 
 class MusicApp extends StatelessWidget {
   final ThemeProvider themeProvider;
-  const MusicApp({super.key, required this.themeProvider});
+  final LanguageProvider languageProvider;
+  const MusicApp(
+      {super.key,
+      required this.themeProvider,
+      required this.languageProvider});
 
   @override
   Widget build(BuildContext context) {
@@ -58,11 +73,15 @@ class MusicApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => LibraryProvider()),
         ChangeNotifierProvider(create: (_) => PlaylistProvider()),
         ChangeNotifierProvider.value(value: themeProvider),
+        ChangeNotifierProvider.value(value: languageProvider),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, tp, _) => MaterialApp(
+      child: Consumer2<ThemeProvider, LanguageProvider>(
+        builder: (context, tp, lp, _) => MaterialApp(
           title: 'Swara',
           debugShowCheckedModeBanner: false,
+          locale: lp.locale,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           themeMode: tp.themeMode,
           theme: ThemeData(
             colorSchemeSeed: tp.accentColor,

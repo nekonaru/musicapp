@@ -1,3 +1,5 @@
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
+import 'package:offline_music_player/providers/language_provider.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/song.dart';
@@ -11,18 +13,18 @@ class LibraryScanner {
   Future<bool> requestPermission() async {
     final status = await Permission.audio.request();
     if (status.isGranted) return true;
-    // fallback untuk Android < 13
+    // fallback for Android < 13
     final storage = await Permission.storage.request();
     return storage.isGranted;
   }
 
-  /// Scan semua file musik di device, simpan ke DB kalau belum ada,
-  /// lalu (opsional) jalankan auto-fetch metadata HANYA untuk lagu yang
-  /// benar-benar belum pernah discan (dicek dari DB, bukan objek sementara).
+  /// Scan every music file on the device, store new ones in the DB,
+  /// then (optionally) run auto-fetch metadata ONLY for songs that
+  /// were truly never scanned before (checked from the DB, not the transient object).
   Future<List<Song>> scanAndSync({bool autoFetchMetadata = true}) async {
     final granted = await requestPermission();
     if (!granted) {
-      throw Exception('Izin akses musik ditolak');
+      throw Exception(lookupAppLocalizations(LanguageProvider.instance.locale).corePermissionDenied);
     }
 
     final excluded = await DBHelper.instance.getExcludedFolders();
@@ -33,30 +35,31 @@ class LibraryScanner {
       uriType: UriType.EXTERNAL,
     );
 
-    // ID SEMUA lagu yang beneran masih ada di device (termasuk yang folder-nya
-    // disembunyikan) - dipakai buat bersihkan "lagu hantu" tanpa ikut menghapus
-    // lagu yang cuma disembunyikan (bukan beneran hilang).
+    // IDs of ALL songs that truly still exist on the device (including ones in
+    // hidden folders) - used to clean up "ghost" songs without also deleting
+    // songs that are merely hidden (not really gone).
     final allDeviceIds = tracks.map((t) => t.id).toSet();
 
-    // 🛡️ Safety guard: jangan hapus apapun kalau querySongs() kelihatan return
-    // hasil yang mencurigakan - bisa jadi MediaStore belum selesai indexing,
-    // izin storage baru saja dikasih (race condition), atau plugin gagal sementara.
-    // Tanpa guard ini, seluruh library bisa terhapus permanen dari DB padahal
-    // file aslinya masih ada di HP.
+    // Safety guard: never delete anything when querySongs() looks like it
+    // returned a suspicious result - the MediaStore may not have finished
+    // indexing, storage permission may have just been granted (race condition),
+    // or the plugin may have failed temporarily. Without this guard, the whole
+    // library could be wiped from the DB even though the files are still on
+    // the phone.
     //
-    // Kondisi yang dianggap tidak aman:
-    //   1. Device tidak return lagu sama sekali (paling bahaya)
-    //   2. Jumlah lagu turun >50% dibanding yang sudah ada di DB dalam satu scan
-    //      - penurunan wajar biasanya cuma beberapa lagu (file yang memang dihapus user),
-    //        bukan separuh library sekaligus.
+    // Conditions treated as unsafe:
+    //   1. The device returns no songs at all (the most dangerous case)
+    //   2. The song count drops by more than 50% versus what is already in the
+    //      DB in a single scan - a normal drop is only a few songs (files the
+    //      user really deleted), never half the library at once.
     final bool safeToDelete;
     if (allDeviceIds.isEmpty) {
-      // Tidak ada lagu terdeteksi sama sekali - hampir pasti bukan kondisi normal.
+      // No songs detected at all - almost certainly not a normal state.
       safeToDelete = false;
     } else {
       final dbCount = await DBHelper.instance.getSongCount();
       if (dbCount > 0 && allDeviceIds.length < dbCount * 0.5) {
-        // Jumlah lagu dari device kurang dari 50% yang ada di DB → curigai query parsial.
+        // The device reports fewer than 50% of the songs in the DB: suspect a partial query.
         safeToDelete = false;
       } else {
         safeToDelete = true;
@@ -88,16 +91,16 @@ class LibraryScanner {
       await DBHelper.instance.upsertSong(song);
       result.add(song);
 
-      // Cek status SEBENARNYA dari DB (bukan objek `song` yang baru dibuat,
-      // yang selalu punya genre=null meski datanya sudah tersimpan di DB).
+      // Check the REAL status from the DB (not the freshly built `song` object,
+      // which always has genre=null even when the data is already stored in the DB).
       if (!alreadyScannedIds.contains(song.id)) {
         needsMetadata.add(song);
       }
     }
 
-    // Bersihkan lagu "hantu" - yang ada di DB tapi file aslinya sudah
-    // dihapus/dipindah dari HP di luar aplikasi.
-    // Hanya dijalankan kalau querySongs() return hasil yang masuk akal (lihat guard di atas).
+    // Clean up "ghost" songs - rows in the DB whose original files were
+    // deleted/moved from the phone outside the app.
+    // Only runs when querySongs() returns a sane result (see the guard above).
     if (safeToDelete) {
       await DBHelper.instance.deleteSongsMissingFromDevice(allDeviceIds);
     }
@@ -113,7 +116,7 @@ class LibraryScanner {
     return result;
   }
 
-  /// Daftar folder unik tempat file musik ditemukan, untuk fitur "Folder Lagu"
+  /// Unique list of folders where music files were found, for the "Song Folders" feature
   Future<List<String>> listMusicFolders() async {
     final all = await DBHelper.instance.getAllSongs();
     final folders = <String>{};
@@ -125,7 +128,7 @@ class LibraryScanner {
 
   Future<List<Song>> getSongsInFolder(String folderPath) async {
     final all = await DBHelper.instance.getAllSongs();
-    // Tambahkan trailing '/' supaya '/storage/Music' tidak cocok '/storage/Music2'
+    // Append a trailing '/' so '/storage/Music' never matches '/storage/Music2'
     return all.where((s) => s.filePath.startsWith('$folderPath/')).toList();
   }
 

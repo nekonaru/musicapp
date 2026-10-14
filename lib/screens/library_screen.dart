@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import '../models/song.dart';
 import '../providers/library_provider.dart';
 import '../providers/playlist_provider.dart';
@@ -79,6 +80,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   void _showSortMenu(BuildContext context, LibraryProvider lib) {
+    final l = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -88,10 +90,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
-              child: Text('Urutkan berdasarkan',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Text(l.librarySortBy,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             ),
             ...SortOption.values.map((opt) => ListTile(
                   dense: true,
@@ -100,7 +102,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           size: 18,
                           color: Theme.of(context).colorScheme.primary)
                       : const SizedBox(width: 18),
-                  title: Text(sortOptionLabel(opt)),
+                  title: Text(_sortLabel(context, opt)),
                   onTap: () {
                     lib.setSortOption(opt);
                     Navigator.pop(ctx);
@@ -113,12 +115,37 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
+  String _sortLabel(BuildContext context, SortOption opt) {
+    final l = AppLocalizations.of(context)!;
+    switch (opt) {
+      case SortOption.titleAZ:
+        return l.librarySortTitleAsc;
+      case SortOption.titleZA:
+        return l.librarySortTitleDesc;
+      case SortOption.artistAZ:
+        return l.librarySortArtistAsc;
+      case SortOption.artistZA:
+        return l.librarySortArtistDesc;
+      case SortOption.albumAZ:
+        return l.librarySortAlbumAsc;
+      case SortOption.albumZA:
+        return l.librarySortAlbumDesc;
+      case SortOption.dateAddedNewest:
+        return l.librarySortDateNewest;
+      case SortOption.dateAddedOldest:
+        return l.librarySortDateOldest;
+      case SortOption.genre:
+        return l.librarySortGenre;
+    }
+  }
+
   Future<void> _bulkAddToPlaylist(List<Song> songs) async {
+    final l = AppLocalizations.of(context)!;
     final provider = context.read<PlaylistProvider>();
     final playlists = provider.playlists;
     if (playlists.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Buat playlist dulu di tab Koleksi')));
+          SnackBar(content: Text(l.libraryCreatePlaylistFirst)));
       return;
     }
     await showModalBottomSheet(
@@ -129,10 +156,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('Pilih playlist',
-                    style: TextStyle(fontWeight: FontWeight.bold))),
+            Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(l.libraryChoosePlaylist,
+                    style: const TextStyle(fontWeight: FontWeight.bold))),
             ...playlists.map((p) => ListTile(
                   leading: const Icon(Icons.queue_music),
                   title: Text(p['name']),
@@ -144,8 +171,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     _exitMultiSelect();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(
-                              '${songs.length} lagu ditambahkan ke ${p['name']}')));
+                          content: Text(l.libraryAddedToPlaylist(
+                              songs.length, p['name']))));
                     }
                   },
                 )),
@@ -156,6 +183,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Widget _buildMultiSelectBar(LibraryProvider lib) {
+    final l = AppLocalizations.of(context)!;
     if (!_multiSelectMode) return const SizedBox.shrink();
     final selected =
         lib.songs.where((s) => _selectedIds.contains(s.id)).toList();
@@ -164,17 +192,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
         children: [
-          Text('${_selectedIds.length} dipilih',
+          Text(l.librarySelectedCount(_selectedIds.length),
               style: const TextStyle(fontWeight: FontWeight.bold)),
           const Spacer(),
           IconButton(
               icon: const Icon(Icons.playlist_add),
-              tooltip: 'Tambah ke playlist',
+              tooltip: l.libraryAddToPlaylist,
               onPressed:
                   selected.isEmpty ? null : () => _bulkAddToPlaylist(selected)),
           IconButton(
               icon: const Icon(Icons.favorite_border),
-              tooltip: 'Tambah ke favorit',
+              tooltip: l.libraryAddToFavorites,
               onPressed: selected.isEmpty
                   ? null
                   : () async {
@@ -191,6 +219,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Widget _buildSortHeader(LibraryProvider lib, List<Song> songs) {
+    final l = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -215,7 +244,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       const Icon(Icons.sort, size: 14),
                       const SizedBox(width: 4),
                       Text(
-                        sortOptionLabel(lib.sortOption),
+                        _sortLabel(context, lib.sortOption),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -228,7 +257,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ),
               const Spacer(),
               Text(
-                '${lib.totalCount} lagu \u00B7 ${formatDurationLong(lib.totalDurationMs)}',
+                l.librarySongCountDuration(
+                    lib.totalCount, formatDurationLong(lib.totalDurationMs)),
                 style: TextStyle(fontSize: 12, color: Colors.grey[500]),
               ),
               lib.isBulkScanningMetadata
@@ -242,7 +272,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   : IconButton(
                       icon:
                           const Icon(Icons.cloud_sync_outlined, size: 18),
-                      tooltip: 'Scan metadata',
+                      tooltip: l.libraryScanMetadata,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(
                           minWidth: 28, minHeight: 28),
@@ -262,7 +292,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       ? null
                       : () => _playSong(songs, 0),
                   icon: const Icon(Icons.play_arrow, size: 18),
-                  label: const Text('Mulai Putar'),
+                  label: Text(l.libraryStartPlaying),
                   style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 10)),
                 ),
@@ -278,7 +308,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           PlayerService.instance.setShuffle(true);
                         },
                   icon: const Icon(Icons.shuffle, size: 18),
-                  label: const Text('Acak'),
+                  label: Text(l.libraryShuffle),
                   style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 10)),
                 ),
@@ -292,13 +322,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     return Consumer<LibraryProvider>(builder: (context, lib, _) {
       if (lib.isScanning && lib.songs.isEmpty) {
-        return const Center(
+        return Center(
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('Memindai musik...'),
+          const CircularProgressIndicator(),
+          const SizedBox(height: 16),
+          Text(l.libraryScanningMusic),
         ]));
       }
       if (lib.songs.isEmpty) {
@@ -306,13 +337,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.library_music_outlined, size: 72, color: Colors.grey[300]),
           const SizedBox(height: 16),
-          const Text('Belum ada musik',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+          Text(l.libraryNoMusic,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
           const SizedBox(height: 20),
           FilledButton.icon(
               onPressed: () => lib.forceScanDevice(),
               icon: const Icon(Icons.search),
-              label: const Text('Pindai Musik')),
+              label: Text(l.libraryScanMusic)),
         ]));
       }
 
@@ -344,11 +375,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     builder: (context, _) => CustomScrollView(
                       controller: _scrollController,
                       slivers: [
-                        // Header: sort + play buttons (hilang saat scroll)
+                        // Header: sort + play buttons (hidden on scroll)
                         SliverToBoxAdapter(
                             child: _buildSortHeader(lib, songs)),
 
-                        // Daftar lagu
+                        // Song list
                         SliverFixedExtentList(
                           itemExtent: _itemHeight,
                           delegate: SliverChildBuilderDelegate(
@@ -400,6 +431,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   void _showScanMenu(BuildContext context, LibraryProvider lib) {
+    final l = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -408,7 +440,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         child: Wrap(children: [
           ListTile(
             leading: const Icon(Icons.cloud_sync_outlined),
-            title: const Text('Scan yang Belum Ada Metadata'),
+            title: Text(l.libraryScanMissing),
             onTap: () {
               Navigator.pop(ctx);
               lib.bulkScanMetadata(onlyMissing: true);
@@ -416,22 +448,22 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.refresh),
-            title: const Text('Scan Ulang Semua'),
+            title: Text(l.libraryRescanAll),
             onTap: () async {
               Navigator.pop(ctx);
               final ok = await showDialog<bool>(
                   context: context,
                   builder: (c) => AlertDialog(
-                        title: const Text('Scan Ulang Semua'),
+                        title: Text(l.libraryRescanAll),
                         content: Text(
-                            'Ambil ulang metadata untuk ${lib.totalCount} lagu?'),
+                            l.libraryRescanConfirm(lib.totalCount)),
                         actions: [
                           TextButton(
                               onPressed: () => Navigator.pop(c, false),
-                              child: const Text('Batal')),
+                              child: Text(l.cancel)),
                           FilledButton(
                               onPressed: () => Navigator.pop(c, true),
-                              child: const Text('Mulai')),
+                              child: Text(l.libraryStart)),
                         ],
                       ));
               if (ok == true) lib.bulkScanMetadata(onlyMissing: false);

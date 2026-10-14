@@ -1,0 +1,791 @@
+{
+    "@@locale":  "id",
+    "settingsTitle":  "Pengaturan",
+    "@settingsTitle":  {
+                           "description":  "Title of the settings screen"
+                       },
+    "settingsAppearance":  "Tampilan",
+    "@settingsAppearance":  {
+                                "description":  "Section header for theme appearance options"
+                            },
+    "settingsFollowSystem":  "Ikuti sistem",
+    "@settingsFollowSystem":  {
+                                  "description":  "Theme option that follows the system theme"
+                              },
+    "settingsLight":  "Terang",
+    "@settingsLight":  {
+                           "description":  "Light theme option"
+                       },
+    "settingsDark":  "Gelap",
+    "@settingsDark":  {
+                          "description":  "Dark theme option"
+                      },
+    "settingsAccentColor":  "Warna Aksen",
+    "@settingsAccentColor":  {
+                                 "description":  "Section header for accent color picker"
+                             },
+    "settingsAccentPurple":  "Ungu",
+    "@settingsAccentPurple":  {
+                                  "description":  "Accent color name purple"
+                              },
+    "settingsAccentBlue":  "Biru",
+    "@settingsAccentBlue":  {
+                                "description":  "Accent color name blue"
+                            },
+    "settingsAccentTeal":  "Teal",
+    "@settingsAccentTeal":  {
+                                "description":  "Accent color name teal"
+                            },
+    "settingsAccentGreen":  "Hijau",
+    "@settingsAccentGreen":  {
+                                 "description":  "Accent color name green"
+                             },
+    "settingsAccentOrange":  "Oranye",
+    "@settingsAccentOrange":  {
+                                  "description":  "Accent color name orange"
+                              },
+    "settingsAccentRed":  "Merah",
+    "@settingsAccentRed":  {
+                               "description":  "Accent color name red"
+                           },
+    "settingsAccentDeepPurple":  "Ungu Tua",
+    "@settingsAccentDeepPurple":  {
+                                      "description":  "Accent color name dark purple"
+                                  },
+    "settingsAccentPink":  "Pink",
+    "@settingsAccentPink":  {
+                                "description":  "Accent color name pink"
+                            },
+    "settingsAccentCyan":  "Cyan",
+    "@settingsAccentCyan":  {
+                                "description":  "Accent color name cyan"
+                            },
+    "settingsAccentLightGreen":  "Hijau Muda",
+    "@settingsAccentLightGreen":  {
+                                      "description":  "Accent color name light green"
+                                  },
+    "settingsPlayback":  "Pemutaran",
+    "@settingsPlayback":  {
+                              "description":  "Section header for playback options"
+                          },
+    "settingsCrossfade":  "Crossfade",
+    "@settingsCrossfade":  {
+                               "description":  "Crossfade toggle title"
+                           },
+    "settingsCrossfadeSubtitle":  "Transisi antar lagu tanpa jeda (3 detik)",
+    "@settingsCrossfadeSubtitle":  {
+                                       "description":  "Crossfade toggle subtitle"
+                                   },
+    "settingsEqualizer":  "Equalizer",
+    "@settingsEqualizer":  {
+                               "description":  "Section header for equalizer presets"
+                           },
+    "settingsEqualizerNote":  "Preset ini hanya tampilan visualisasi, belum mengubah suara aktual. Pilihan disimpan antar sesi.",
+    "@settingsEqualizerNote":  {
+                                   "description":  "Honest disclaimer that EQ presets are visual only"
+                               },
+    "settingsLibrary":  "Library",
+    "@settingsLibrary":  {
+                             "description":  "Section header for library actions"
+                         },
+    "settingsScanFiles":  "Pindai File Musik",
+    "@settingsScanFiles":  {
+                               "description":  "Title for scanning device music files"
+                           },
+    "settingsScanFilesSubtitle":  "Cek file musik baru/dihapus di HP (tanpa internet)",
+    "@settingsScanFilesSubtitle":  {
+                                       "description":  "Subtitle for scanning device music files"
+                                   },
+    "settingsScanMissing":  "Scan Metadata yang Belum Ada",
+    "@settingsScanMissing":  {
+                                 "description":  "Title for scanning only missing metadata"
+                             },
+    "settingsScanMissingSubtitle":  "Ambil judul/artis/cover dari internet untuk lagu baru",
+    "@settingsScanMissingSubtitle":  {
+                                         "description":  "Subtitle for scanning only missing metadata"
+                                     },
+    "settingsScanProgress":  "Memproses {progress}/{total}...",
+    "@settingsScanProgress":  {
+                                  "description":  "Progress text while bulk metadata scan runs",
+                                  "placeholders":  {
+                                                       "progress":  {
+                                                                        "type":  "int",
+                                                                        "description":  "Number of songs processed so far"
+                                                                    },
+                                                       "total":  {
+                                                                     "type":  "int",
+                                                                     "description":  "Total number of songs to process"
+                                                                 }
+                                                   }
+                              },
+    "settingsRescanAll":  "Scan Ulang Semua Metadata",
+    "@settingsRescanAll":  {
+                               "description":  "Title for rescanning all metadata"
+                           },
+    "settingsRescanAllSubtitle":  "Ambil ulang dari internet untuk SEMUA lagu",
+    "@settingsRescanAllSubtitle":  {
+                                       "description":  "Subtitle for rescanning all metadata"
+                                   },
+    "settingsAbout":  "Tentang",
+    "@settingsAbout":  {
+                           "description":  "Section header for about info"
+                       },
+    "settingsAboutVersion":  "v1.6.0 · by Niko",
+    "@settingsAboutVersion":  {
+                                  "description":  "App version and author credit"
+                              },
+    "settingsRescanTitle":  "Scan Ulang Semua",
+    "@settingsRescanTitle":  {
+                                 "description":  "Confirmation dialog title for rescan all"
+                             },
+    "settingsRescanMessage":  "Ambil ulang metadata untuk semua {count} lagu dari internet? Ini butuh waktu lebih lama.",
+    "@settingsRescanMessage":  {
+                                   "description":  "Confirmation message for rescan all",
+                                   "placeholders":  {
+                                                        "count":  {
+                                                                      "type":  "int",
+                                                                      "description":  "Total number of songs"
+                                                                  }
+                                                    }
+                               },
+    "settingsRescanStart":  "Mulai",
+    "@settingsRescanStart":  {
+                                 "description":  "Confirm button to start rescan all"
+                             },
+    "languageSection":  "Bahasa",
+    "@languageSection":  {
+                             "description":  "Section header for language selection"
+                         },
+    "languageSubtitle":  "Bahasa aplikasi",
+    "@languageSubtitle":  {
+                              "description":  "Subtitle for the language section"
+                          },
+    "languageEnglish":  "English",
+    "@languageEnglish":  {
+                             "description":  "Label for the English language option"
+                         },
+    "languageIndonesian":  "Bahasa Indonesia",
+    "@languageIndonesian":  {
+                                "description":  "Label for the Indonesian language option"
+                            },
+    "ok":  "OK",
+    "cancel":  "Batal",
+    "retry":  "Coba lagi",
+    "close":  "Tutup",
+    "save":  "Simpan",
+    "delete":  "Hapus",
+    "edit":  "Edit",
+    "remove":  "Hapus",
+    "add":  "Tambah",
+    "create":  "Buat",
+    "search":  "Cari",
+    "loading":  "Memuat...",
+    "error":  "Terjadi kesalahan",
+    "empty":  "Belum ada apa-apa",
+    "confirm":  "Konfirmasi",
+    "yes":  "Ya",
+    "no":  "Tidak",
+    "unknown":  "Tidak diketahui",
+    "failed":  "Gagal",
+    "corePlayFailed":  "Gagal memutar",
+    "coreScanFailed":  "Gagal memindai",
+    "coreUpdateFavoritesFailed":  "Gagal mengubah favorit",
+    "coreSongAlreadyInPlaylist":  "Lagu sudah ada di playlist ini",
+    "coreRemoveFromPlaylistFailed":  "Gagal menghapus lagu dari playlist",
+    "coreSavePlaylistOrderFailed":  "Gagal menyimpan urutan playlist",
+    "corePermissionDenied":  "Izin akses musik ditolak",
+    "coreSongs":  "lagu",
+    "playlistLoadFailed":  "Gagal memuat playlist: {error}",
+    "@playlistLoadFailed":  {
+                                "placeholders":  {
+                                                     "error":  {
+                                                                   "type":  "String"
+                                                               }
+                                                 }
+                            },
+    "playlistReorderFailed":  "Gagal menyimpan urutan: {error}",
+    "@playlistReorderFailed":  {
+                                   "placeholders":  {
+                                                        "error":  {
+                                                                      "type":  "String"
+                                                                  }
+                                                    }
+                               },
+    "playlistRemoveFailed":  "Gagal menghapus lagu: {error}",
+    "@playlistRemoveFailed":  {
+                                  "placeholders":  {
+                                                       "error":  {
+                                                                     "type":  "String"
+                                                                 }
+                                                   }
+                              },
+    "playlistSortCustom":  "Urutan kustom",
+    "playlistSortTitleAZ":  "Judul A-Z",
+    "playlistSortTitleZA":  "Judul Z-A",
+    "playlistSortArtistAZ":  "Artis A-Z",
+    "playlistEmpty":  "Playlist ini masih kosong",
+    "playlistSummary":  "{count} lagu · {duration}",
+    "@playlistSummary":  {
+                             "placeholders":  {
+                                                  "count":  {
+                                                                "type":  "int"
+                                                            },
+                                                  "duration":  {
+                                                                   "type":  "String"
+                                                               }
+                                              }
+                         },
+    "playlistSearchHint":  "Cari di playlist ini...",
+    "playlistPlay":  "Mulai Putar",
+    "playlistShuffle":  "Acak",
+    "playlistReorderHint":  "Tahan dan geser untuk mengatur urutan",
+    "playlistNoResults":  "Lagu tidak ditemukan",
+    "historyLoadFailed":  "Gagal memuat riwayat: {error}",
+    "@historyLoadFailed":  {
+                               "placeholders":  {
+                                                    "error":  {
+                                                                  "type":  "String"
+                                                              }
+                                                }
+                           },
+    "historyEmpty":  "Belum ada riwayat pemutaran",
+    "dashboardLoadFailedTitle":  "Gagal memuat dashboard",
+    "dashboardRetry":  "Coba Lagi",
+    "dashboardEmptyTitle":  "Dashboard kosong",
+    "dashboardEmptySubtitle":  "Statistik pendengaran akan muncul setelah kamu mulai memutar lagu.",
+    "dashboardTotalSongsLibrary":  "Total lagu di library",
+    "dashboardTotalSongs":  "Total lagu",
+    "dashboardTotalListened":  "Total didengar",
+    "dashboardThisMonth":  "Bulan ini",
+    "dashboardHoursValue":  "{hours} jam",
+    "@dashboardHoursValue":  {
+                                 "placeholders":  {
+                                                      "hours":  {
+                                                                    "type":  "String"
+                                                                }
+                                                  }
+                             },
+    "dashboardListeningWeekTitle":  "Jam Dengar 7 Hari Terakhir",
+    "dashboardWeekTotal":  "{hours} jam total",
+    "@dashboardWeekTotal":  {
+                                "placeholders":  {
+                                                     "hours":  {
+                                                                   "type":  "String"
+                                                               }
+                                                 }
+                            },
+    "dashboardTopSongs":  "Top 5 Lagu",
+    "dashboardUnknownSong":  "Lagu #{id}",
+    "@dashboardUnknownSong":  {
+                                  "placeholders":  {
+                                                       "id":  {
+                                                                  "type":  "int"
+                                                              }
+                                                   }
+                              },
+    "dashboardPlayCount":  "{count}x diputar",
+    "@dashboardPlayCount":  {
+                                "placeholders":  {
+                                                     "count":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "dashboardPlayFailed":  "Gagal memutar lagu: {error}",
+    "@dashboardPlayFailed":  {
+                                 "placeholders":  {
+                                                      "error":  {
+                                                                    "type":  "String"
+                                                                }
+                                                  }
+                             },
+    "dashboardTopArtists":  "Top 5 Artis",
+    "dashboardGenreTitle":  "Distribusi Genre",
+    "dashboardGenreCount":  "{count} genre",
+    "@dashboardGenreCount":  {
+                                 "placeholders":  {
+                                                      "count":  {
+                                                                    "type":  "int"
+                                                                }
+                                                  }
+                             },
+    "dashboardNeverPlayedTitle":  "Belum Pernah Diputar",
+    "dashboardSongCount":  "{count} lagu",
+    "@dashboardSongCount":  {
+                                "placeholders":  {
+                                                     "count":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "dashboardNeverPlayedSubtitle":  "{count} lagu di library kamu belum pernah diputar.",
+    "@dashboardNeverPlayedSubtitle":  {
+                                          "placeholders":  {
+                                                               "count":  {
+                                                                             "type":  "int"
+                                                                         }
+                                                           }
+                                      },
+    "dashboardPlayAll":  "Putar Semua",
+    "dashboardWeekActivityTitle":  "Aktivitas Minggu Ini",
+    "dashboardNoWeekActivity":  "Belum ada aktivitas minggu ini.",
+    "dashboardActiveDays":  "{count} dari 7 hari aktif mendengarkan",
+    "@dashboardActiveDays":  {
+                                 "placeholders":  {
+                                                      "count":  {
+                                                                    "type":  "int"
+                                                                }
+                                                  }
+                             },
+    "dashboardNeverPlayedSheetTitle":  "{count} lagu belum pernah diputar",
+    "@dashboardNeverPlayedSheetTitle":  {
+                                            "placeholders":  {
+                                                                 "count":  {
+                                                                               "type":  "int"
+                                                                           }
+                                                             }
+                                        },
+    "dashboardDaySun":  "Min",
+    "dashboardDayMon":  "Sen",
+    "dashboardDayTue":  "Sel",
+    "dashboardDayWed":  "Rab",
+    "dashboardDayThu":  "Kam",
+    "dashboardDayFri":  "Jum",
+    "dashboardDaySat":  "Sab",
+    "dashboardTooltipMinutes":  "{mins}m",
+    "@dashboardTooltipMinutes":  {
+                                     "placeholders":  {
+                                                          "mins":  {
+                                                                       "type":  "int"
+                                                                   }
+                                                      }
+                                 },
+    "dashboardTooltipHours":  "{hours}j",
+    "@dashboardTooltipHours":  {
+                                   "placeholders":  {
+                                                        "hours":  {
+                                                                      "type":  "String"
+                                                                  }
+                                                    }
+                               },
+    "editMetadataValidationEmpty":  "Judul, artis, dan album tidak boleh kosong",
+    "editMetadataSaveFailed":  "Gagal menyimpan: {error}",
+    "@editMetadataSaveFailed":  {
+                                    "placeholders":  {
+                                                         "error":  {
+                                                                       "type":  "String"
+                                                                   }
+                                                     }
+                                },
+    "editMetadataRescanTitle":  "Scan Ulang dari Internet?",
+    "editMetadataRescanMessage":  "Data dari internet akan menimpa edit manual Anda di form ini. Lanjutkan?",
+    "editMetadataRescanConfirm":  "Ya, Timpa",
+    "editMetadataRescanFailed":  "Gagal scan ulang: {error}",
+    "@editMetadataRescanFailed":  {
+                                      "placeholders":  {
+                                                           "error":  {
+                                                                         "type":  "String"
+                                                                     }
+                                                       }
+                                  },
+    "editMetadataRescanSuccess":  "Metadata berhasil diperbarui dari internet",
+    "editMetadataTitle":  "Edit Metadata",
+    "editMetadataFetching":  "Mengambil data...",
+    "editMetadataRescanButton":  "Scan Ulang dari Internet",
+    "editMetadataFieldTitle":  "Judul",
+    "editMetadataFieldArtist":  "Artis",
+    "editMetadataFieldAlbum":  "Album",
+    "editMetadataFieldGenre":  "Genre",
+    "editMetadataFieldRegion":  "Asal Region",
+    "editMetadataEditLyricsButton":  "Edit Lirik (halaman terpisah)",
+    "editMetadataSaveButton":  "Simpan Perubahan",
+    "editLyricsClipboardEmpty":  "Clipboard kosong, tidak ada teks untuk ditempel",
+    "editLyricsPasteTitle":  "Tempel Lirik",
+    "editLyricsPasteMessage":  "Sudah ada lirik di sini. Mau ditimpa (mulai dari nol) atau ditambahkan ke lirik yang ada?",
+    "editLyricsAppend":  "Tambahkan",
+    "editLyricsOverwrite":  "Timpa",
+    "editLyricsSaveFailed":  "Gagal menyimpan lirik: {error}",
+    "@editLyricsSaveFailed":  {
+                                  "placeholders":  {
+                                                       "error":  {
+                                                                     "type":  "String"
+                                                                 }
+                                                   }
+                              },
+    "editLyricsTruncated":  "Lirik melebihi 100KB dan dipotong saat disimpan",
+    "editLyricsTitle":  "Edit Lirik: {title}",
+    "@editLyricsTitle":  {
+                             "placeholders":  {
+                                                  "title":  {
+                                                                "type":  "String"
+                                                            }
+                                              }
+                         },
+    "editLyricsPasteButton":  "Tempelkan",
+    "editLyricsSearchWeb":  "Cari di Web",
+    "editLyricsHint":  "Belum ada lirik. Tempel dari clipboard, cari di web, atau ketik manual di sini.",
+    "editLyricsSaveButton":  "Simpan Lirik",
+    "songOptionsPlayNext":  "Putar Berikutnya",
+    "songOptionsAddedPlayNext":  "Ditambahkan untuk diputar berikutnya",
+    "songOptionsAddToQueueEnd":  "Tambah ke Akhir Antrean",
+    "songOptionsAddedToQueue":  "Ditambahkan ke antrean",
+    "songOptionsAddFavorite":  "Tambah ke Favorit",
+    "songOptionsRemoveFavorite":  "Hapus dari Favorit",
+    "songOptionsFavoriteFailed":  "Gagal update favorit: {error}",
+    "@songOptionsFavoriteFailed":  {
+                                       "placeholders":  {
+                                                            "error":  {
+                                                                          "type":  "String"
+                                                                      }
+                                                        }
+                                   },
+    "songOptionsAddToPlaylist":  "Tambah ke Playlist",
+    "songOptionsRename":  "Ganti Nama Lagu",
+    "songOptionsEditMetadata":  "Edit Metadata",
+    "songOptionsRemoveFromPlaylist":  "Hapus dari Playlist Ini",
+    "songOptionsRemoveFromPlaylistFailed":  "Gagal hapus dari playlist: {error}",
+    "@songOptionsRemoveFromPlaylistFailed":  {
+                                                 "placeholders":  {
+                                                                      "error":  {
+                                                                                    "type":  "String"
+                                                                                }
+                                                                  }
+                                             },
+    "songOptionsRemovedFromPlaylist":  "Dihapus dari playlist ini saja",
+    "songOptionsDeleteFromLibrary":  "Hapus dari Library",
+    "songOptionsDeleteTitle":  "Hapus Lagu",
+    "songOptionsDeleteConfirm":  "Hapus \"{title}\" dari Semua Lagu, Folder, Favorit, dan Playlist? File asli di HP tidak terhapus - lagu ini akan muncul lagi kalau folder di-scan ulang.",
+    "@songOptionsDeleteConfirm":  {
+                                      "placeholders":  {
+                                                           "title":  {
+                                                                         "type":  "String"
+                                                                     }
+                                                       }
+                                  },
+    "songOptionsDeleteFailed":  "Gagal hapus lagu: {error}",
+    "@songOptionsDeleteFailed":  {
+                                     "placeholders":  {
+                                                          "error":  {
+                                                                        "type":  "String"
+                                                                    }
+                                                      }
+                                 },
+    "songOptionsRenameFailed":  "Gagal ganti nama: {error}",
+    "@songOptionsRenameFailed":  {
+                                     "placeholders":  {
+                                                          "error":  {
+                                                                        "type":  "String"
+                                                                    }
+                                                      }
+                                 },
+    "songOptionsCreatePlaylist":  "Buat Playlist Baru",
+    "songOptionsPlaylistNameTitle":  "Nama Playlist",
+    "songOptionsAddToPlaylistFailed":  "Gagal tambah ke playlist: {error}",
+    "@songOptionsAddToPlaylistFailed":  {
+                                            "placeholders":  {
+                                                                 "error":  {
+                                                                               "type":  "String"
+                                                                           }
+                                                             }
+                                        },
+    "songOptionsPlaylistCreated":  "Playlist \"{name}\" dibuat \u0026 lagu ditambahkan",
+    "@songOptionsPlaylistCreated":  {
+                                        "placeholders":  {
+                                                             "name":  {
+                                                                          "type":  "String"
+                                                                      }
+                                                         }
+                                    },
+    "songOptionsPlaylistExists":  "Playlist \"{name}\" sudah ada, pilih dari daftar",
+    "@songOptionsPlaylistExists":  {
+                                       "placeholders":  {
+                                                            "name":  {
+                                                                         "type":  "String"
+                                                                     }
+                                                        }
+                                   },
+    "songOptionsCreatePlaylistFailed":  "Gagal membuat playlist: {error}",
+    "@songOptionsCreatePlaylistFailed":  {
+                                             "placeholders":  {
+                                                                  "error":  {
+                                                                                "type":  "String"
+                                                                            }
+                                                              }
+                                         },
+    "librarySortBy":  "Urutkan berdasarkan",
+    "librarySortTitleAsc":  "Judul ↑",
+    "librarySortTitleDesc":  "Judul ↓",
+    "librarySortArtistAsc":  "Artis ↑",
+    "librarySortArtistDesc":  "Artis ↓",
+    "librarySortAlbumAsc":  "Album ↑",
+    "librarySortAlbumDesc":  "Album ↓",
+    "librarySortDateNewest":  "Tanggal ↑",
+    "librarySortDateOldest":  "Tanggal ↓",
+    "librarySortGenre":  "Genre ↑",
+    "libraryCreatePlaylistFirst":  "Buat playlist dulu di tab Koleksi",
+    "libraryChoosePlaylist":  "Pilih playlist",
+    "libraryAddedToPlaylist":  "{count} lagu ditambahkan ke {name}",
+    "@libraryAddedToPlaylist":  {
+                                    "placeholders":  {
+                                                         "count":  {
+                                                                       "type":  "int"
+                                                                   },
+                                                         "name":  {
+                                                                      "type":  "String"
+                                                                  }
+                                                     }
+                                },
+    "librarySelectedCount":  "{count} dipilih",
+    "@librarySelectedCount":  {
+                                  "placeholders":  {
+                                                       "count":  {
+                                                                     "type":  "int"
+                                                                 }
+                                                   }
+                              },
+    "libraryAddToPlaylist":  "Tambah ke playlist",
+    "libraryAddToFavorites":  "Tambah ke favorit",
+    "librarySongCount":  "{count} lagu",
+    "@librarySongCount":  {
+                              "placeholders":  {
+                                                   "count":  {
+                                                                 "type":  "int"
+                                                             }
+                                               }
+                          },
+    "librarySongCountDuration":  "{count} lagu · {duration}",
+    "@librarySongCountDuration":  {
+                                      "placeholders":  {
+                                                           "count":  {
+                                                                         "type":  "int"
+                                                                     },
+                                                           "duration":  {
+                                                                            "type":  "String"
+                                                                        }
+                                                       }
+                                  },
+    "libraryScanMetadata":  "Scan metadata",
+    "libraryStartPlaying":  "Mulai Putar",
+    "libraryShuffle":  "Acak",
+    "libraryScanningMusic":  "Memindai musik...",
+    "libraryNoMusic":  "Belum ada musik",
+    "libraryScanMusic":  "Pindai Musik",
+    "libraryScanMissing":  "Scan yang Belum Ada Metadata",
+    "libraryRescanAll":  "Scan Ulang Semua",
+    "libraryRescanConfirm":  "Ambil ulang metadata untuk {count} lagu?",
+    "@libraryRescanConfirm":  {
+                                  "placeholders":  {
+                                                       "count":  {
+                                                                     "type":  "int"
+                                                                 }
+                                                   }
+                              },
+    "libraryStart":  "Mulai",
+    "libraryPlayFailed":  "Gagal memutar lagu: {error}",
+    "@libraryPlayFailed":  {
+                               "placeholders":  {
+                                                    "error":  {
+                                                                  "type":  "String"
+                                                              }
+                                                }
+                           },
+    "searchHint":  "Cari musik...",
+    "searchFilterSong":  "Lagu",
+    "searchFilterAlbum":  "Album",
+    "searchFilterArtist":  "Artis",
+    "searchFilterFolder":  "Folder",
+    "searchFilterGenre":  "Genre",
+    "searchPromptTitle":  "Cari musik kamu",
+    "searchPromptSubtitle":  "Ketik judul, artis, album, atau lainnya",
+    "searchNoResults":  "Tidak ada hasil",
+    "searchNotFound":  "\"{query}\" tidak ditemukan",
+    "@searchNotFound":  {
+                            "placeholders":  {
+                                                 "query":  {
+                                                               "type":  "String"
+                                                           }
+                                             }
+                        },
+    "searchResultCount":  "{count} hasil",
+    "@searchResultCount":  {
+                               "placeholders":  {
+                                                    "count":  {
+                                                                  "type":  "int"
+                                                              }
+                                                }
+                           },
+    "searchOther":  "Lainnya",
+    "albumsEmpty":  "Belum ada data album.",
+    "albumsCount":  "{count} album",
+    "@albumsCount":  {
+                         "placeholders":  {
+                                              "count":  {
+                                                            "type":  "int"
+                                                        }
+                                          }
+                     },
+    "collectionsNewPlaylist":  "Playlist Baru",
+    "collectionsPlaylistNameHint":  "Nama playlist",
+    "collectionsDeletePlaylist":  "Hapus Playlist",
+    "collectionsDeleteConfirm":  "Hapus \"{name}\"?",
+    "@collectionsDeleteConfirm":  {
+                                      "placeholders":  {
+                                                           "name":  {
+                                                                        "type":  "String"
+                                                                    }
+                                                       }
+                                  },
+    "collectionsDeletePlaylistConfirm":  "Hapus playlist \"{name}\"?",
+    "@collectionsDeletePlaylistConfirm":  {
+                                              "placeholders":  {
+                                                                   "name":  {
+                                                                                "type":  "String"
+                                                                            }
+                                                               }
+                                          },
+    "collectionsFavorites":  "Favorit",
+    "collectionsRecentlyAdded":  "Baru ditambahkan",
+    "collectionsRecentlyPlayed":  "Baru diputar",
+    "collectionsMostPlayed":  "Paling sering diputar",
+    "collectionsRecentlyAddedTitle":  "Baru Ditambahkan",
+    "collectionsRecentlyPlayedTitle":  "Baru Diputar",
+    "collectionsMostPlayedTitle":  "Paling Sering Diputar",
+    "collectionsSortNameAsc":  "Nama ↑",
+    "collectionsSortNameDesc":  "Nama ↓",
+    "collectionsPlaylistCount":  "{count} daftar putar",
+    "@collectionsPlaylistCount":  {
+                                      "placeholders":  {
+                                                           "count":  {
+                                                                         "type":  "int"
+                                                                     }
+                                                       }
+                                  },
+    "collectionsPlaylistCountAlt":  "{count} playlist",
+    "@collectionsPlaylistCountAlt":  {
+                                         "placeholders":  {
+                                                              "count":  {
+                                                                            "type":  "int"
+                                                                        }
+                                                          }
+                                     },
+    "collectionsNoPlaylists":  "Belum ada playlist",
+    "collectionsCreatePlaylist":  "Buat Playlist",
+    "collectionsFavoritesEmpty":  "Belum ada favorit",
+    "collectionsFavoritesHint":  "Tekan ikon hati pada lagu untuk menambahkan",
+    "collectionsRecentlyAddedEmpty":  "Belum ada lagu yang ditambahkan.",
+    "collectionsMostPlayedEmpty":  "Belum ada data pemutaran",
+    "collectionsMostPlayedHint":  "Mulai putar lagu untuk melihat statistik",
+    "foldersLoadFailed":  "Gagal memuat folder: {error}",
+    "@foldersLoadFailed":  {
+                               "placeholders":  {
+                                                    "error":  {
+                                                                  "type":  "String"
+                                                              }
+                                                }
+                           },
+    "foldersShownAgain":  "Folder ditampilkan lagi",
+    "foldersHidden":  "Folder disembunyikan dari library",
+    "foldersEmpty":  "Belum ada folder musik terdeteksi.",
+    "foldersCount":  "{count} folder",
+    "@foldersCount":  {
+                          "placeholders":  {
+                                               "count":  {
+                                                             "type":  "int"
+                                                         }
+                                           }
+                      },
+    "foldersSortNameAsc":  "Nama ↑",
+    "foldersSortNameDesc":  "Nama ↓",
+    "foldersSortCount":  "Jumlah lagu",
+    "foldersSortCountShort":  "Jumlah",
+    "foldersHideHidden":  "Sembunyikan folder tersembunyi",
+    "foldersShowHidden":  "Tampilkan folder tersembunyi",
+    "foldersNoSongs":  "Tidak ada lagu",
+    "foldersAllScanned":  "Semua lagu di folder ini sudah pernah discan",
+    "foldersScanDone":  "Selesai scan metadata folder ini",
+    "foldersSortTitleAsc":  "Judul ↑",
+    "foldersSortTitleDesc":  "Judul ↓",
+    "foldersSortArtistAsc":  "Artis ↑",
+    "foldersSortDate":  "Tanggal ↑",
+    "artistsEmpty":  "Belum ada data artis.",
+    "artistsCount":  "{count} artis",
+    "@artistsCount":  {
+                          "placeholders":  {
+                                               "count":  {
+                                                             "type":  "int"
+                                                         }
+                                           }
+                      },
+    "genresEmpty":  "Belum ada data genre.",
+    "genresCount":  "{count} genre",
+    "@genresCount":  {
+                         "placeholders":  {
+                                              "count":  {
+                                                            "type":  "int"
+                                                        }
+                                          }
+                     },
+    "homeLibrary":  "Perpustakaan",
+    "homeCollection":  "Koleksi",
+    "homeDashboard":  "Dashboard",
+    "homeTabSongs":  "Lagu",
+    "homeTabAlbums":  "Album",
+    "homeTabArtists":  "Artis",
+    "homeTabFolders":  "Folder",
+    "homeTabGenres":  "Genre",
+    "homeTabSettings":  "Pengaturan tab",
+    "homeTabReorderHint":  "Seret tab untuk mengubah urutan",
+    "homeReset":  "Atur Ulang",
+    "homeApply":  "Terapkan",
+    "homeMinOneTab":  "Minimal 1 tab harus aktif",
+    "homeSettings":  "Pengaturan",
+    "homeLoadLibraryFailed":  "Gagal memuat library: {error}",
+    "@homeLoadLibraryFailed":  {
+                                   "placeholders":  {
+                                                        "error":  {
+                                                                      "type":  "String"
+                                                                  }
+                                                    }
+                               },
+    "homePressAgainToExit":  "Tekan sekali lagi untuk keluar",
+    "playerPlaybackSpeed":  "Kecepatan Putar",
+    "playerCannotOpenBrowser":  "Tidak bisa membuka browser",
+    "playerSearchOpenFailed":  "Gagal membuka pencarian",
+    "playerLyricsFound":  "Lirik ditemukan!",
+    "playerLyricsNotFoundHint":  "Lirik tetap tidak ditemukan, coba tambah manual",
+    "playerSongsRemaining":  "{count} lagu lagi",
+    "@playerSongsRemaining":  {
+                                  "placeholders":  {
+                                                       "count":  {
+                                                                     "type":  "int"
+                                                                 }
+                                                   }
+                              },
+    "playerEmptyState":  "Belum ada lagu diputar",
+    "playerTapToReturnToCover":  "Ketuk untuk kembali ke cover",
+    "playerEditLyrics":  "Edit Lirik",
+    "playerLyricsNotFound":  "Lirik tidak ditemukan",
+    "playerTapHereToReturnToCover":  "Ketuk di sini untuk kembali ke cover",
+    "playerSearchOnGoogle":  "Cari di Google",
+    "playerAutoSearch":  "Cari Otomatis",
+    "playerAddManually":  "Tambah Manual",
+    "playerPrevious":  "Sebelumnya",
+    "playerNext":  "Berikutnya",
+    "playerFavorite":  "Favorit",
+    "playerAddToPlaylist":  "Tambah ke Playlist",
+    "playerSleepTimer":  "Timer Tidur",
+    "queueTitle":  "Antrean Putar",
+    "queueEmpty":  "Antrean kosong",
+    "queueReorderHint":  "Tahan-geser untuk urutkan · geser ke kiri untuk hapus",
+    "sleepTitle":  "Timer tidur",
+    "sleepSetTimeAboveZero":  "Set waktu lebih dari 0",
+    "sleepRemaining":  "tersisa",
+    "sleepFinishLastSong":  "Selesaikan lagu terakhir",
+    "sleepSongsRemaining":  "lagu tersisa",
+    "sleepStop":  "Berhenti",
+    "sleepTimeMode":  "Waktu",
+    "sleepSongMode":  "Lagu",
+    "sleepStart":  "Mulai",
+    "sleepSongUnit":  "lagu",
+    "sleepTimerStopped":  "Timer tidur dihentikan"
+}

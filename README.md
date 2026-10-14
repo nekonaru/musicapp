@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🎵 Swara - Pemutar Musik Offline
+# 🎵 Swara: Offline Music Player
 
-**Putar koleksi musik HP tanpa internet, dengan metadata dan lirik otomatis, plus dashboard analitik kebiasaan mendengarkanmu.**
+**Play the music on your phone without internet, with automatic metadata and lyrics, plus an analytics dashboard of your listening habits.**
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.47-02569B?style=flat-square&logo=flutter&logoColor=white)
 ![Release](https://img.shields.io/github/v/release/nekonaru/musicapp?style=flat-square&color=blue)
@@ -13,91 +13,213 @@
 
 </div>
 
-## 📖 Tentang
+**English** | [Bahasa Indonesia](README.id.md)
 
-**Swara** adalah aplikasi pemutar musik offline berbasis Flutter. Scan dan putar lagu langsung dari penyimpanan HP - tanpa akun, tanpa iklan, tanpa internet. Judul, artis, cover album, genre, dan lirik dilengkapi otomatis dari internet, dan semua aktivitas mendengarkan dirangkum di dashboard analitik.
+## ✨ About
 
-> _"Koleksi musikmu, didengarkan dengan tenang, bahkan tanpa internet."_
+**Swara** is a lightweight Flutter app that plays music straight from your phone storage - no account, no ads, no internet needed. It scans your collection once, then automatically completes titles, artists, album art, genres, and even lyrics over the internet. Your listening activity is summarized in an analytics dashboard, and everything works fully offline afterwards.
 
-## ✨ Fitur
+> _"Your music collection, played in peace, even without internet."_
 
-| Fitur | Deskripsi |
-|-------|-----------|
-| ▶️ **Putar offline** | Scan dan putar musik langsung dari penyimpanan HP |
-| 🔔 **Background playback** | Musik tetap jalan + kontrol dari notifikasi dan lockscreen (MediaSession) |
-| 🔀 **Shuffle & repeat** | Acak, ulangi mati / semua / satu lagu, plus sleep timer waktu atau jumlah lagu |
-| ⏱️ **Mini player** | Selalu terlihat di semua halaman; kontrol kecepatan 0.5x–2x |
-| 📝 **Antrean putar** | Tambah lagu untuk diputar berikutnya / di akhir antrean, reorder & hapus |
-| 🌐 **Metadata otomatis** | Judul, artis, cover album, dan genre via iTunes Search API |
-| 🎤 **Lirik otomatis** | Fetch via lyrics.ovh, bisa edit manual atau cari di Google |
-| ✏️ **Edit manual** | Koreksi metadata dan lirik per lagu bila hasil otomatis kurang pas |
-| 📁 **Browse folder** | Lihat lagu per folder asal, sembunyikan folder tertentu dari library |
-| 🔤 **Navigasi A–Z** | Geser scrollbar huruf di sisi kanan untuk lompat cepat |
-| 💿 **Playlist & favorit** | Playlist kustom, favorit, dan riwayat baru diputar |
-| 🔍 **Pencarian** | Real-time berdasarkan judul, artis, album, folder, atau genre |
-| 📊 **Dashboard** | Grafik 7 hari terakhir, top lagu & artis, distribusi genre & region |
-| 🎨 **Tema** | Terang, gelap, atau ikuti sistem + 10 warna aksen |
+## 🎯 Features
 
-## 📱 Instalasi
+| Feature | Description |
+|---------|-------------|
+| ▶️ **Offline playback** | Scan and play music directly from phone storage |
+| 🔔 **Background playback** | Real Android foreground service with MediaSession: notification and lockscreen controls (play/pause/next/previous) |
+| 🔀 **Shuffle and repeat** | Shuffle, repeat off / all / one, plus sleep timer by duration or song count |
+| ⏱️ **Mini player** | Always visible on every page; playback speed control from 0.5x to 2x |
+| 📝 **Play queue** | Add songs to play next or at the end, reorder and remove |
+| 🌐 **Automatic metadata** | Titles, artists, album art, and genres via the iTunes Search API |
+| 🎤 **Automatic lyrics** | Fetched via lyrics.ovh, editable manually, Google search fallback |
+| ✏️ **Manual editing** | Fix metadata and lyrics per song when auto-fetch gets it wrong |
+| 📁 **Folder browsing** | Browse by source folder, hide folders from the library |
+| 🔤 **A-Z navigation** | Finger-following letter scrollbar for fast jumps |
+| 💿 **Playlists and favorites** | Custom playlists, favorites, recently played |
+| 🔍 **Search** | Real-time search by title, artist, album, folder, or genre, with debounced input |
+| 📊 **Dashboard** | Last-7-days chart, top songs and artists, genre and region distribution |
+| 🌍 **English and Indonesian UI** | English by default; switch to Bahasa Indonesia in Settings |
+| 🎨 **Themes** | Light, dark, or follow system, plus 10 accent colors |
 
-### Opsi A: Download APK (termudah)
+## 📦 Requirements
 
-1. Buka halaman [Releases](https://github.com/nekonaru/musicapp/releases)
-2. Download `app-release.apk` dari versi terbaru
-3. Buka file-nya di HP, izinkan instalasi dari sumber tidak dikenal bila diminta
-4. Izinkan akses audio saat aplikasi pertama kali dibuka
+- **Flutter** 3.47 or newer (stable channel)
+- **JDK** 17
+- **Android SDK** (API 34+)
+- An Android phone or emulator (minimum Android 8.0 / API 26)
 
-> Minimum Android: 8.0 (API 26).
+### Never used a terminal? Start here
 
-### Opsi B: Build dari source (untuk development)
+<details>
+<summary><b>How to open a terminal on Windows</b></summary>
 
-**1. Prasyarat**
+1. Press the **Windows** key, type `PowerShell`, then press **Enter**
+2. A blue window opens. That is where you type commands
+3. Every `flutter ...` or `git ...` command in this guide is typed in that window, followed by **Enter**
 
-- [Flutter](https://flutter.dev) 3.47+ (stable)
-- JDK 17
-- Android SDK (API 34+)
+</details>
 
-**2. Ambil kode dan build**
+## 🚀 Installation
+
+### Option A: Download the APK (easiest)
+
+1. Open the [Releases](https://github.com/nekonaru/musicapp/releases) page
+2. Download `app-release.apk` from the latest version
+3. Open it on your phone, allow installs from unknown sources if asked
+4. Allow audio access when the app first opens
+
+### Option B: Build from source (for development / to read or change the code)
+
+**1. Get the project code**
+
+<details>
+<summary><b>I have Git installed</b></summary>
 
 ```bash
 git clone https://github.com/nekonaru/musicapp.git
 cd musicapp
+```
+
+</details>
+
+<details>
+<summary><b>I don't have Git</b></summary>
+
+1. Open the repository page on GitHub
+2. Click the green **`Code`** button, choose **`Download ZIP`**
+3. Extract the ZIP to a folder of your choice
+4. In the terminal, go into the extracted folder, for example:
+
+```bash
+cd Downloads/musicapp-main
+```
+
+</details>
+
+**2. Install dependencies and verify**
+
+```bash
 flutter pub get
 flutter analyze
+```
+
+`flutter analyze` must report **No issues found**.
+
+**3. Build the APK**
+
+```bash
 flutter build apk --release
 ```
 
-Hasilnya ada di `build/app/outputs/flutter-apk/app-release.apk`.
+The result is at `build/app/outputs/flutter-apk/app-release.apk`.
 
-> Belum pernah pakai terminal? Ketik perintah di atas satu per satu di PowerShell/Terminal lalu tekan **Enter** setiap baris.
+## 🖥️ Usage
 
-## 🛠️ Tech Stack
+**First launch:**
+1. Allow audio access when asked
+2. The app scans your music once and saves it to a local database
+3. Missing metadata and lyrics are fetched automatically in small batches
 
-| Kategori | Package / Layanan |
-|---|---|
-| Audio playback | just_audio |
-| Notifikasi & lockscreen | audio_service (MediaSession) |
-| Scan file lokal | on_audio_query |
-| Database lokal | sqflite |
-| State management | provider |
-| Grafik dashboard | fl_chart |
-| Metadata & lirik | iTunes Search API, lyrics.ovh |
-| CI (build APK + rilis) | GitHub Actions |
+**Everyday use:**
+- Browse **Library** (Songs, Albums, Artists, Folders, Genres tabs, configurable)
+- Tap a song to play; use the mini player to control from any page
+- Swipe down on the player to minimize it
+- Long-press songs for multi-select (favorite or add to playlist in bulk)
+- Open **Dashboard** to see your listening statistics
 
-## 📝 Catatan rilis
+## 🌍 Display Language
 
-Setiap versi punya catatan perubahan bilingual (Inggris–Indonesia) di halaman [Releases](https://github.com/nekonaru/musicapp/releases) dengan format: ✨ fitur baru, ⚡ pengoptimalan, 🐛 perbaikan bug, 📦 instalasi.
+The app UI (menus, buttons, messages, and settings) is available in **English** (default) and **Bahasa Indonesia**.
 
-## 📄 Lisensi
+1. Open **Settings**
+2. Under **Language**, pick **English** or **Bahasa Indonesia**
+3. The choice is remembered between sessions
 
-Source code open source di bawah lisensi MIT - bebas dipakai, dimodifikasi, dan didistribusikan ulang termasuk komersial, selama notice lisensi disertakan. Lihat [LICENSE](LICENSE).
+## 🗂️ Project Structure
 
-APK di halaman Releases bebas digunakan untuk keperluan pribadi.
+```
+musicapp/
+├── lib/
+│   ├── main.dart                 # entry point, providers, MaterialApp + locale
+│   ├── l10n/
+│   │   ├── app_en.arb            # English strings (source of truth)
+│   │   ├── app_id.arb            # Indonesian strings
+│   │   └── gen/                  # generated localizations (do not edit by hand)
+│   ├── models/                   # Song, ListeningEntry
+│   ├── providers/                # library, playlist, theme, language state
+│   ├── screens/                  # all pages (library, player, dashboard, ...)
+│   ├── services/                 # player, database, scanner, metadata, audio handler
+│   ├── utils/                    # formatting, song options menu, transitions
+│   └── widgets/                  # mini player, sleep timer, scrollbar, ...
+├── l10n.yaml                     # localization config
+├── android_res_extra/            # notification icons drawn into the APK by CI
+├── .github/
+│   └── workflows/
+│       ├── build-apk.yml         # CI: build APK on every push to main
+│       └── build.yml             # CI: build APK + draft GitHub release
+├── pubspec.yaml
+├── LICENSE
+├── README.md                     # main documentation (English)
+└── README.id.md                  # documentation (Bahasa Indonesia)
+```
 
----
+**Adding a new user-facing string:**
+1. Add the key to `lib/l10n/app_en.arb` (English) and `lib/l10n/app_id.arb` (Indonesian)
+2. Run `flutter gen-l10n`
+3. Use it via `AppLocalizations.of(context)!.yourKey`
+
+## 🧪 Testing
+
+There is no test suite yet. Static verification before every push:
+
+```bash
+flutter analyze
+```
+
+It must report **No issues found** (zero errors, zero warnings).
+
+## ❓ FAQ
+
+<details>
+<summary><b>Music stops when the app goes to background?</b></summary>
+
+Make sure battery optimization is turned off for Swara (Autostart / unrestricted background on XOS, MIUI, and similar skins), and that notification permission is granted.
+
+</details>
+
+<details>
+<summary><b>Some songs show "Unknown Artist" or have no lyrics?</b></summary>
+
+Auto-fetch depends on public databases (iTunes, lyrics.ovh). Local or indie songs are often missing there. Use Edit Metadata / Edit Lyrics on the song to fix it manually.
+
+</details>
+
+<details>
+<summary><b>How do I change the language?</b></summary>
+
+Settings, section **Language**, pick English or Bahasa Indonesia. English is the default.
+
+</details>
+
+## 👤 Author
 
 <div align="center">
 
-Dibuat oleh Nicolas Dwi Dharma
+| [![Nicolas Dwi Dharma](https://github.com/github.png?size=100)](https://github.com/nekonaru) |
+|:---:|
+| **Nicolas Dwi Dharma** |
+| [github.com/nekonaru](https://github.com/nekonaru) |
+
+</div>
+
+## 📄 License
+
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
+
+<div align="center">
+
+Made by **Nicolas Dwi Dharma**
+
+*Star this repo if this project helps you!*
 
 </div>

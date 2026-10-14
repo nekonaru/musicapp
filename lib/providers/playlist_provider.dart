@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
+import 'package:offline_music_player/providers/language_provider.dart';
 import '../models/song.dart';
 import '../services/db_helper.dart';
 
@@ -22,17 +24,17 @@ class PlaylistProvider extends ChangeNotifier {
 
   Future<void> addSong(int playlistId, int songId) async {
     try {
-      // DB memakai ConflictAlgorithm.ignore sehingga duplikat tidak melempar
-      // error SQLite - cek eksplisit supaya UI dapat pesan yang jelas.
+      // The DB uses ConflictAlgorithm.ignore so duplicates do not throw
+      // a SQLite error - check explicitly so the UI gets a clear message.
       final current = await DBHelper.instance.getSongsInPlaylist(playlistId);
       if (current.any((s) => s.id == songId)) {
-        throw Exception('Lagu sudah ada di playlist ini');
+        throw Exception(lookupAppLocalizations(LanguageProvider.instance.locale).coreSongAlreadyInPlaylist);
       }
       await DBHelper.instance.addSongToPlaylist(playlistId, songId);
       notifyListeners();
     } catch (e) {
       if (e.toString().contains('UNIQUE')) {
-        throw Exception('Lagu sudah ada di playlist ini');
+        throw Exception(lookupAppLocalizations(LanguageProvider.instance.locale).coreSongAlreadyInPlaylist);
       }
       rethrow;
     }
@@ -43,7 +45,7 @@ class PlaylistProvider extends ChangeNotifier {
       await DBHelper.instance.removeSongFromPlaylist(playlistId, songId);
       notifyListeners();
     } catch (e) {
-      throw Exception('Gagal menghapus lagu dari playlist: $e');
+      throw Exception('${lookupAppLocalizations(LanguageProvider.instance.locale).coreRemoveFromPlaylistFailed}: $e');
     }
   }
 
@@ -55,7 +57,7 @@ class PlaylistProvider extends ChangeNotifier {
       await DBHelper.instance.reorderPlaylistSongs(playlistId, songIdsInOrder);
       notifyListeners();
     } catch (e) {
-      throw Exception('Gagal menyimpan urutan playlist: $e');
+      throw Exception('${lookupAppLocalizations(LanguageProvider.instance.locale).coreSavePlaylistOrderFailed}: $e');
     }
   }
 }

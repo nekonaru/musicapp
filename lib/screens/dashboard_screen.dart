@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import '../services/db_helper.dart';
 import '../models/song.dart';
 import '../services/player_service.dart';
@@ -39,7 +40,7 @@ class DashboardScreenState extends State<DashboardScreen> {
     });
 
     try {
-      // Jalankan semua query DB secara paralel, bukan serial.
+      // Run all DB queries in parallel, not serially.
       final dailyFuture = DBHelper.instance.getDailyListeningLast7Days();
       final topSongsFuture = DBHelper.instance.getTopSongIds(limit: 5);
       final topArtistsFuture = DBHelper.instance.getTopArtists(limit: 5);
@@ -101,6 +102,7 @@ class DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -115,7 +117,7 @@ class DashboardScreenState extends State<DashboardScreen> {
               Icon(Icons.error_outline, size: 64, color: Colors.grey[300]),
               const SizedBox(height: 20),
               Text(
-                'Gagal memuat dashboard',
+                l.dashboardLoadFailedTitle,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     fontSize: 18,
@@ -132,7 +134,7 @@ class DashboardScreenState extends State<DashboardScreen> {
               FilledButton.icon(
                 onPressed: _load,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Coba Lagi'),
+                label: Text(l.dashboardRetry),
               ),
             ],
           ),
@@ -150,7 +152,7 @@ class DashboardScreenState extends State<DashboardScreen> {
             Icon(Icons.bar_chart_outlined, size: 64, color: Colors.grey[300]),
             const SizedBox(height: 20),
             Text(
-              'Dashboard kosong',
+              l.dashboardEmptyTitle,
               textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: 18,
@@ -159,16 +161,16 @@ class DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Statistik pendengaran akan muncul setelah kamu mulai memutar lagu.',
+              l.dashboardEmptySubtitle,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: Colors.grey[400]),
             ),
             const SizedBox(height: 32),
-            // Ringkasan dasar meski belum ada history
+            // Basic summary even without history yet
             _StatCard(
               icon: Icons.library_music_outlined,
               value: '$_totalSongs',
-              label: 'Total lagu di library',
+              label: l.dashboardTotalSongsLibrary,
               color: Theme.of(context).colorScheme.primary,
             ),
           ],
@@ -193,7 +195,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                 child: _StatCard(
                   icon: Icons.library_music_outlined,
                   value: '$_totalSongs',
-                  label: 'Total lagu',
+                  label: l.dashboardTotalSongs,
                   color: Theme.of(context).colorScheme.primary,
                 ),
               ),
@@ -201,8 +203,8 @@ class DashboardScreenState extends State<DashboardScreen> {
               Expanded(
                 child: _StatCard(
                   icon: Icons.headphones_outlined,
-                  value: '${totalHours.toStringAsFixed(0)} jam',
-                  label: 'Total didengar',
+                  value: l.dashboardHoursValue(totalHours.toStringAsFixed(0)),
+                  label: l.dashboardTotalListened,
                   color: Theme.of(context).colorScheme.secondary,
                 ),
               ),
@@ -210,8 +212,8 @@ class DashboardScreenState extends State<DashboardScreen> {
               Expanded(
                 child: _StatCard(
                   icon: Icons.today_outlined,
-                  value: '${monthHours.toStringAsFixed(1)} jam',
-                  label: 'Bulan ini',
+                  value: l.dashboardHoursValue(monthHours.toStringAsFixed(1)),
+                  label: l.dashboardThisMonth,
                   color: Theme.of(context).colorScheme.tertiary,
                 ),
               ),
@@ -219,30 +221,30 @@ class DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Grafik 7 hari
+          // 7-day chart
           _SectionCard(
             icon: Icons.show_chart,
-            title: 'Jam Dengar 7 Hari Terakhir',
-            trailing: Text('${weekHours.toStringAsFixed(1)} jam total',
+            title: l.dashboardListeningWeekTitle,
+            trailing: Text(l.dashboardWeekTotal(weekHours.toStringAsFixed(1)),
                 style: TextStyle(fontSize: 12, color: Colors.grey[500])),
             child: SizedBox(height: 160, child: _buildBarChart()),
           ),
           const SizedBox(height: 14),
 
-          // Top 5 lagu (interaktif)
+          // Top 5 songs (interactive)
           if (_topSongIds.isNotEmpty)
             _SectionCard(
               icon: Icons.music_note_outlined,
-              title: 'Top 5 Lagu',
+              title: l.dashboardTopSongs,
               child: Column(
                 children: [
                   for (int i = 0; i < _topSongIds.length; i++) ...[
                     _RankTile(
                       rank: i + 1,
                       title: _songLookup[_topSongIds[i].key]?.title ??
-                          'Lagu #${_topSongIds[i].key}',
+                          l.dashboardUnknownSong(_topSongIds[i].key),
                       subtitle: _songLookup[_topSongIds[i].key]?.artist,
-                      trailing: '${_topSongIds[i].value}x diputar',
+                      trailing: l.dashboardPlayCount(_topSongIds[i].value),
                       maxValue: _topSongIds.first.value,
                       value: _topSongIds[i].value,
                       onTap: () async {
@@ -255,7 +257,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                    content: Text('Gagal memutar lagu: $e')),
+                                    content: Text(l.dashboardPlayFailed(e.toString()))),
                               );
                             }
                           }
@@ -269,18 +271,18 @@ class DashboardScreenState extends State<DashboardScreen> {
             ),
           if (_topSongIds.isNotEmpty) const SizedBox(height: 14),
 
-          // Top artis (interaktif)
+          // Top artists (interactive)
           if (_topArtists.isNotEmpty)
             _SectionCard(
               icon: Icons.person_outline,
-              title: 'Top 5 Artis',
+              title: l.dashboardTopArtists,
               child: Column(
                 children: [
                   for (int i = 0; i < _topArtists.length; i++) ...[
                     _RankTile(
                       rank: i + 1,
                       title: _topArtists[i].key,
-                      trailing: '${_topArtists[i].value}x diputar',
+                      trailing: l.dashboardPlayCount(_topArtists[i].value),
                       maxValue: _topArtists.first.value,
                       value: _topArtists[i].value,
                     ),
@@ -291,25 +293,25 @@ class DashboardScreenState extends State<DashboardScreen> {
             ),
           if (_topArtists.isNotEmpty) const SizedBox(height: 14),
 
-          // Genre distribusi
+          // Genre distribution
           if (_genreDist.isNotEmpty)
             _SectionCard(
               icon: Icons.category_outlined,
-              title: 'Distribusi Genre',
-              trailing: Text('${_genreDist.length} genre',
+              title: l.dashboardGenreTitle,
+              trailing: Text(l.dashboardGenreCount(_genreDist.length),
                   style: TextStyle(fontSize: 12, color: Colors.grey[500])),
               child: _buildGenreList(),
             ),
           if (_genreDist.isNotEmpty) const SizedBox(height: 14),
 
-          // Belum pernah diputar
+          // Never played
           if (_neverPlayed.isNotEmpty)
             _SectionCard(
               icon: Icons.not_interested_outlined,
-              title: 'Belum Pernah Diputar',
+              title: l.dashboardNeverPlayedTitle,
               trailing: GestureDetector(
                 onTap: () => _showNeverPlayed(),
-                child: Text('${_neverPlayed.length} lagu',
+                child: Text(l.dashboardSongCount(_neverPlayed.length),
                     style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(context).colorScheme.primary,
@@ -320,7 +322,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                 child: Column(
                   children: [
                     Text(
-                      '${_neverPlayed.length} lagu di library kamu belum pernah diputar.',
+                      l.dashboardNeverPlayedSubtitle(_neverPlayed.length),
                       style: TextStyle(fontSize: 13, color: Colors.grey[500]),
                     ),
                     const SizedBox(height: 8),
@@ -329,7 +331,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                       child: OutlinedButton.icon(
                         onPressed: _showNeverPlayed,
                         icon: const Icon(Icons.play_arrow, size: 16),
-                        label: const Text('Putar Semua'),
+                        label: Text(l.dashboardPlayAll),
                       ),
                     ),
                   ],
@@ -341,7 +343,7 @@ class DashboardScreenState extends State<DashboardScreen> {
           // Streak info
           _SectionCard(
             icon: Icons.local_fire_department_outlined,
-            title: 'Aktivitas Minggu Ini',
+            title: l.dashboardWeekActivityTitle,
             child: _buildWeekActivity(),
           ),
         ],
@@ -392,15 +394,16 @@ class DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildWeekActivity() {
+    final l = AppLocalizations.of(context)!;
     final days = _daily.keys.toList()..sort();
-    final dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-    if (days.isEmpty) return const Text('Belum ada aktivitas minggu ini.');
+    final dayNames = [l.dashboardDaySun, l.dashboardDayMon, l.dashboardDayTue, l.dashboardDayWed, l.dashboardDayThu, l.dashboardDayFri, l.dashboardDaySat];
+    if (days.isEmpty) return Text(l.dashboardNoWeekActivity);
     final now = DateTime.now();
     final activeDays = days.where((d) => (_daily[d] ?? 0) > 0).length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('$activeDays dari 7 hari aktif mendengarkan',
+        Text(l.dashboardActiveDays(activeDays),
             style: TextStyle(fontSize: 13, color: Colors.grey[500])),
         const SizedBox(height: 12),
         Row(
@@ -450,6 +453,7 @@ class DashboardScreenState extends State<DashboardScreen> {
 
   void _showNeverPlayed() {
     if (_neverPlayed.isEmpty) return;
+    final l = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -468,7 +472,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   const Icon(Icons.not_interested_outlined),
                   const SizedBox(width: 8),
-                  Text('${_neverPlayed.length} lagu belum pernah diputar',
+                  Text(l.dashboardNeverPlayedSheetTitle(_neverPlayed.length),
                       style: const TextStyle(fontWeight: FontWeight.bold)),
                   const Spacer(),
                   TextButton(
@@ -480,12 +484,12 @@ class DashboardScreenState extends State<DashboardScreen> {
                       } catch (e) {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Gagal memutar lagu: $e')),
+                            SnackBar(content: Text(l.dashboardPlayFailed(e.toString()))),
                           );
                         }
                       }
                     },
-                    child: const Text('Putar Semua'),
+                    child: Text(l.dashboardPlayAll),
                   ),
                 ],
               ),
@@ -514,7 +518,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                       } catch (e) {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Gagal memutar lagu: $e')),
+                            SnackBar(content: Text(l.dashboardPlayFailed(e.toString()))),
                           );
                         }
                       }
@@ -530,6 +534,7 @@ class DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildBarChart() {
+    final l = AppLocalizations.of(context)!;
     final days = _daily.keys.toList()..sort();
     final now = DateTime.now();
     final maxMs = _daily.values.isEmpty
@@ -562,10 +567,10 @@ class DashboardScreenState extends State<DashboardScreen> {
               getTitlesWidget: (value, meta) {
                 final idx = value.toInt();
                 if (idx < 0 || idx >= days.length) return const SizedBox();
-                const hariSingkat = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+                final shortDays = [l.dashboardDaySun, l.dashboardDayMon, l.dashboardDayTue, l.dashboardDayWed, l.dashboardDayThu, l.dashboardDayFri, l.dashboardDaySat];
                 final isToday = _isSameDay(days[idx], now);
                 return Text(
-                  hariSingkat[days[idx].weekday % 7],
+                  shortDays[days[idx].weekday % 7],
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
@@ -593,7 +598,7 @@ class DashboardScreenState extends State<DashboardScreen> {
               final h = rod.toY;
               final mins = (h * 60).round();
               return BarTooltipItem(
-                mins < 60 ? '${mins}m' : '${h.toStringAsFixed(1)}j',
+                mins < 60 ? l.dashboardTooltipMinutes(mins) : l.dashboardTooltipHours(h.toStringAsFixed(1)),
                 TextStyle(color: Theme.of(context).colorScheme.onPrimary),
               );
             },

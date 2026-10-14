@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import '../models/song.dart';
 import '../providers/library_provider.dart';
 import '../services/player_service.dart';
@@ -13,8 +14,9 @@ class AlbumsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<LibraryProvider>(builder: (context, lib, _) {
+      final l = AppLocalizations.of(context)!;
       if (lib.songs.isEmpty) {
-        return const Center(child: Text('Belum ada data album.'));
+        return Center(child: Text(l.albumsEmpty));
       }
 
       // Group by album
@@ -30,7 +32,7 @@ class AlbumsScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text('${albums.length} album',
+              child: Text(l.albumsCount(albums.length),
                   style: TextStyle(fontSize: 12, color: Colors.grey[500])),
             ),
           ),
@@ -84,6 +86,7 @@ class _AlbumCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     return Material(
       color: cs.surfaceContainerHigh,
@@ -135,7 +138,7 @@ class _AlbumCard extends StatelessWidget {
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 2),
-                  Text('${songs.length} lagu',
+                  Text(l.librarySongCount(songs.length),
                       style: TextStyle(
                           fontSize: 11, color: Colors.grey[500])),
                 ],
@@ -167,7 +170,7 @@ class _AlbumSongsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final totalMs = songs.fold(0, (sum, s) => sum + s.durationMs);
-    // Artis album (ambil artis pertama/paling umum)
+    // Album artist (take the first/most common artist)
     final artistMap = <String, int>{};
     for (final s in songs) {
       artistMap[s.artist] = (artistMap[s.artist] ?? 0) + 1;

@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
+import 'package:offline_music_player/providers/language_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/song.dart';
 import '../services/db_helper.dart';
@@ -43,7 +45,7 @@ class LibraryProvider extends ChangeNotifier {
 
   static const _kSortOption = 'lib_sort_option';
   static const _kLastDeviceScan = 'last_device_scan_ms';
-  // Scan otomatis hanya kalau sudah lebih dari 30 menit
+  // Auto scan only when more than 30 minutes have passed
   static const _scanIntervalMs = 1800000;
 
   LibraryProvider() {
@@ -61,7 +63,7 @@ class LibraryProvider extends ChangeNotifier {
     await prefs.setInt(_kSortOption, sortOption.index);
   }
 
-  /// Load dari DB (instan, tidak scan device) - dipanggil saat app buka
+  /// Load from DB (instant, no device scan) - called when the app opens
   Future<void> loadFromDb() async {
     final all = await DBHelper.instance.getAllSongs();
     final excluded = await DBHelper.instance.getExcludedFolders();
@@ -75,27 +77,29 @@ class LibraryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Load dari DB lalu scan device di background hanya jika diperlukan.
-  /// Lagu muncul instan dari DB, scan hanya berjalan kalau sudah lama tidak scan.
+  /// Load from DB then scan the device in the background only if needed.
+  /// Songs appear instantly from the DB, the scan only runs when the last
+  /// scan is old enough.
   Future<void> autoLoadAndScanIfNeeded() async {
-    // Step 1: Load DB dulu - musik langsung muncul
+    // Step 1: load the DB first - music shows up right away
     await loadFromDb();
 
-    // Step 2: Cek apakah perlu scan device
+    // Step 2: check whether a device scan is needed
     final prefs = await SharedPreferences.getInstance();
     final lastMs = prefs.getInt(_kLastDeviceScan) ?? 0;
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final elapsed = nowMs - lastMs;
 
-    // Kalau lagu sudah ada dan scan terakhir belum lama, skip scan
+    // Skip the scan when songs already exist and the last scan is recent
     if (songs.isNotEmpty && elapsed < _scanIntervalMs) return;
 
-    // Scan device (tanpa internet) di background
+    // Scan the device (no internet) in the background
     await scanDevice();
     await prefs.setInt(_kLastDeviceScan, nowMs);
   }
 
-  /// Scan file dari HP (deteksi lagu baru/hapus), TANPA fetch metadata internet.
+  /// Scan files from the phone (detect new/removed songs), WITHOUT
+  /// fetching internet metadata.
   Future<void> scanDevice() async {
     isScanning = true;
     scanError = null;
@@ -104,13 +108,13 @@ class LibraryProvider extends ChangeNotifier {
       await LibraryScanner().scanAndSync(autoFetchMetadata: false);
       await loadFromDb();
     } catch (e) {
-      scanError = e.toString();
+      scanError = '${lookupAppLocalizations(LanguageProvider.instance.locale).coreScanFailed}: $e';
     }
     isScanning = false;
     notifyListeners();
   }
 
-  /// Force scan device dan update timestamp
+  /// Force a device scan and refresh the timestamp
   Future<void> forceScanDevice() async {
     await scanDevice();
     final prefs = await SharedPreferences.getInstance();
@@ -215,8 +219,8 @@ class LibraryProvider extends ChangeNotifier {
     await loadFromDb();
   }
 
-  /// Set favorit banyak lagu sekaligus: satu tulis batch ke DB lalu
-  /// SATU kali reload + notify (via loadFromDb). Gagal -> scanError.
+  /// Set favorites for many songs at once: a single batch write to the DB
+  /// then ONE reload + notify (via loadFromDb). On failure -> scanError.
   Future<void> setFavoritesBulk(List<Song> songs, bool value) async {
     if (songs.isEmpty) return;
     try {
@@ -224,7 +228,7 @@ class LibraryProvider extends ChangeNotifier {
           .setFavoritesBulk(songs.map((s) => s.id).toList(), value);
       await loadFromDb();
     } catch (e) {
-      scanError = e.toString();
+      scanError = '${lookupAppLocalizations(LanguageProvider.instance.locale).coreUpdateFavoritesFailed}: $e';
       notifyListeners();
     }
   }

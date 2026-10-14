@@ -1,5 +1,5 @@
-/// Kategori urutan sortir: simbol/ikon dulu, lalu angka, lalu huruf latin,
-/// terakhir aksara bahasa lain (Korea/China/Jepang/dll).
+/// Sort-tier category: symbols/icons first, then digits, then latin letters,
+/// finally other scripts (Korean/Chinese/Japanese/etc).
 final _latinReg = RegExp(r'[a-zA-Z]');
 final _digitReg = RegExp(r'[0-9]');
 
@@ -7,13 +7,13 @@ int _sortRank(String s) {
   if (s.isEmpty) return 0;
   final c = s.codeUnitAt(0);
   final ch = s[0];
-  if (_latinReg.hasMatch(ch)) return 2; // huruf latin
-  if (_digitReg.hasMatch(ch)) return 1; // angka
-  if (c > 127) return 3; // aksara non-latin (CJK, dll)
-  return 0; // simbol/ikon (#, [, dsb)
+  if (_latinReg.hasMatch(ch)) return 2; // latin letter
+  if (_digitReg.hasMatch(ch)) return 1; // digit
+  if (c > 127) return 3; // non-latin script (CJK, etc)
+  return 0; // symbol/icon (#, [, etc)
 }
 
-/// Bandingkan dua judul sesuai urutan: simbol < angka < huruf < aksara lain.
+/// Compare two titles in tier order: symbols < digits < letters < other scripts.
 int compareTitles(String a, String b) {
   final rankA = _sortRank(a);
   final rankB = _sortRank(b);
@@ -21,19 +21,19 @@ int compareTitles(String a, String b) {
   return a.toLowerCase().compareTo(b.toLowerCase());
 }
 
-/// Ambil path folder dari path file secara aman - dukung '/' (Android/Linux)
-/// dan '\' (Windows) sekaligus. Kalau tidak ada separator sama sekali
-/// (edge case), kembalikan string kosong alih-alih crash RangeError.
+/// Safely extract the folder path from a file path - supports both '/' (Android/Linux)
+/// and '\' (Windows). When there is no separator at all (edge case),
+/// return an empty string instead of crashing with a RangeError.
 String folderOf(String filePath) {
   final normalized = filePath.replaceAll('\\', '/');
   final idx = normalized.lastIndexOf('/');
   if (idx == -1) return '';
-  // Kembalikan folder dalam bentuk normal (slash) supaya perbandingan
-  // excluded.contains(folder) konsisten di semua platform.
+  // Return the folder in normalized (slash) form so the
+  // excluded.contains(folder) comparison stays consistent on every platform.
   return normalized.substring(0, idx);
 }
 
-/// Huruf pertama yang aman untuk avatar/A-Z - tidak pernah RangeError.
+/// First letter that is safe for avatar/A-Z - never throws RangeError.
 String safeInitial(String s) => s.isEmpty ? '#' : s[0].toUpperCase();
 String formatDuration(int ms) {
   final totalSeconds = (ms / 1000).round();
@@ -47,7 +47,7 @@ String formatDuration(int ms) {
   return '${two(minutes)}:${two(seconds)}';
 }
 
-/// Format durasi total jadi teks ringkas seperti "2 jam 15 menit" atau "45 menit".
+/// Format a total duration as a compact text such as "2 jam 15 menit" or "45 menit".
 String formatDurationLong(int ms) {
   final totalMinutes = (ms / 60000).round();
   final hours = totalMinutes ~/ 60;

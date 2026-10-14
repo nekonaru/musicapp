@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import '../services/player_service.dart';
 
 class QueueScreen extends StatefulWidget {
@@ -16,8 +17,8 @@ class _QueueScreenState extends State<QueueScreen> {
   @override
   void initState() {
     super.initState();
-    // Scroll awal sekali setelah frame pertama; perubahan antrean berikutnya
-    // dipantau lewat listener - tidak ada side-effect di build.
+    // Initial scroll once after the first frame; later queue changes
+    // are observed through a listener - no side effects in build.
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToCurrentIfNeeded());
     _player.addListener(_onQueueChanged);
   }
@@ -38,7 +39,7 @@ class _QueueScreenState extends State<QueueScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) return;
       final currentIndex = _player.currentIndex;
-      // Tampilkan lagu yang sedang diputar di dekat bagian atas layar (bukan mepet atas banget)
+      // Show the currently playing song near the top of the screen (not flush with the very top)
       final target = (currentIndex * _itemHeight - _itemHeight).clamp(0, _scrollController.position.maxScrollExtent);
       _scrollController.jumpTo(target.toDouble());
     });
@@ -55,10 +56,10 @@ class _QueueScreenState extends State<QueueScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Antrean Putar'),
+            title: Text(AppLocalizations.of(context)!.queueTitle),
           ),
           body: queue.isEmpty
-              ? const Center(child: Text('Antrean kosong'))
+              ? Center(child: Text(AppLocalizations.of(context)!.queueEmpty))
               : Column(
                   children: [
                     Padding(
@@ -68,7 +69,7 @@ class _QueueScreenState extends State<QueueScreen> {
                           const Icon(Icons.drag_handle, size: 18, color: Colors.grey),
                           const SizedBox(width: 6),
                           Expanded(
-                            child: Text('Tahan-geser untuk urutkan · geser ke kiri untuk hapus',
+                            child: Text(AppLocalizations.of(context)!.queueReorderHint,
                                 style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                           ),
                         ],
@@ -81,7 +82,7 @@ class _QueueScreenState extends State<QueueScreen> {
                         onReorderItem: (oldIndex, newIndex) => _player.reorderQueue(oldIndex, newIndex),
                         itemBuilder: (context, i) {
                           final song = queue[i];
-                          final slotId = slotIds[i]; // ID stabil - tidak berubah meski list ke-refresh
+                          final slotId = slotIds[i]; // Stable ID - unchanged even when the list refreshes
                           final isPlaying = i == currentIndex;
                           return Container(
                             key: ValueKey('queue_slot_$slotId'),

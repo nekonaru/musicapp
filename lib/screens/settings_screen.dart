@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import 'package:provider/provider.dart';
+import '../providers/language_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/player_service.dart';
@@ -16,18 +18,18 @@ const List<String> kEqualizerPresets = [
   'Vocal',
 ];
 
-// Representasi EQ sederhana per preset (gain relatif, untuk referensi UI)
-// Ketika paket EQ nyata ditambahkan, nilai ini langsung bisa dipakai.
+// Simple per-preset EQ representation (relative gains, for UI reference).
+// When a real EQ package is added, these values can be used directly.
 const Map<String, List<double>> kPresetBands = {
-  'Flat':       [0, 0, 0, 0, 0],
-  'Pop':        [1, 2, 2, 1, 0],
-  'Rock':       [3, 1, -1, 1, 3],
-  'Classical':  [2, 0, 0, 0, 2],
-  'Jazz':       [2, 1, 0, 1, 2],
+  'Flat': [0, 0, 0, 0, 0],
+  'Pop': [1, 2, 2, 1, 0],
+  'Rock': [3, 1, -1, 1, 3],
+  'Classical': [2, 0, 0, 0, 2],
+  'Jazz': [2, 1, 0, 1, 2],
   'Electronic': [3, 1, 0, 2, 3],
-  'Hip-Hop':    [3, 2, 0, 0, 1],
+  'Hip-Hop': [3, 2, 0, 0, 1],
   'Bass Boost': [4, 3, 0, 0, 0],
-  'Vocal':      [-1, 0, 2, 2, 0],
+  'Vocal': [-1, 0, 2, 2, 0],
 };
 
 const List<String> _bandLabels = ['60Hz', '250Hz', '1kHz', '4kHz', '16kHz'];
@@ -39,8 +41,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  // Guard agar tap cepat beruntun pada preferensi tidak balapan:
-  // Future penyimpanan di-await dan input dinonaktifkan selama menyimpan.
+  // Guard against rapid successive taps on preferences:
+  // the save future is awaited and input is disabled while saving.
   bool _savingPrefs = false;
 
   Future<void> _savePrefs(Future<void> Function() save) async {
@@ -53,17 +55,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  // Returns the localized display name for an accent color index.
+  String _accentName(AppLocalizations l10n, int index) {
+    switch (index) {
+      case 1:
+        return l10n.settingsAccentBlue;
+      case 2:
+        return l10n.settingsAccentTeal;
+      case 3:
+        return l10n.settingsAccentGreen;
+      case 4:
+        return l10n.settingsAccentOrange;
+      case 5:
+        return l10n.settingsAccentRed;
+      case 6:
+        return l10n.settingsAccentDeepPurple;
+      case 7:
+        return l10n.settingsAccentPink;
+      case 8:
+        return l10n.settingsAccentCyan;
+      case 9:
+        return l10n.settingsAccentLightGreen;
+      default:
+        return l10n.settingsAccentPurple;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
+    final languageProvider = context.watch<LanguageProvider>();
     final lib = context.watch<LibraryProvider>();
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Pengaturan')),
+      appBar: AppBar(title: Text(l10n.settingsTitle)),
       body: ListView(
         children: [
-          // ── TAMPILAN ──────────────────────────────────────────
-          _SectionHeader('Tampilan'),
+          // -- LANGUAGE --
+          _SectionHeader(l10n.languageSection),
+          RadioGroup<String>(
+            groupValue: languageProvider.locale.languageCode,
+            onChanged: (v) {
+              if (_savingPrefs || v == null) return;
+              _savePrefs(() => languageProvider.setLocale(Locale(v)));
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<String>(
+                  title: Text(l10n.languageEnglish),
+                  subtitle: Text(l10n.languageSubtitle),
+                  value: 'en',
+                ),
+                RadioListTile<String>(
+                  title: Text(l10n.languageIndonesian),
+                  subtitle: Text(l10n.languageSubtitle),
+                  value: 'id',
+                ),
+              ],
+            ),
+          ),
+          const Divider(),
+
+          // -- APPEARANCE --
+          _SectionHeader(l10n.settingsAppearance),
           RadioGroup<ThemeMode>(
             groupValue: themeProvider.themeMode,
             onChanged: (v) {
@@ -74,15 +130,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 RadioListTile<ThemeMode>(
-                  title: const Text('Ikuti sistem'),
+                  title: Text(l10n.settingsFollowSystem),
                   value: ThemeMode.system,
                 ),
                 RadioListTile<ThemeMode>(
-                  title: const Text('Terang'),
+                  title: Text(l10n.settingsLight),
                   value: ThemeMode.light,
                 ),
                 RadioListTile<ThemeMode>(
-                  title: const Text('Gelap'),
+                  title: Text(l10n.settingsDark),
                   value: ThemeMode.dark,
                 ),
               ],
@@ -90,18 +146,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(),
 
-          // ── ACCENT COLOR ──────────────────────────────────────
-          _SectionHeader('Warna Aksen'),
+          // -- ACCENT COLOR --
+          _SectionHeader(l10n.settingsAccentColor),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  kAccentColorNames[themeProvider.accentColorIndex],
-                  style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[500]),
+                  _accentName(l10n, themeProvider.accentColorIndex),
+                  style:
+                      TextStyle(fontSize: 13, color: Colors.grey[500]),
                 ),
                 const SizedBox(height: 10),
                 Wrap(
@@ -123,13 +178,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           shape: BoxShape.circle,
                           border: isSelected
                               ? Border.all(
-                                  color: Theme.of(context).colorScheme.outline,
+                                  color:
+                                      Theme.of(context).colorScheme.outline,
                                   width: 3)
                               : null,
                           boxShadow: isSelected
                               ? [
                                   BoxShadow(
-                                    color: kAccentColors[i].withValues(alpha: 0.4),
+                                    color: kAccentColors[i]
+                                        .withValues(alpha: 0.4),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   )
@@ -149,11 +206,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(),
 
-          // ── PEMUTARAN ──────────────────────────────────────────
-          _SectionHeader('Pemutaran'),
+          // -- PLAYBACK --
+          _SectionHeader(l10n.settingsPlayback),
           SwitchListTile(
-            title: const Text('Crossfade'),
-            subtitle: const Text('Transisi antar lagu tanpa jeda (3 detik)'),
+            title: Text(l10n.settingsCrossfade),
+            subtitle: Text(l10n.settingsCrossfadeSubtitle),
             secondary: const Icon(Icons.swap_horiz_outlined),
             value: PlayerService.instance.crossfadeEnabled,
             onChanged: (v) =>
@@ -161,12 +218,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(),
 
-          // ── EQUALIZER ──────────────────────────────────────────
-          _SectionHeader('Equalizer'),
+          // -- EQUALIZER --
+          _SectionHeader(l10n.settingsEqualizer),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
             child: Text(
-              'Preset ini hanya tampilan visualisasi, belum mengubah suara aktual. Pilihan disimpan antar sesi.',
+              l10n.settingsEqualizerNote,
               style: TextStyle(fontSize: 12, color: Colors.grey[500]),
             ),
           ),
@@ -196,8 +253,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(),
 
-          // ── LIBRARY ────────────────────────────────────────────
-          _SectionHeader('Library'),
+          // -- LIBRARY --
+          _SectionHeader(l10n.settingsLibrary),
           ListTile(
             leading: lib.isScanning
                 ? const SizedBox(
@@ -205,9 +262,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     height: 24,
                     child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.folder_open_outlined),
-            title: const Text('Pindai File Musik'),
-            subtitle: const Text(
-                'Cek file musik baru/dihapus di HP (tanpa internet)'),
+            title: Text(l10n.settingsScanFiles),
+            subtitle: Text(l10n.settingsScanFilesSubtitle),
             onTap: lib.isScanning ? null : () => lib.forceScanDevice(),
           ),
           ListTile(
@@ -217,19 +273,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     height: 24,
                     child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.cloud_sync_outlined),
-            title: const Text('Scan Metadata yang Belum Ada'),
+            title: Text(l10n.settingsScanMissing),
             subtitle: Text(lib.isBulkScanningMetadata
-                ? 'Memproses ${lib.bulkScanProgress}/${lib.bulkScanTotal}...'
-                : 'Ambil judul/artis/cover dari internet untuk lagu baru'),
+                ? l10n.settingsScanProgress(lib.bulkScanProgress,
+                    lib.bulkScanTotal)
+                : l10n.settingsScanMissingSubtitle),
             onTap: lib.isBulkScanningMetadata
                 ? null
                 : () => lib.bulkScanMetadata(onlyMissing: true),
           ),
           ListTile(
             leading: const Icon(Icons.refresh),
-            title: const Text('Scan Ulang Semua Metadata'),
-            subtitle: const Text(
-                'Ambil ulang dari internet untuk SEMUA lagu'),
+            title: Text(l10n.settingsRescanAll),
+            subtitle: Text(l10n.settingsRescanAllSubtitle),
             onTap: lib.isBulkScanningMetadata
                 ? null
                 : () => _confirmRescanAll(context, lib),
@@ -245,12 +301,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           const Divider(),
 
-          // ── TENTANG ────────────────────────────────────────────
-          _SectionHeader('Tentang'),
-          const ListTile(
-            leading: Icon(Icons.music_note_outlined),
-            title: Text('Swara'),
-            subtitle: Text('v1.6.0 \u00B7 by Niko'),
+          // -- ABOUT --
+          _SectionHeader(l10n.settingsAbout),
+          ListTile(
+            leading: const Icon(Icons.music_note_outlined),
+            title: const Text('Swara'),
+            subtitle: Text(l10n.settingsAboutVersion),
           ),
           const SizedBox(height: 32),
         ],
@@ -259,21 +315,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _confirmRescanAll(BuildContext context, LibraryProvider lib) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Scan Ulang Semua'),
-        content: Text(
-            'Ambil ulang metadata untuk semua ${lib.totalCount} lagu dari internet? Ini butuh waktu lebih lama.'),
+        title: Text(l10n.settingsRescanTitle),
+        content: Text(l10n.settingsRescanMessage(lib.totalCount)),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(l10n.cancel)),
           FilledButton(
             onPressed: () {
               Navigator.pop(ctx);
               lib.bulkScanMetadata(onlyMissing: false);
             },
-            child: const Text('Mulai'),
+            child: Text(l10n.settingsRescanStart),
           ),
         ],
       ),
@@ -297,7 +354,7 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// Visual bar EQ sederhana untuk menunjukkan preset yang dipilih (hanya tampilan, bukan pemrosesan audio)
+// Simple EQ bar visualizer for the selected preset (display only, no audio processing)
 class _EqVisualizer extends StatelessWidget {
   final String preset;
   const _EqVisualizer({required this.preset});
@@ -343,8 +400,7 @@ class _EqVisualizer extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(_bandLabels[i],
-                  style:
-                      TextStyle(fontSize: 9, color: Colors.grey[500])),
+                  style: TextStyle(fontSize: 9, color: Colors.grey[500])),
             ],
           );
         }),

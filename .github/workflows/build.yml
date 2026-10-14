@@ -12,7 +12,7 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout kode
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Java
@@ -27,44 +27,44 @@ jobs:
           flutter-version: '3.47.0'
           channel: 'stable'
 
-      - name: Regenerate folder android dari template resmi Flutter
+      - name: Regenerate android folder from official Flutter template
         run: |
           rm -rf android
           flutter create --platforms=android --org com.nikodwidharma --project-name offline_music_player .
 
-      - name: Tambahkan permission yang dibutuhkan (audio, internet, background playback)
+      - name: Add required permissions (audio, internet, background playback)
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           sed -i 's#<manifest xmlns:android="http://schemas.android.com/apk/res/android">#<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />#' "$MANIFEST"
           sed -i 's/android:label="offline_music_player"/android:label="Swara"/' "$MANIFEST"
           cat "$MANIFEST"
 
-      - name: Deklarasi eksplisit service audio_service (wajib Android 14+/API 34+)
+      - name: Declare audio_service service explicitly (required on Android 14+/API 34+)
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           sed -i 's#</application>#    <service\n        android:name="com.ryanheise.audioservice.AudioService"\n        android:foregroundServiceType="mediaPlayback"\n        android:exported="true">\n        <intent-filter>\n            <action android:name="android.media.browse.MediaBrowserService" />\n        </intent-filter>\n    </service>\n    <receiver\n        android:name="com.ryanheise.audioservice.MediaButtonReceiver"\n        android:exported="true">\n        <intent-filter>\n            <action android:name="android.intent.action.MEDIA_BUTTON" />\n        </intent-filter>\n    </receiver>\n</application>#' "$MANIFEST"
           cat "$MANIFEST"
 
-      - name: Ubah MainActivity.kt jadi extends AudioServiceFragmentActivity
+      - name: Change MainActivity.kt to extend AudioServiceFragmentActivity
         run: |
           MAINACTIVITY=$(find android/app/src/main/kotlin -name "MainActivity.kt")
-          echo "Ditemukan di: $MAINACTIVITY"
+          echo "Found at: $MAINACTIVITY"
           sed -i 's/import io.flutter.embedding.android.FlutterActivity/import com.ryanheise.audioservice.AudioServiceFragmentActivity/' "$MAINACTIVITY"
           sed -i 's/import com.ryanheise.audioservice.AudioServiceActivity/import com.ryanheise.audioservice.AudioServiceFragmentActivity/' "$MAINACTIVITY"
           sed -i 's/FlutterActivity()/AudioServiceFragmentActivity()/' "$MAINACTIVITY"
           sed -i 's/AudioServiceActivity()/AudioServiceFragmentActivity()/' "$MAINACTIVITY"
           cat "$MAINACTIVITY"
 
-      - name: Salin ikon status bar & tombol notifikasi dari repo
+      - name: Copy status bar icon and notification buttons from repo
         run: |
           mkdir -p android/app/src/main/res/drawable
           cp android_res_extra/ic_stat_swara.xml android/app/src/main/res/drawable/ic_stat_swara.xml
           cp android_res_extra/ic_notif_shuffle.xml android/app/src/main/res/drawable/ic_notif_shuffle.xml
           cp android_res_extra/ic_notif_repeat.xml android/app/src/main/res/drawable/ic_notif_repeat.xml
-          echo "=== isi folder drawable setelah disalin ==="
+          echo "=== drawable folder contents after copy ==="
           ls -la android/app/src/main/res/drawable/
 
-      - name: Cegah icon custom kebuang R8 resource shrinker
+      - name: Keep custom icons from R8 resource shrinker
         run: |
           mkdir -p android/app/src/main/res/raw
           cat > android/app/src/main/res/raw/keep.xml << 'EOF'
@@ -73,10 +73,10 @@ jobs:
           EOF
           cat android/app/src/main/res/raw/keep.xml
 
-      - name: Install dependency
+      - name: Install dependencies
         run: flutter pub get
 
-      - name: Patch namespace untuk plugin lama yang belum kompatibel AGP terbaru
+      - name: Patch namespace for legacy plugins incompatible with latest AGP
         run: |
           mkdir -p "$HOME/.gradle/init.d"
           cat > "$HOME/.gradle/init.d/fix-namespace.gradle" << 'GROOVY'
@@ -92,9 +92,9 @@ jobs:
                               }
                           } catch (ignored) {}
                           try {
-                              // Paksa compileSdk 36 (samakan dengan app) supaya AAR metadata
-                              // check tidak gagal: plugin lama (on_audio_query) compileSdk 33
-                              // padahal androidx butuh minimal 34.
+                              // Force compileSdk 36 (match the app) so the AAR metadata
+                              // check does not fail: legacy plugin (on_audio_query) uses compileSdk 33
+                              // while androidx requires at least 34.
                               android.compileSdk = 36
                           } catch (ignored) {}
                           try {
@@ -111,10 +111,10 @@ jobs:
               }
           }
           GROOVY
-          echo "Init script dibuat:"
+          echo "Init script created:"
           cat "$HOME/.gradle/init.d/fix-namespace.gradle"
 
-      - name: Ganti tema LaunchTheme/NormalTheme jadi turunan Theme.AppCompat
+      - name: Switch LaunchTheme/NormalTheme to Theme.AppCompat descendants
         run: |
           STYLES="android/app/src/main/res/values/styles.xml"
           STYLES_NIGHT="android/app/src/main/res/values-night/styles.xml"
@@ -125,7 +125,7 @@ jobs:
           echo "=== styles.xml (night) ==="
           cat "$STYLES_NIGHT"
 
-      - name: Aktifkan core library desugaring di app/build.gradle.kts
+      - name: Enable core library desugaring in app/build.gradle.kts
         run: |
           APP_GRADLE="android/app/build.gradle.kts"
           if grep -q "isCoreLibraryDesugaringEnabled" "$APP_GRADLE"; then
@@ -138,40 +138,40 @@ jobs:
           fi
           cat >> "$APP_GRADLE" << 'GRADLEOF'
 
-          // === Patch oleh CI: desugar ===
-          // CATATAN: jangan append blok kotlinOptions/jvmTarget di sini - di
-          // AGP 9 + Kotlin 2.x itu script-compilation ERROR. Template Flutter
-          // 3.47 sudah set JVM target sendiri via `kotlin { compilerOptions }`.
+          // === Patched by CI: desugar ===
+          // NOTE: do not append a kotlinOptions/jvmTarget block here - on
+          // AGP 9 + Kotlin 2.x that is a script-compilation ERROR. The Flutter
+          // 3.47 template already sets the JVM target itself via `kotlin { compilerOptions }`.
           dependencies {
               coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
               implementation("androidx.appcompat:appcompat:1.7.0")
           }
           GRADLEOF
-          echo "=== app/build.gradle.kts setelah patch ==="
+          echo "=== app/build.gradle.kts after patch ==="
           cat "$APP_GRADLE"
 
       - name: Build APK
         run: flutter build apk --release
         continue-on-error: true
 
-      - name: Cari file APK di manapun lokasinya
+      - name: Locate APK file wherever it was built
         run: |
           DEST="build/app/outputs/flutter-apk"
           mkdir -p "$DEST"
           FOUND=$(find . -name "app-release.apk" -not -path "*/node_modules/*" | head -n 1)
           if [ -z "$FOUND" ]; then
-            echo "APK tidak ditemukan, menampilkan semua file .apk yang ada:"
+            echo "APK not found, listing all existing .apk files:"
             find . -name "*.apk"
             exit 1
           fi
-          echo "APK ditemukan di: $FOUND"
+          echo "APK found at: $FOUND"
           if [ "$FOUND" != "./$DEST/app-release.apk" ] && [ "$FOUND" != "$DEST/app-release.apk" ]; then
             cp "$FOUND" "$DEST/app-release.apk"
           else
-            echo "APK sudah di lokasi yang benar, lewati copy."
+            echo "APK already in the correct location, skipping copy."
           fi
 
-      - name: Baca versi dari pubspec.yaml
+      - name: Read version from pubspec.yaml
         id: version
         run: |
           VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | sed 's/+.*//')
@@ -179,15 +179,15 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "build=$BUILD" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
-          echo "Versi: $VERSION | Build: $BUILD"
+          echo "Version: $VERSION | Build: $BUILD"
 
-      - name: Upload APK sebagai artifact
+      - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
         with:
           name: swara-${{ steps.version.outputs.version }}-release
           path: build/app/outputs/flutter-apk/app-release.apk
 
-      - name: Buat GitHub Release Draft
+      - name: Create GitHub Release Draft
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
@@ -198,33 +198,24 @@ jobs:
           body: |
             # English
 
-            **Swara v1.7.0 - Stability and performance overhaul**
+            **Swara v1.8.0 - English by default, Bahasa Indonesia available**
 
-            This release is a deep clean-up under the hood: player leaks fixed, database queries optimized, bulk actions are instant, and the app is verified with zero `flutter analyze` issues.
+            The whole app is now English-first: every screen, dialog, snackbar, and validation message is localized, with Bahasa Indonesia one tap away in Settings.
 
             ## ✨ New features
 
-            - Bulk favorite: select many songs and favorite them all in one action.
-            - Dashboard shows an error state with retry instead of loading forever when the database fails.
-            - Sleep-timer label updates live for song-count mode.
+            - App UI is now English by default; switch to Bahasa Indonesia anytime in Settings, remembered between sessions.
+            - New Language section in Settings with English and Bahasa Indonesia options.
 
             ## ⚡ Optimizations
 
-            - Most-played query is now a single JOIN instead of loading the whole library into memory; new database indexes for sorting and dashboard queries.
-            - Folder screen loads with one query and groups in memory (was one full table scan per folder).
-            - Search input is debounced and results are computed once per build.
-            - Dashboard loads all statistics in parallel.
-            - Lyrics auto-fetch no longer overwrites your manual title/artist/album edits.
-            - Migrated to Flutter 3.47 APIs (RadioGroup, onReorderItem, withValues).
+            - All ~390 user-facing strings moved to ARB localization files (single source of truth, no more hardcoded text scattered across screens).
+            - Code comments translated to English across the codebase.
 
             ## 🐛 Bug fixes
 
-            - Fixed audio player and stream-subscription leaks (proper dispose, no more stuck play/pause icon after crossfade).
-            - Fixed queue race when adding songs to an empty queue.
-            - Fixed repeat/shuffle/speed acting on the wrong internal player during crossfade.
-            - Fixed crashes from empty titles/artists, corrupt database rows, and missing art files in notifications.
-            - Fixed misleading EQ text (it is a visual preset, it does not change actual sound).
-            - Removed dead notification service that referenced a dropped dependency.
+            - Validation, error, and confirmation messages now follow the selected language, including provider-level errors.
+            - Bumped intl to match flutter_localizations requirements.
 
             ## 📦 Install / Update
 
@@ -238,33 +229,24 @@ jobs:
 
             # Bahasa Indonesia
 
-            **Swara v1.7.0 - Perombakan stabilitas dan performa**
+            **Swara v1.8.0 - Default English, Bahasa Indonesia tersedia**
 
-            Rilis ini bersih-bersih besar di balik layar: kebocoran player diperbaiki, query database dioptimalkan, aksi massal jadi instan, dan app terverifikasi dengan nol masalah `flutter analyze`.
+            Seluruh aplikasi kini English-first: semua layar, dialog, snackbar, dan pesan validasi terlokalisasi, dengan Bahasa Indonesia sejauh satu ketukan di Pengaturan.
 
             ## ✨ Fitur baru
 
-            - Favorit massal: pilih banyak lagu dan favoritkan sekaligus dalam satu aksi.
-            - Dashboard menampilkan status error + tombol coba lagi bila database gagal, tidak loading selamanya.
-            - Label sleep-timer mode jumlah lagu ter-update secara live.
+            - UI aplikasi kini default English; ganti ke Bahasa Indonesia kapan saja di Pengaturan, diingat antar sesi.
+            - Section Bahasa baru di Pengaturan dengan opsi English dan Bahasa Indonesia.
 
             ## ⚡ Pengoptimalan
 
-            - Query lagu tersering kini satu JOIN, tidak lagi memuat seluruh library ke memori; index database baru untuk sorting dan query dashboard.
-            - Layar folder cukup satu query lalu grouping di memori (sebelumnya satu full scan per folder).
-            - Input pencarian di-debounce dan hasil dihitung sekali per build.
-            - Dashboard memuat semua statistik secara paralel.
-            - Auto-fetch lirik tidak lagi menimpa edit manual judul/artis/album.
-            - Migrasi ke API Flutter 3.47 (RadioGroup, onReorderItem, withValues).
+            - Seluruh ~390 string user-facing pindah ke file lokalisasi ARB (satu sumber utama, tidak lagi tercecer di tiap layar).
+            - Komentar kode diterjemahkan ke English di seluruh codebase.
 
             ## 🐛 Perbaikan bug
 
-            - Perbaiki kebocoran audio player dan stream-subscription (dispose benar, ikon play/pause tidak macet setelah crossfade).
-            - Perbaiki race antrean saat menambah lagu ke antrean kosong.
-            - Perbaiki repeat/shuffle/speed yang bekerja ke player internal yang salah saat crossfade.
-            - Perbaiki crash dari judul/artis kosong, baris database korup, dan file art hilang di notifikasi.
-            - Perbaiki teks EQ yang menyesatkan (itu preset visual, tidak mengubah suara asli).
-            - Hapus notification service mati yang mereferensikan dependency yang sudah dibuang.
+            - Pesan validasi, error, dan konfirmasi kini ikut bahasa yang dipilih, termasuk error level provider.
+            - Bump intl mengikuti kebutuhan flutter_localizations.
 
             ## 📦 Instalasi / Update
 

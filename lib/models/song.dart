@@ -5,9 +5,9 @@ class Song {
   String artist;
   String album;
   String? genre;
-  String? region; // asal negara/daerah lagu, dideteksi dari artis/metadata
-  String? albumArtPath; // path lokal ke cover yang sudah di-cache
-  String? albumArtUrl; // url dari API kalau belum di-cache
+  String? region; // song origin country/area, detected from artist/metadata
+  String? albumArtPath; // local path to the cached cover
+  String? albumArtUrl; // remote URL from the API when not cached yet
   String? lyrics;
   int durationMs;
   bool isFavorite;
@@ -84,12 +84,12 @@ class Song {
   }
 }
 
-/// Satu baris riwayat dengar, dicatat tiap sesi putar lagu selesai/berhenti.
+/// One listening-history row, recorded each time a song play session ends/stops.
 class ListeningEntry {
   final int? id;
   final int songId;
   final DateTime timestamp;
-  final int listenedMs; // durasi yang benar-benar didengar
+  final int listenedMs; // how long was actually listened
 
   ListeningEntry({
     this.id,

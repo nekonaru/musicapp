@@ -12,8 +12,8 @@ class _PopupData {
   const _PopupData(this.letter, this.globalY);
 }
 
-/// Scrollbar A-Z minimalis: garis tipis di kanan layar.
-/// Popup huruf mengikuti posisi jari (Y), menghilang saat jari diangkat.
+/// Minimalist A-Z scrollbar: a thin line on the right edge of the screen.
+/// The letter popup follows the finger position (Y) and disappears when the finger is lifted.
 class AzScrollbar extends StatefulWidget {
   final Set<String> availableLetters;
   final void Function(String letter) onLetterSelected;
@@ -73,7 +73,7 @@ class _AzScrollbarState extends State<AzScrollbar>
     final t = _nearest(idx);
     if (t == null) return;
 
-    // Hitung posisi Y global agar popup bisa mengikuti jari
+    // Compute the global Y position so the popup can follow the finger
     final RenderBox? box =
         _scrollbarKey.currentContext?.findRenderObject() as RenderBox?;
     final double globalY =
@@ -85,8 +85,8 @@ class _AzScrollbarState extends State<AzScrollbar>
     _popupData.value = _PopupData(t, globalY);
 
     if (current?.letter != t) {
-      // Throttle haptic: hanya bila huruf berubah + jeda minimal ~50ms
-      // supaya drag cepat tidak membanjiri haptic.
+      // Throttle haptics: only when the letter changes plus a minimum ~50ms gap
+      // so fast drags do not flood haptics.
       final now = DateTime.now();
       if (now.difference(_lastHaptic).inMilliseconds >= 50) {
         _lastHaptic = now;
@@ -110,7 +110,7 @@ class _AzScrollbarState extends State<AzScrollbar>
           builder: (_, data, __) {
             if (data == null) return const SizedBox.shrink();
 
-            // Clamp agar tidak keluar layar
+            // Clamp so the popup stays on screen
             final top = (data.globalY - 32).clamp(60.0, screenH - 80.0);
 
             return Positioned(
@@ -130,7 +130,7 @@ class _AzScrollbarState extends State<AzScrollbar>
                           topLeft: Radius.circular(30),
                           topRight: Radius.circular(30),
                           bottomLeft: Radius.circular(30),
-                          // bottomRight lancip seperti speech bubble mengarah kanan
+                          // bottomRight is sharp like a speech bubble pointing right
                           bottomRight: Radius.circular(4),
                         ),
                         boxShadow: [
@@ -179,7 +179,7 @@ class _AzScrollbarState extends State<AzScrollbar>
   void _onRelease() {
     if (!mounted) return;
     _fadeCtrl.reverse().then((_) {
-      // Guard: jangan set ValueNotifier / sentuh overlay setelah dispose.
+      // Guard: do not touch the ValueNotifier or overlay after dispose.
       if (!mounted) return;
       _removeOverlay();
       _popupData.value = null;

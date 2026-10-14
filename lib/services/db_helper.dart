@@ -1,3 +1,5 @@
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
+import 'package:offline_music_player/providers/language_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
 import '../models/song.dart';
@@ -68,7 +70,7 @@ class DBHelper {
             includeInLibrary INTEGER DEFAULT 1
           )
         ''');
-        // Index supaya ORDER BY / filter dashboard tidak full-scan.
+        // Index so ORDER BY / dashboard filters never full-scan.
         await db.execute('CREATE INDEX idx_songs_title ON songs(title)');
         await db.execute(
             'CREATE INDEX idx_songs_lastPlayedAt ON songs(lastPlayedAt)');
@@ -79,35 +81,35 @@ class DBHelper {
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
-          // Tambahkan kolom position untuk fitur reorder playlist
+          // Add the position column for the playlist reorder feature
           try {
             await db.execute('ALTER TABLE playlist_songs ADD COLUMN position INTEGER DEFAULT 0');
           } catch (_) {
-            // Kolom mungkin sudah ada, abaikan
+            // Column may already exist, ignore
           }
         }
         if (oldVersion < 3) {
-          // Tambahkan kolom addedAt supaya sort "Baru ditambahkan" benar-benar
-          // berdasarkan waktu insert, bukan cuma membalik urutan list
+          // Add the addedAt column so the "Recently added" sort truly reflects
+          // insert time instead of just reversing the current list order
           try {
             await db.execute('ALTER TABLE songs ADD COLUMN addedAt TEXT');
           } catch (_) {
-            // Kolom mungkin sudah ada, abaikan
+            // Column may already exist, ignore
           }
         }
         if (oldVersion < 4) {
-          // Tandai eksplisit lagu yang sudah pernah di-scan metadata-nya,
-          // supaya fitur "scan yang belum ada metadata saja" akurat.
+          // Explicitly mark songs whose metadata was already scanned,
+          // so the "scan only songs missing metadata" feature stays accurate.
           try {
             await db.execute('ALTER TABLE songs ADD COLUMN metadataScanned INTEGER DEFAULT 0');
-            // Jangan tandai 'Tidak diketahui' sebagai scanned - itu nilai
-            // fallback, bukan hasil fetch sungguhan. Hanya genre/lirik asli.
+            // Never mark 'Tidak diketahui' as scanned - that is a fallback
+            // value, not a real fetch result. Only genuine genre/lyrics count.
             await db.execute(
                 "UPDATE songs SET metadataScanned = 1 WHERE (genre IS NOT NULL AND genre != 'Tidak diketahui') OR lyrics IS NOT NULL");
           } catch (_) {
-            // Kolom mungkin sudah ada, abaikan
+            // Column may already exist, ignore
           }
-          // Index untuk DB lama (v1-v3) yang belum punya index.
+          // Index for old DBs (v1-v3) that do not have them yet.
           try {
             await db.execute('CREATE INDEX IF NOT EXISTS idx_songs_title ON songs(title)');
             await db.execute(
@@ -125,19 +127,21 @@ class DBHelper {
   // ---------- Songs ----------
   Future<void> upsertSong(Song s) async {
     final database = await db;
-    // Pertahankan status favorit, lastPlayedAt, dan addedAt yang sudah ada,
-    // supaya tidak ke-reset tiap kali library di-scan ulang.
+    // Keep the existing favorite status, lastPlayedAt, and addedAt,
+    // so they are not reset every time the library is rescanned.
     final existing = await database.query('songs', where: 'id = ?', whereArgs: [s.id], limit: 1);
     final map = s.toMap();
     if (existing.isNotEmpty) {
       map['isFavorite'] = existing.first['isFavorite'];
       map['lastPlayedAt'] = existing.first['lastPlayedAt'];
       map['addedAt'] = existing.first['addedAt'];
-      // PENTING: pakai OR, bukan sekadar copy nilai lama.
-      // - Dipanggil dari library_scanner (file-sync tiap app dibuka): objek `s` selalu
-      //   metadataScanned=false, jadi hasil OR = nilai lama di DB (benar, tidak ke-reset).
-      // - Dipanggil dari metadata_service (setelah enrich): objek `s` metadataScanned=true,
-      //   jadi hasil OR = true (benar, TERSIMPAN, tidak ketiban nilai lama yang masih false).
+      // IMPORTANT: use OR, not a plain copy of the old value.
+      // - Called from library_scanner (file sync on every app open): the `s`
+      //   object always has metadataScanned=false, so the OR result keeps the
+      //   stored DB value (correct, never reset).
+      // - Called from metadata_service (after enrich): the `s` object has
+      //   metadataScanned=true, so the OR result is true (correct, SAVED,
+      //   never clobbered by the still-false stored value).
       final wasScanned = existing.first['metadataScanned'] == 1;
       map['metadataScanned'] = (wasScanned || s.metadataScanned) ? 1 : 0;
     } else {
@@ -152,12 +156,12 @@ class DBHelper {
     return rows.map((r) => Song.fromMap(r)).toList();
   }
 
-  /// Hapus dari DB lagu-lagu yang file aslinya sudah tidak ada lagi di HP
-  /// (dihapus/dipindah user di luar aplikasi). [existingIds] adalah SEMUA id
-  /// lagu yang masih benar-benar terdeteksi di device (termasuk yang folder-nya
-  /// disembunyikan - supaya lagu di folder tersembunyi TIDAK ikut kehapus).
-  /// Jumlah lagu di DB - dipakai safety guard di scanAndSync()
-  /// untuk mendeteksi kalau querySongs() return hasil yang mencurigakan.
+  /// Delete from the DB the songs whose original files no longer exist on the
+  /// phone (deleted/moved by the user outside the app). [existingIds] holds
+  /// ALL ids that are still truly detected on the device (including ones in
+  /// hidden folders - so songs in hidden folders are NOT deleted).
+  /// Song count in the DB - used by the safety guard in scanAndSync()
+  /// to detect when querySongs() returns a suspicious result.
   Future<int> getSongCount() async {
     final database = await db;
     final result = await database.rawQuery('SELECT COUNT(*) as count FROM songs');
@@ -182,16 +186,16 @@ class DBHelper {
     return ghostIds.length;
   }
 
-  /// Set ID lagu yang sudah pernah discan metadata-nya (dipakai supaya
-  /// tidak fetch ulang ke internet untuk lagu yang sama berkali-kali).
+  /// IDs of songs whose metadata was already scanned (so the app does not
+  /// re-fetch from the internet for the same song over and over).
   Future<Set<int>> getScannedSongIds() async {
     final database = await db;
     final rows = await database.query('songs', where: 'metadataScanned = 1', columns: ['id']);
     return rows.map((r) => r['id'] as int).toSet();
   }
 
-  /// Lagu diurutkan berdasarkan waktu benar-benar ditambahkan ke library,
-  /// bukan sekadar membalik urutan list saat ini.
+  /// Songs ordered by the time they were actually added to the library,
+  /// not just by reversing the current list order.
   Future<List<Song>> getAllSongsByDateAdded() async {
     final database = await db;
     final rows = await database.query('songs', orderBy: 'addedAt DESC');
@@ -209,9 +213,9 @@ class DBHelper {
 
   Future<void> updateSongMetadata(Song s) async {
     final database = await db;
-    // Baca isFavorite dari DB dulu supaya tidak ter-reset oleh objek Song yang stale.
-    // Sama seperti perlindungan di upsertSong() - user bisa saja me-favorite lagu
-    // di tab lain sementara layar Edit Metadata masih terbuka.
+    // Read isFavorite from the DB first so it is not reset by a stale Song object.
+    // Same protection as in upsertSong() - the user may have favorited the song
+    // in another tab while the Edit Metadata screen was still open.
     final existing = await database.query('songs', columns: ['isFavorite'], where: 'id = ?', whereArgs: [s.id], limit: 1);
     final map = s.toMap();
     if (existing.isNotEmpty) {
@@ -226,7 +230,7 @@ class DBHelper {
         where: 'id = ?', whereArgs: [songId]);
   }
 
-  /// Set favorit banyak lagu sekaligus dalam satu batch + single commit.
+  /// Set favorites for many songs at once in a single batch + single commit.
   Future<void> setFavoritesBulk(List<int> songIds, bool value) async {
     if (songIds.isEmpty) return;
     try {
@@ -238,7 +242,7 @@ class DBHelper {
       }
       await batch.commit(noResult: true);
     } catch (e) {
-      throw StateError('Gagal mengubah favorit ${songIds.length} lagu: $e');
+      throw StateError('${lookupAppLocalizations(LanguageProvider.instance.locale).coreUpdateFavoritesFailed} ${songIds.length} ${lookupAppLocalizations(LanguageProvider.instance.locale).coreSongs}: $e');
     }
   }
 
@@ -265,13 +269,13 @@ class DBHelper {
     return rows.map((r) => Song.fromMap(r)).toList();
   }
 
-  // ---------- Listening history (untuk dashboard) ----------
+  // ---------- Listening history (for the dashboard) ----------
   Future<void> addListeningEntry(ListeningEntry e) async {
     final database = await db;
     await database.insert('listening_entries', e.toMap());
   }
 
-  /// Total ms didengar per hari, 7 hari terakhir (untuk grafik dashboard)
+  /// Total ms listened per day for the last 7 days (for the dashboard chart)
   Future<Map<DateTime, int>> getDailyListeningLast7Days() async {
     final database = await db;
     final since = DateTime.now().subtract(const Duration(days: 6));
@@ -295,7 +299,7 @@ class DBHelper {
     return result;
   }
 
-  /// Top lagu berdasarkan jumlah listening_entries
+  /// Top songs by listening_entries count
   Future<List<MapEntry<int, int>>> getTopSongIds({int limit = 10}) async {
     final database = await db;
     final rows = await database.rawQuery('''
@@ -310,7 +314,7 @@ class DBHelper {
         .toList();
   }
 
-  /// Top artis berdasarkan total listening_entries gabung ke tabel songs
+  /// Top artists by total listening_entries joined against the songs table
   Future<List<MapEntry<String, int>>> getTopArtists({int limit = 10}) async {
     final database = await db;
     final rows = await database.rawQuery('''
@@ -326,7 +330,7 @@ class DBHelper {
         .toList();
   }
 
-  /// Distribusi genre (jumlah lagu per genre)
+  /// Genre distribution (song count per genre)
   Future<Map<String, int>> getGenreDistribution() async {
     final database = await db;
     final rows = await database.rawQuery('''
@@ -336,7 +340,7 @@ class DBHelper {
     return {for (final r in rows) r['genre'] as String: r['cnt'] as int};
   }
 
-  /// Distribusi region asal lagu
+  /// Song origin-region distribution
   Future<Map<String, int>> getRegionDistribution() async {
     final database = await db;
     final rows = await database.rawQuery('''
@@ -400,7 +404,7 @@ class DBHelper {
     return rows.map((r) => Song.fromMap(r)).toList();
   }
 
-  /// Simpan ulang urutan lagu dalam playlist (dipanggil setelah drag reorder)
+  /// Re-save the song order inside a playlist (called after a drag reorder)
   Future<void> reorderPlaylistSongs(int playlistId, List<int> songIdsInOrder) async {
     final database = await db;
     final batch = database.batch();
@@ -431,8 +435,8 @@ class DBHelper {
     return rows.map((r) => r['path'] as String).toSet();
   }
 
-  /// Lagu diurutkan berdasarkan jumlah diputar (paling sering dulu).
-  /// Satu query JOIN - tidak lagi load seluruh tabel songs ke memori.
+  /// Songs ordered by play count (most played first).
+  /// A single JOIN query - no longer loads the whole songs table into memory.
   Future<List<Song>> getMostPlayedSongs({int limit = 50}) async {
     final database = await db;
     final rows = await database.rawQuery('''
@@ -446,7 +450,7 @@ class DBHelper {
     return rows.map((r) => Song.fromMap(r)).toList();
   }
 
-  /// Lagu yang belum pernah diputar sama sekali
+  /// Songs that were never played at all
   Future<List<Song>> getNeverPlayedSongs() async {
     final database = await db;
     final rows = await database.query(
@@ -457,7 +461,7 @@ class DBHelper {
     return rows.map((r) => Song.fromMap(r)).toList();
   }
 
-  /// Total waktu mendengarkan seluruh waktu (ms)
+  /// Total all-time listening time (ms)
   Future<int> getTotalListeningMs() async {
     final database = await db;
     final result = await database.rawQuery(
@@ -465,7 +469,7 @@ class DBHelper {
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
-  /// Total mendengarkan bulan ini (ms)
+  /// Total listening time this month (ms)
   Future<int> getThisMonthListeningMs() async {
     final database = await db;
     final now = DateTime.now();

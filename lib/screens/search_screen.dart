@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import '../models/song.dart';
 import '../providers/library_provider.dart';
 import '../services/player_service.dart';
@@ -70,8 +71,9 @@ class _SearchScreenState extends State<SearchScreen> {
     }
   }
 
-  // Kelompokkan hasil berdasarkan album/artis/folder/genre untuk tampilan grouped
+  // Group results by album/artist/folder/genre for the grouped view
   Map<String, List<Song>> _groupResults(List<Song> results) {
+    final l = AppLocalizations.of(context)!;
     final map = <String, List<Song>>{};
     for (final s in results) {
       String key;
@@ -84,7 +86,7 @@ class _SearchScreenState extends State<SearchScreen> {
           break;
         case _SearchFilter.folder:
           final parts = s.filePath.split('/');
-          key = parts.length > 1 ? parts[parts.length - 2] : 'Lainnya';
+          key = parts.length > 1 ? parts[parts.length - 2] : l.searchOther;
           break;
         case _SearchFilter.genre:
           key = s.genre ?? 'Tidak diketahui';
@@ -98,12 +100,13 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildFilterChips() {
-    const filters = [
-      (_SearchFilter.lagu, 'Lagu'),
-      (_SearchFilter.album, 'Album'),
-      (_SearchFilter.artis, 'Artis'),
-      (_SearchFilter.folder, 'Folder'),
-      (_SearchFilter.genre, 'Genre'),
+    final l = AppLocalizations.of(context)!;
+    final filters = [
+      (_SearchFilter.lagu, l.searchFilterSong),
+      (_SearchFilter.album, l.searchFilterAlbum),
+      (_SearchFilter.artis, l.searchFilterArtist),
+      (_SearchFilter.folder, l.searchFilterFolder),
+      (_SearchFilter.genre, l.searchFilterGenre),
     ];
     return SizedBox(
       height: 40,
@@ -176,7 +179,9 @@ class _SearchScreenState extends State<SearchScreen> {
         } catch (e) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Gagal memutar lagu: $e')),
+              SnackBar(
+                  content: Text(AppLocalizations.of(context)!
+                      .libraryPlayFailed('$e'))),
             );
           }
         }
@@ -185,6 +190,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildResults(List<Song> results) {
+    final l = AppLocalizations.of(context)!;
     if (_query.trim().isEmpty) {
       return Center(
         child: Column(
@@ -193,7 +199,7 @@ class _SearchScreenState extends State<SearchScreen> {
             Icon(Icons.search, size: 64, color: Colors.grey[300]),
             const SizedBox(height: 16),
             Text(
-              'Cari musik kamu',
+              l.searchPromptTitle,
               style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -201,7 +207,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Ketik judul, artis, album, atau lainnya',
+              l.searchPromptSubtitle,
               style: TextStyle(fontSize: 13, color: Colors.grey[500]),
             ),
           ],
@@ -217,7 +223,7 @@ class _SearchScreenState extends State<SearchScreen> {
             Icon(Icons.search_off, size: 56, color: Colors.grey[300]),
             const SizedBox(height: 16),
             Text(
-              'Tidak ada hasil',
+              l.searchNoResults,
               style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -225,7 +231,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              '"$_query" tidak ditemukan',
+              l.searchNotFound(_query),
               style: TextStyle(fontSize: 13, color: Colors.grey[500]),
             ),
           ],
@@ -244,7 +250,7 @@ class _SearchScreenState extends State<SearchScreen> {
       );
     }
 
-    // Grouped view untuk album/artis/folder/genre
+    // Grouped view for album/artist/folder/genre
     final grouped = _groupResults(results);
     final groups = grouped.keys.toList()..sort();
 
@@ -267,7 +273,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           style: const TextStyle(
                               fontSize: 14, fontWeight: FontWeight.bold)),
                     ),
-                    Text('${groupSongs.length} lagu',
+                    Text(l.librarySongCount(groupSongs.length),
                         style:
                             TextStyle(fontSize: 12, color: Colors.grey[500])),
                   ],
@@ -286,8 +292,9 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     final lib = context.watch<LibraryProvider>();
-    // Hitung sekali per build, pakai ulang untuk count + list.
+    // Compute once per build, reuse for the count + list.
     final results = _getResults(lib.songs);
     return Scaffold(
       appBar: AppBar(
@@ -297,7 +304,7 @@ class _SearchScreenState extends State<SearchScreen> {
           autofocus: true,
           style: const TextStyle(fontSize: 16),
           decoration: InputDecoration(
-            hintText: 'Cari musik...',
+            hintText: l.searchHint,
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(horizontal: 4),
             suffixIcon: _query.isNotEmpty
@@ -328,7 +335,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   key: ValueKey(_query + _filter.name),
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    '${results.length} hasil',
+                    l.searchResultCount(results.length),
                     style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                   ),
                 ),

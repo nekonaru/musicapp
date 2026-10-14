@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/song.dart';
@@ -63,8 +64,9 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       setState(() => _songs = songs);
     } catch (e) {
       if (!mounted) return;
+      final l = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memuat playlist: $e')),
+        SnackBar(content: Text(l.playlistLoadFailed(e.toString()))),
       );
     }
   }
@@ -79,10 +81,11 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       await context.read<PlaylistProvider>().reorder(widget.playlistId, _songs.map((s) => s.id).toList());
     } catch (e) {
       if (!mounted) return;
-      // DB gagal - rollback ke urutan sebelumnya.
+      // DB failed - roll back to the previous order.
       setState(() => _songs = previousOrder);
+      final l = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal menyimpan urutan: $e')),
+        SnackBar(content: Text(l.playlistReorderFailed(e.toString()))),
       );
     }
   }
@@ -92,10 +95,11 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       await context.read<PlaylistProvider>().removeSong(widget.playlistId, song.id);
     } catch (e) {
       if (!mounted) return;
-      // Gagal - bangun ulang supaya tile yang ter-dismiss muncul lagi.
+      // Failed - rebuild so the dismissed tile reappears.
       setState(() {});
+      final l = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal menghapus lagu: $e')),
+        SnackBar(content: Text(l.playlistRemoveFailed(e.toString()))),
       );
       return;
     }
@@ -143,6 +147,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     final displayed = _displayed;
     final totalMs = _songs.fold(0, (sum, s) => sum + s.durationMs);
     final showAzBar = _query.isEmpty && _sortOption == _PlsSortOption.titleAZ;
@@ -162,16 +167,16 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
               _savePrefs();
             },
             itemBuilder: (context) => [
-              _sortMenuItem(_PlsSortOption.custom, 'Urutan kustom'),
-              _sortMenuItem(_PlsSortOption.titleAZ, 'Judul A-Z'),
-              _sortMenuItem(_PlsSortOption.titleZA, 'Judul Z-A'),
-              _sortMenuItem(_PlsSortOption.artistAZ, 'Artis A-Z'),
+              _sortMenuItem(_PlsSortOption.custom, l.playlistSortCustom),
+              _sortMenuItem(_PlsSortOption.titleAZ, l.playlistSortTitleAZ),
+              _sortMenuItem(_PlsSortOption.titleZA, l.playlistSortTitleZA),
+              _sortMenuItem(_PlsSortOption.artistAZ, l.playlistSortArtistAZ),
             ],
           ),
         ],
       ),
       body: _songs.isEmpty
-          ? const Center(child: Text('Playlist ini masih kosong'))
+          ? Center(child: Text(l.playlistEmpty))
           : Column(
               children: [
                 Padding(
@@ -179,7 +184,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      '${_songs.length} lagu · ${formatDurationLong(totalMs)}',
+                      l.playlistSummary(_songs.length, formatDurationLong(totalMs)),
                       style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                     ),
                   ),
@@ -191,7 +196,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                     controller: _searchController,
                     onChanged: (v) => setState(() => _query = v),
                     decoration: InputDecoration(
-                      hintText: 'Cari di playlist ini...',
+                      hintText: l.playlistSearchHint,
                       prefixIcon: const Icon(Icons.search),
                       isDense: true,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
@@ -215,7 +220,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                         child: FilledButton.icon(
                           onPressed: displayed.isEmpty ? null : () => PlayerService.instance.setQueueAndPlay(displayed, 0),
                           icon: const Icon(Icons.play_arrow),
-                          label: const Text('Mulai Putar'),
+                          label: Text(l.playlistPlay),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -227,33 +232,33 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                             PlayerService.instance.setShuffle(true);
                           },
                           icon: const Icon(Icons.shuffle),
-                          label: const Text('Acak'),
+                          label: Text(l.playlistShuffle),
                         ),
                       ),
                     ],
                   ),
                 ),
                 if (_sortOption == _PlsSortOption.custom && _query.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
                       children: [
-                        Icon(Icons.drag_handle, size: 16, color: Colors.grey),
-                        SizedBox(width: 6),
-                        Text('Tahan dan geser untuk mengatur urutan',
-                            style: TextStyle(fontSize: 11, color: Colors.grey)),
+                        const Icon(Icons.drag_handle, size: 16, color: Colors.grey),
+                        const SizedBox(width: 6),
+                        Text(l.playlistReorderHint,
+                            style: const TextStyle(fontSize: 11, color: Colors.grey)),
                       ],
                     ),
                   ),
                 Expanded(
                   child: displayed.isEmpty
-                      ? const Center(child: Text('Lagu tidak ditemukan'))
+                      ? Center(child: Text(l.playlistNoResults))
                       : Stack(
                           children: [
                             AnimatedBuilder(
                               animation: PlayerService.instance,
                               builder: (context, _) =>
-                                // Gunakan ReorderableListView hanya di mode custom tanpa search
+                                // Use ReorderableListView only in custom mode without search
                                 _sortOption == _PlsSortOption.custom && _query.isEmpty
                                 ? ReorderableListView.builder(
                                 scrollController: _scrollController,
@@ -340,7 +345,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     );
 
     return TweenAnimationBuilder<double>(
-      key: ValueKey('plssong_${song.id}'), // tanpa $i - cegah animasi ulang saat reorder
+      key: ValueKey('plssong_${song.id}'), // without $i - avoid re-animation on reorder
       tween: Tween(begin: 0.0, end: 1.0),
       duration: Duration(milliseconds: 180 + (i % 10) * 20),
       curve: Curves.easeOut,

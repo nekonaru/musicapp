@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/song.dart';
@@ -16,8 +17,8 @@ class EditLyricsScreen extends StatefulWidget {
 class _EditLyricsScreenState extends State<EditLyricsScreen> {
   late final TextEditingController _controller;
 
-  /// Batas panjang lirik (100KB) supaya DB tidak bloat - sama dengan
-  /// cap di MetadataService.fetchLyricsOnly.
+  /// Lyrics length cap (100KB) so the DB does not bloat - same as the
+  /// cap in MetadataService.fetchLyricsOnly.
   static const _kMaxLyricsChars = 100 * 1024;
 
   @override
@@ -37,29 +38,31 @@ class _EditLyricsScreenState extends State<EditLyricsScreen> {
     final clipboardText = data?.text ?? '';
     if (clipboardText.trim().isEmpty) {
       if (mounted) {
+        final l = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Clipboard kosong, tidak ada teks untuk ditempel')),
+          SnackBar(content: Text(l.editLyricsClipboardEmpty)),
         );
       }
       return;
     }
 
     if (_controller.text.trim().isEmpty) {
-      // Belum ada lirik sama sekali, langsung tempel
+      // No lyrics yet, paste directly
       setState(() => _controller.text = clipboardText);
       return;
     }
 
-    // Sudah ada lirik - tanya mau ditimpa atau ditambahkan
+    // Lyrics already exist - ask whether to overwrite or append
+    final l = AppLocalizations.of(context)!;
     final choice = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Tempel Lirik'),
-        content: const Text('Sudah ada lirik di sini. Mau ditimpa (mulai dari nol) atau ditambahkan ke lirik yang ada?'),
+        title: Text(l.editLyricsPasteTitle),
+        content: Text(l.editLyricsPasteMessage),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, 'cancel'), child: const Text('Batal')),
-          TextButton(onPressed: () => Navigator.pop(ctx, 'append'), child: const Text('Tambahkan')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, 'overwrite'), child: const Text('Timpa')),
+          TextButton(onPressed: () => Navigator.pop(ctx, 'cancel'), child: Text(l.cancel)),
+          TextButton(onPressed: () => Navigator.pop(ctx, 'append'), child: Text(l.editLyricsAppend)),
+          FilledButton(onPressed: () => Navigator.pop(ctx, 'overwrite'), child: Text(l.editLyricsOverwrite)),
         ],
       ),
     );
@@ -89,7 +92,7 @@ class _EditLyricsScreenState extends State<EditLyricsScreen> {
     }
     final newLyrics = text.isEmpty ? null : text;
 
-    // Simpan via salinan dulu - widget.song.lyrics baru dimutasi setelah DB sukses.
+    // Save via a copy first - widget.song.lyrics is only mutated after DB success.
     final s = widget.song;
     final updated = Song(
       id: s.id,
@@ -111,19 +114,21 @@ class _EditLyricsScreenState extends State<EditLyricsScreen> {
       await context.read<LibraryProvider>().updateMetadata(updated);
     } catch (e) {
       if (mounted) {
+        final l = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal menyimpan lirik: $e')),
+          SnackBar(content: Text(l.editLyricsSaveFailed(e.toString()))),
         );
       }
       return;
     }
     s.lyrics = newLyrics;
     if (!mounted) return;
-    // ScaffoldMessenger hidup di atas route, jadi snackbar tetap tampil
-    // di layar sebelumnya walau halaman ini langsung di-pop.
+    // ScaffoldMessenger lives above the route, so the snackbar still shows
+    // on the previous screen even though this page is popped immediately.
     if (truncated) {
+      final l = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lirik melebihi 100KB dan dipotong saat disimpan')),
+        SnackBar(content: Text(l.editLyricsTruncated)),
       );
     }
     Navigator.pop(context);
@@ -131,9 +136,10 @@ class _EditLyricsScreenState extends State<EditLyricsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: Text('Edit Lirik: ${widget.song.title}'),
+        title: Text(l.editLyricsTitle(widget.song.title)),
         actions: [
           IconButton(icon: const Icon(Icons.check), onPressed: _save),
         ],
@@ -149,17 +155,17 @@ class _EditLyricsScreenState extends State<EditLyricsScreen> {
                 OutlinedButton.icon(
                   onPressed: _paste,
                   icon: const Icon(Icons.content_paste),
-                  label: const Text('Tempelkan'),
+                  label: Text(l.editLyricsPasteButton),
                 ),
                 OutlinedButton.icon(
                   onPressed: _searchOnWeb,
                   icon: const Icon(Icons.search),
-                  label: const Text('Cari di Web'),
+                  label: Text(l.editLyricsSearchWeb),
                 ),
                 OutlinedButton.icon(
                   onPressed: _clear,
                   icon: const Icon(Icons.close),
-                  label: const Text('Hapus'),
+                  label: Text(l.delete),
                   style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
                 ),
               ],
@@ -173,9 +179,9 @@ class _EditLyricsScreenState extends State<EditLyricsScreen> {
                 maxLines: null,
                 expands: true,
                 textAlignVertical: TextAlignVertical.top,
-                decoration: const InputDecoration(
-                  hintText: 'Belum ada lirik. Tempel dari clipboard, cari di web, atau ketik manual di sini.',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  hintText: l.editLyricsHint,
+                  border: const OutlineInputBorder(),
                 ),
               ),
             ),
@@ -184,7 +190,7 @@ class _EditLyricsScreenState extends State<EditLyricsScreen> {
             padding: const EdgeInsets.all(16),
             child: FilledButton(
               onPressed: _save,
-              child: const Text('Simpan Lirik'),
+              child: Text(l.editLyricsSaveButton),
             ),
           ),
         ],

@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout kode
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Java
@@ -24,58 +24,58 @@ jobs:
           flutter-version: '3.47.0'
           channel: 'stable'
 
-      - name: Regenerate folder android dari template resmi Flutter
+      - name: Regenerate android folder from official Flutter template
         run: |
           rm -rf android
           flutter create --platforms=android --org com.nikodwidharma --project-name offline_music_player .
 
-      - name: Tambahkan permission yang dibutuhkan (audio, internet, background playback)
+      - name: Add required permissions (audio, internet, background playback)
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           sed -i 's#<manifest xmlns:android="http://schemas.android.com/apk/res/android">#<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />#' "$MANIFEST"
           sed -i 's/android:label="offline_music_player"/android:label="Swara"/' "$MANIFEST"
           cat "$MANIFEST"
 
-      - name: Deklarasi eksplisit service audio_service (wajib Android 14+/API 34+)
-        # Tanpa foregroundServiceType="mediaPlayback" dideklarasikan eksplisit di sini,
-        # service milik audio_service gagal start diam-diam di Android 14 ke atas -
-        # akibatnya notifikasi kontrol musik dan lockscreen sama-sama tidak pernah muncul,
-        # tanpa error yang kelihatan. android:exported juga wajib eksplisit sejak Android 12
-        # untuk komponen yang punya intent-filter.
+      - name: Declare audio_service service explicitly (required on Android 14+/API 34+)
+        # Without foregroundServiceType="mediaPlayback" declared explicitly here,
+        # the audio_service service silently fails to start on Android 14 and above -
+        # as a result neither the music control notification nor the lockscreen appears,
+        # with no visible error. android:exported is also mandatory since Android 12
+        # for components that have an intent-filter.
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           sed -i 's#</application>#    <service\n        android:name="com.ryanheise.audioservice.AudioService"\n        android:foregroundServiceType="mediaPlayback"\n        android:exported="true">\n        <intent-filter>\n            <action android:name="android.media.browse.MediaBrowserService" />\n        </intent-filter>\n    </service>\n    <receiver\n        android:name="com.ryanheise.audioservice.MediaButtonReceiver"\n        android:exported="true">\n        <intent-filter>\n            <action android:name="android.intent.action.MEDIA_BUTTON" />\n        </intent-filter>\n    </receiver>\n</application>#' "$MANIFEST"
           cat "$MANIFEST"
 
-      - name: Ubah MainActivity.kt jadi extends AudioServiceFragmentActivity
-        # AudioServiceActivity biasa pernah dilaporkan bikin crash "Flutter JNI error"
-        # tepat setelah notifikasi kebentuk, di beberapa perangkat (terutama yang custom
-        # ROM/skin seperti XOS, MIUI, dll). AudioServiceFragmentActivity adalah varian yang
-        # lebih stabil karena berbasis FlutterFragmentActivity, dipakai buat menghindari
-        # bug itu. Referensi: github.com/ryanheise/audio_service/pull/840
+      - name: Change MainActivity.kt to extend AudioServiceFragmentActivity
+        # Plain AudioServiceActivity was reported to cause a "Flutter JNI error" crash
+        # right after the notification is created, on some devices (especially custom
+        # ROM/skins such as XOS, MIUI, etc). AudioServiceFragmentActivity is the more
+        # stable variant based on FlutterFragmentActivity, used here to avoid
+        # that bug. Reference: github.com/ryanheise/audio_service/pull/840
         run: |
           MAINACTIVITY=$(find android/app/src/main/kotlin -name "MainActivity.kt")
-          echo "Ditemukan di: $MAINACTIVITY"
+          echo "Found at: $MAINACTIVITY"
           sed -i 's/import io.flutter.embedding.android.FlutterActivity/import com.ryanheise.audioservice.AudioServiceFragmentActivity/' "$MAINACTIVITY"
           sed -i 's/import com.ryanheise.audioservice.AudioServiceActivity/import com.ryanheise.audioservice.AudioServiceFragmentActivity/' "$MAINACTIVITY"
           sed -i 's/FlutterActivity()/AudioServiceFragmentActivity()/' "$MAINACTIVITY"
           sed -i 's/AudioServiceActivity()/AudioServiceFragmentActivity()/' "$MAINACTIVITY"
           cat "$MAINACTIVITY"
 
-      - name: Salin ikon status bar & tombol notifikasi dari repo (bukan generate ulang tiap build)
+      - name: Copy status bar icon and notification buttons from repo (do not regenerate every build)
         run: |
           mkdir -p android/app/src/main/res/drawable
           cp android_res_extra/ic_stat_swara.xml android/app/src/main/res/drawable/ic_stat_swara.xml
           cp android_res_extra/ic_notif_shuffle.xml android/app/src/main/res/drawable/ic_notif_shuffle.xml
           cp android_res_extra/ic_notif_repeat.xml android/app/src/main/res/drawable/ic_notif_repeat.xml
-          echo "=== isi folder drawable setelah disalin ==="
+          echo "=== drawable folder contents after copy ==="
           ls -la android/app/src/main/res/drawable/
 
-      - name: Cegah icon custom kebuang R8 resource shrinker
-        # Ini akar masalah sebenarnya dari crash "Invalid notification (no valid small icon)".
-        # Didokumentasikan resmi di README audio_service: icon bawaan plugin aman dari R8,
-        # tapi icon custom kita (ic_stat_swara) ikut kebuang proses shrinking kalau gak
-        # di-exclude manual lewat res/raw/keep.xml. File-nya ada di source, tapi hilang di APK final.
+      - name: Keep custom icons from R8 resource shrinker
+        # This is the actual root cause of the "Invalid notification (no valid small icon)" crash.
+        # Officially documented in the audio_service README: the plugin built-in icons survive R8,
+        # but our custom icon (ic_stat_swara) gets removed by shrinking unless
+        # excluded manually via res/raw/keep.xml. The file exists in source but is missing in the final APK.
         run: |
           mkdir -p android/app/src/main/res/raw
           cat > android/app/src/main/res/raw/keep.xml << 'EOF'
@@ -84,22 +84,22 @@ jobs:
           EOF
           cat android/app/src/main/res/raw/keep.xml
 
-      - name: Install dependency
+      - name: Install dependencies
         run: flutter pub get
 
-      - name: Patch namespace untuk plugin lama yang belum kompatibel AGP terbaru
-        # on_audio_query dan plugin Flutter lama lainnya tidak punya 'namespace' di build.gradle mereka.
-        # AGP 8+ mewajibkan namespace - tanpanya build langsung gagal.
+      - name: Patch namespace for legacy plugins incompatible with latest AGP
+        # on_audio_query and other legacy Flutter plugins have no 'namespace' in their build.gradle.
+        # AGP 8+ requires a namespace - without it the build fails immediately.
         #
-        # Cara yang benar untuk AGP 8+ (bukan afterEvaluate yang sudah deprecated):
-        # Inject blok Groovy ke masing-masing build.gradle plugin LEWAT gradle init script.
-        # Gradle init script (.gradle) dieksekusi sebelum project dievaluasi, jadi
-        # 'beforeEvaluate' dan 'afterEvaluate' masih valid di sini.
+        # The correct approach for AGP 8+ (not the deprecated afterEvaluate):
+        # Inject a Groovy block into each plugin build.gradle VIA a Gradle init script.
+        # A Gradle init script (.gradle) runs before any project is evaluated, so
+        # 'beforeEvaluate' and 'afterEvaluate' are still valid here.
         run: |
           mkdir -p "$HOME/.gradle/init.d"
           cat > "$HOME/.gradle/init.d/fix-namespace.gradle" << 'GROOVY'
-          // Init script: dijalankan oleh Gradle sebelum project manapun dievaluasi.
-          // Tujuan: inject 'namespace' ke plugin Flutter lama yang belum punya (AGP 8+ requirement).
+          // Init script: executed by Gradle before any project is evaluated.
+          // Purpose: inject 'namespace' into legacy Flutter plugins missing it (AGP 8+ requirement).
           allprojects {
               buildscript {}
               afterEvaluate {
@@ -112,9 +112,9 @@ jobs:
                               }
                           } catch (ignored) {}
                           try {
-                              // Paksa compileSdk 36 (samakan dengan app) supaya AAR metadata
-                              // check tidak gagal: plugin lama (on_audio_query) compileSdk 33
-                              // padahal androidx butuh minimal 34.
+                              // Force compileSdk 36 (match the app) so the AAR metadata
+                              // check does not fail: legacy plugin (on_audio_query) uses compileSdk 33
+                              // while androidx requires at least 34.
                               android.compileSdk = 36
                           } catch (ignored) {}
                           try {
@@ -131,16 +131,16 @@ jobs:
               }
           }
           GROOVY
-          echo "Init script dibuat:"
+          echo "Init script created:"
           cat "$HOME/.gradle/init.d/fix-namespace.gradle"
 
-      - name: Ganti tema LaunchTheme/NormalTheme jadi turunan Theme.AppCompat
-        # AudioServiceFragmentActivity mewarisi FlutterFragmentActivity, dan itu MEWAJIBKAN
-        # tema turunan Theme.AppCompat. Tema bawaan 'flutter create' masih tema Android biasa
-        # (Theme.Light/Black.NoTitleBar), tanpa ini activity crash:
+      - name: Switch LaunchTheme/NormalTheme to Theme.AppCompat descendants
+        # AudioServiceFragmentActivity extends FlutterFragmentActivity, and that REQUIRES
+        # a Theme.AppCompat descendant theme. The default 'flutter create' theme is still a plain Android theme
+        # (Theme.Light/Black.NoTitleBar); without this the activity crashes:
         # "IllegalStateException: You need to use a Theme.AppCompat theme (or descendant)
-        # with this activity" - persis kenapa musik tetap jalan (service selamat) tapi
-        # layarnya force close (activity yang crash).
+        # with this activity" - exactly why music keeps playing (service survives) while
+        # the screen force closes (the activity crashes).
         run: |
           STYLES="android/app/src/main/res/values/styles.xml"
           STYLES_NIGHT="android/app/src/main/res/values-night/styles.xml"
@@ -151,13 +151,13 @@ jobs:
           echo "=== styles.xml (night) ==="
           cat "$STYLES_NIGHT"
 
-      - name: Aktifkan core library desugaring di app/build.gradle.kts
-        # flutter_local_notifications butuh isCoreLibraryDesugaringEnabled = true di :app.
-        # Kotlin jvmTarget juga harus disesuaikan ke 17 supaya match dengan Java (bukan 11 vs 17).
+      - name: Enable core library desugaring in app/build.gradle.kts
+        # flutter_local_notifications requires isCoreLibraryDesugaringEnabled = true in :app.
+        # Kotlin jvmTarget must also be aligned to 17 to match Java (not 11 vs 17).
         run: |
           APP_GRADLE="android/app/build.gradle.kts"
 
-          # 1. Aktifkan isCoreLibraryDesugaringEnabled di compileOptions
+          # 1. Enable isCoreLibraryDesugaringEnabled in compileOptions
           if grep -q "isCoreLibraryDesugaringEnabled" "$APP_GRADLE"; then
             sed -i 's/isCoreLibraryDesugaringEnabled\s*=\s*false/isCoreLibraryDesugaringEnabled = true/' "$APP_GRADLE"
           else
@@ -169,48 +169,48 @@ jobs:
             sed -i '/minSdk/a\        multiDexEnabled = true' "$APP_GRADLE"
           fi
 
-          # 3. Append desugar dependency ke akhir file.
-          #    Gradle merge beberapa blok dependencies{} secara otomatis.
+          # 3. Append desugar dependency at the end of the file.
+          #    Gradle merges multiple dependencies{} blocks automatically.
           #
-          #    CATATAN: jangan append blok kotlinOptions/jvmTarget di sini - di
-          #    AGP 9 + Kotlin 2.x itu script-compilation ERROR. Template Flutter
-          #    3.47 sudah set JVM target sendiri via `kotlin { compilerOptions }`.
+          #    NOTE: do not append a kotlinOptions/jvmTarget block here - on
+          #    AGP 9 + Kotlin 2.x that is a script-compilation ERROR. The Flutter
+          #    3.47 template already sets the JVM target itself via `kotlin { compilerOptions }`.
           cat >> "$APP_GRADLE" << 'GRADLEOF'
 
-          // === Patch oleh CI: desugar ===
+          // === Patched by CI: desugar ===
           dependencies {
               coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-              // Wajib buat resource tema Theme.AppCompat.* di styles.xml (dipakai
-              // AudioServiceFragmentActivity, lihat step "Ganti tema LaunchTheme/NormalTheme")
+              // Required for the Theme.AppCompat.* theme resources in styles.xml (used by
+              // AudioServiceFragmentActivity, see the "Switch LaunchTheme/NormalTheme" step)
               implementation("androidx.appcompat:appcompat:1.7.0")
           }
           GRADLEOF
 
-          echo "=== app/build.gradle.kts setelah patch ==="
+          echo "=== app/build.gradle.kts after patch ==="
           cat "$APP_GRADLE"
 
       - name: Build APK
         run: flutter build apk --release
         continue-on-error: true
 
-      - name: Cari file APK di manapun lokasinya
+      - name: Locate APK file wherever it was built
         run: |
           DEST="build/app/outputs/flutter-apk"
           mkdir -p "$DEST"
           FOUND=$(find . -name "app-release.apk" -not -path "*/node_modules/*" | head -n 1)
           if [ -z "$FOUND" ]; then
-            echo "APK tidak ditemukan, menampilkan semua file .apk yang ada:"
+            echo "APK not found, listing all existing .apk files:"
             find . -name "*.apk"
             exit 1
           fi
-          echo "APK ditemukan di: $FOUND"
+          echo "APK found at: $FOUND"
           if [ "$FOUND" != "./$DEST/app-release.apk" ] && [ "$FOUND" != "$DEST/app-release.apk" ]; then
             cp "$FOUND" "$DEST/app-release.apk"
           else
-            echo "APK sudah di lokasi yang benar, lewati copy."
+            echo "APK already in the correct location, skipping copy."
           fi
 
-      - name: Upload APK sebagai artifact
+      - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
         with:
           name: music-app-apk

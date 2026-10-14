@@ -4,21 +4,21 @@ import 'package:http/http.dart' as http;
 import '../models/song.dart';
 import 'db_helper.dart';
 
-/// Menebak & melengkapi metadata lagu berdasarkan judul/nama file:
-/// - Album art via iTunes Search API (gratis, tanpa API key)
-/// - Lirik via lyrics.ovh (gratis, tanpa API key)
-/// - Genre via iTunes Search API
-/// - Region ditebak dari negara asal artis (heuristik sederhana, bisa diedit manual)
+/// Guesses and completes song metadata from the title/file name:
+/// - Album art via the iTunes Search API (free, no API key)
+/// - Lyrics via lyrics.ovh (free, no API key)
+/// - Genre via the iTunes Search API
+/// - Region guessed from the artist's home country (simple heuristic, manually editable)
 class MetadataService {
   MetadataService._();
   static final MetadataService instance = MetadataService._();
 
-  /// Membersihkan judul dari nama file, menghapus angka track, underscore, dsb,
-  /// dan mencoba memisahkan pola "Artist - Title.mp3"
+  /// Cleans the title from the file name, stripping track numbers, underscores, etc,
+  /// and tries to split an "Artist - Title.mp3" pattern
   Map<String, String> parseFromFilename(String filePath) {
     String name = filePath.substring(filePath.lastIndexOf('/') + 1);
     name = name.replaceAll(RegExp(r'\.(mp3|flac|wav|m4a|ogg)$', caseSensitive: false), '');
-    name = name.replaceAll(RegExp(r'^\d+[\.\-_\s]*'), ''); // buang nomor track di depan
+    name = name.replaceAll(RegExp(r'^\d+[\.\-_\s]*'), ''); // drop a leading track number
     name = name.replaceAll('_', ' ').trim();
 
     if (name.contains(' - ')) {
@@ -53,30 +53,30 @@ class MetadataService {
           song.region = _guessRegion(track['country']?.toString(), song.artist);
         }
       } else if (res.statusCode == 429) {
-        // Rate-limit iTunes saat bulk scan - jangan tandai gagal permanen,
-        // biarkan retry di scan berikutnya.
+        // iTunes rate-limit during a bulk scan - do not mark as permanently failed,
+        // leave it for a retry on the next scan.
         debugPrint('iTunes rate-limit (429), skip enrich ${song.title}');
       }
     } catch (_) {
-      // Gagal fetch (offline/error jaringan) - biarkan metadata apa adanya
+      // Fetch failed (offline/network error) - keep whatever metadata is there
     }
-    // Fallback ini HARUS di luar try-catch supaya tetap jalan walau request
-    // sukses tapi lagunya memang tidak ketemu di iTunes (resultCount == 0) -
-    // kasus umum buat lagu lokal/indie yang tidak terdaftar di sana.
+    // This fallback MUST stay outside the try-catch so it still runs when the
+    // request succeeds but the song is simply not found on iTunes (resultCount == 0) -
+    // the common case for local/indie songs that are not listed there.
     song.region ??= 'Tidak diketahui';
     song.genre ??= 'Tidak diketahui';
 
-    // Fetch lirik terpisah
+    // Fetch lyrics separately
     await fetchLyricsOnly(song);
 
     song.metadataScanned = true;
     await DBHelper.instance.upsertSong(song);
   }
 
-  /// Fetch lirik saja TANPA menimpa judul/artis/album - dipakai PlayerScreen
-  /// auto-fetch supaya edit manual user tidak ketimpa.
+  /// Fetch lyrics only WITHOUT overwriting title/artist/album - used by the
+  /// PlayerScreen auto-fetch so manual user edits are never clobbered.
   Future<bool> fetchLyricsOnly(Song song) async {
-    // Jangan panggil API dengan field kosong/unknown - pasti 404 + buang kuota.
+    // Never call the API with empty/unknown fields - guaranteed 404 + wasted quota.
     if (song.artist.isEmpty ||
         song.title.isEmpty ||
         song.artist == 'Unknown Artist' ||
@@ -92,7 +92,7 @@ class MetadataService {
         final data = jsonDecode(res.body);
         if (data['lyrics'] != null) {
           var lyrics = data['lyrics'].toString().trim();
-          // Cap 100KB supaya DB tidak bloat / OOM saat lagu punya lirik anomali.
+          // Cap at 100KB so the DB does not bloat / OOM on anomalous lyrics.
           if (lyrics.length > 100 * 1024) {
             lyrics = lyrics.substring(0, 100 * 1024);
           }
@@ -103,12 +103,12 @@ class MetadataService {
         }
       }
     } catch (_) {
-      // lirik tidak ditemukan, biarkan null - user bisa isi manual lewat fitur edit
+      // Lyrics not found, keep null - the user can fill them in via the edit feature
     }
     return false;
   }
 
-  /// Batasi panjang field metadata (cegah HTML raksasa masuk DB) + trim.
+  /// Limit metadata field length (keep giant HTML out of the DB) + trim.
   String _sanitizeField(dynamic raw, String fallback) {
     final s = (raw ?? fallback).toString().trim();
     if (s.isEmpty) return fallback;

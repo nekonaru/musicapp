@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import '../models/song.dart';
@@ -30,7 +31,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void initState() {
     super.initState();
-    // Timer buat update tampilan hitung mundur sleep timer tiap detik
+    // Timer to refresh the sleep timer countdown display every second
     _countdownTicker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_player.sleepTimerEndTime != null && mounted) setState(() {});
     });
@@ -45,8 +46,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void _onPreviousPressed() => _player.smartPrevious();
 
   Future<void> _pickSleepTimer() async {
-    // Timer diset langsung di dalam SleepTimerSheet._start()
-    // sehingga tidak ada return value yang perlu diproses di sini.
+    // The timer is set directly inside SleepTimerSheet._start()
+    // so there is no return value to handle here.
     await showSleepTimerSheet(context);
   }
 
@@ -57,9 +58,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
       builder: (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Padding(
-            padding: EdgeInsets.all(12),
-            child: Text('Kecepatan Putar', style: TextStyle(fontWeight: FontWeight.bold)),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(AppLocalizations.of(ctx)!.playerPlaybackSpeed,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
           for (final s in options)
             ListTile(
@@ -81,13 +83,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
         await launchUrl(url, mode: LaunchMode.externalApplication);
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tidak bisa membuka browser')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.playerCannotOpenBrowser)),
         );
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Gagal membuka pencarian')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.playerSearchOpenFailed)),
         );
       }
     }
@@ -98,8 +100,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     setState(() => _isFetchingLyrics = true);
     var found = false;
     try {
-      // fetchLyricsOnly TIDAK menimpa judul/artis/album (tidak seperti enrichSong),
-      // jadi edit manual user aman; ia hanya mengisi song.lyrics.
+      // fetchLyricsOnly does NOT overwrite title/artist/album (unlike enrichSong),
+      // so manual user edits are safe; it only fills song.lyrics.
       found = await MetadataService.instance.fetchLyricsOnly(song);
       if (found && mounted) {
         await context.read<LibraryProvider>().updateMetadata(song);
@@ -110,9 +112,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     if (!mounted) return;
     setState(() => _isFetchingLyrics = false);
+    final l10n = AppLocalizations.of(context)!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(found ? 'Lirik ditemukan!' : 'Lirik tetap tidak ditemukan, coba tambah manual'),
+        content: Text(found ? l10n.playerLyricsFound : l10n.playerLyricsNotFoundHint),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
         margin: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(context).size.height * 0.55),
@@ -120,9 +123,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  /// Label singkat buat hitungan mundur sleep timer, ditampilkan langsung di
-  /// player (bukan cuma di dalam sheet timer), null kalau timer gak aktif.
-  String? _sleepTimerLabel() {
+  /// Short label for the sleep timer countdown, shown directly in the
+  /// player (not only inside the timer sheet), null when the timer is inactive.
+  String? _sleepTimerLabel(BuildContext context) {
     final remaining = _player.sleepTimerRemaining;
     if (remaining != null) {
       final m = remaining.inMinutes;
@@ -131,7 +134,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     final songsLeft = _player.sleepSongsRemaining;
     if (songsLeft != null) {
-      return '$songsLeft lagu lagi';
+      return AppLocalizations.of(context)!.playerSongsRemaining(songsLeft);
     }
     return null;
   }
@@ -148,7 +151,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       builder: (context, _) {
         final song = _player.currentSong;
         if (song == null) {
-          return const Scaffold(body: Center(child: Text('Belum ada lagu diputar')));
+          return Scaffold(body: Center(child: Text(AppLocalizations.of(context)!.playerEmptyState)));
         }
         return _buildScaffold(song);
       },
@@ -189,9 +192,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
             body: SafeArea(
               child: Column(
                 children: [
-                  // Bagian atas dibiarkan kosong dan bersih, cuma tombol
-                  // minimize buat balik ke mini player, tanpa judul atau
-                  // ikon lain.
+                  // The top area is kept empty and clean, only a
+                  // minimize button to go back to the mini player,
+                  // without a title or other icons.
                   Padding(
                     padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
                     child: Row(
@@ -243,7 +246,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     children: [
                       Text(song.lyrics ?? '', style: const TextStyle(fontSize: 16, height: 1.6)),
                       const SizedBox(height: 16),
-                      Text('Ketuk untuk kembali ke cover', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                      Text(AppLocalizations.of(context)!.playerTapToReturnToCover, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
                     ],
                   ),
                 ),
@@ -251,7 +254,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 TextButton.icon(
                   onPressed: () => _addLyricsManually(song),
                   icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Edit Lirik'),
+                  label: Text(AppLocalizations.of(context)!.playerEditLyrics),
                 ),
               ],
             )
@@ -264,9 +267,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       const SizedBox(height: 40),
                       Icon(Icons.lyrics_outlined, size: 56, color: Colors.grey[500]),
                       const SizedBox(height: 12),
-                      const Text('Lirik tidak ditemukan', style: TextStyle(fontSize: 16)),
+                      Text(AppLocalizations.of(context)!.playerLyricsNotFound, style: const TextStyle(fontSize: 16)),
                       const SizedBox(height: 4),
-                      Text('Ketuk di sini untuk kembali ke cover', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                      Text(AppLocalizations.of(context)!.playerTapHereToReturnToCover, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
                     ],
                   ),
                 ),
@@ -279,19 +282,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     OutlinedButton.icon(
                       onPressed: () => _searchLyricsOnGoogle(song),
                       icon: const Icon(Icons.search),
-                      label: const Text('Cari di Google'),
+                      label: Text(AppLocalizations.of(context)!.playerSearchOnGoogle),
                     ),
                     OutlinedButton.icon(
                       onPressed: _isFetchingLyrics ? null : () => _autoFetchLyrics(song),
                       icon: _isFetchingLyrics
                           ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.cloud_sync_outlined),
-                      label: const Text('Cari Otomatis'),
+                      label: Text(AppLocalizations.of(context)!.playerAutoSearch),
                     ),
                     FilledButton.tonalIcon(
                       onPressed: () => _addLyricsManually(song),
                       icon: const Icon(Icons.edit_outlined),
-                      label: const Text('Tambah Manual'),
+                      label: Text(AppLocalizations.of(context)!.playerAddManually),
                     ),
                   ],
                 ),
@@ -419,7 +422,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.skip_previous),
-                tooltip: 'Sebelumnya',
+                tooltip: AppLocalizations.of(context)!.playerPrevious,
                 onPressed: _onPreviousPressed,
               ),
               StreamBuilder(
@@ -442,7 +445,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.skip_next),
-                tooltip: 'Berikutnya',
+                tooltip: AppLocalizations.of(context)!.playerNext,
                 onPressed: _player.next,
               ),
               _buildRepeatButton(),
@@ -457,20 +460,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   color: isFavorite ? Colors.red : Colors.grey,
                   size: 22,
                 ),
-                tooltip: 'Favorit',
+                tooltip: AppLocalizations.of(context)!.playerFavorite,
                 onPressed: () => lib.toggleFavorite(song, !isFavorite),
               ),
               IconButton(
                 icon: const Icon(Icons.playlist_add, size: 22, color: Colors.grey),
-                tooltip: 'Tambah ke Playlist',
+                tooltip: AppLocalizations.of(context)!.playerAddToPlaylist,
                 onPressed: () => pickPlaylist(context, song, context.read<PlaylistProvider>()),
               ),
-              // ListenableBuilder supaya label "N lagu lagi" ikut ter-update
-              // tiap sleepSongsRemaining berubah (tanpa menunggu rebuild lain).
+              // ListenableBuilder so the "N more songs" label stays updated
+              // whenever sleepSongsRemaining changes (without waiting for another rebuild).
               ListenableBuilder(
                 listenable: _player,
                 builder: (context, _) {
-                  final label = _sleepTimerLabel();
+                  final label = _sleepTimerLabel(context);
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -481,7 +484,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                               ? Theme.of(context).colorScheme.primary
                               : Colors.grey,
                         ),
-                        tooltip: 'Timer Tidur',
+                        tooltip: AppLocalizations.of(context)!.playerSleepTimer,
                         onPressed: _pickSleepTimer,
                       ),
                       if (label != null)
@@ -501,12 +504,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   Icons.speed_outlined,
                   color: _player.playbackSpeed != 1.0 ? Theme.of(context).colorScheme.primary : Colors.grey,
                 ),
-                tooltip: 'Kecepatan Putar',
+                tooltip: AppLocalizations.of(context)!.playerPlaybackSpeed,
                 onPressed: _pickPlaybackSpeed,
               ),
               IconButton(
                 icon: const Icon(Icons.queue_music_outlined, size: 22, color: Colors.grey),
-                tooltip: 'Antrean Putar',
+                tooltip: AppLocalizations.of(context)!.queueTitle,
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QueueScreen())),
               ),
             ],
@@ -516,8 +519,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  /// Tombol repeat yang kontras jelas untuk tiap mode: mati (abu-abu outline),
-  /// ulang semua (chip ungu terisi), ulang satu lagu (chip ungu + angka "1").
+  /// Repeat button with clear contrast for each mode: off (grey outline),
+  /// repeat all (filled purple chip), repeat one (purple chip with a "1").
   Widget _buildRepeatButton() {
     final mode = _player.repeatMode;
     final color = Theme.of(context).colorScheme.primary;

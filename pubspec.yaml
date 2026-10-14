@@ -1,13 +1,15 @@
 name: offline_music_player
-description: Swara - Aplikasi pemutar musik offline dengan metadata otomatis, lirik, dan dashboard analitik pendengaran.
+description: Swara - Offline music player with automatic metadata, lyrics, and listening analytics dashboard.
 publish_to: 'none'
-version: 1.7.0+7
+version: 1.8.0+8
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
 
 dependencies:
   flutter:
+    sdk: flutter
+  flutter_localizations:
     sdk: flutter
 
   # Audio playback
@@ -44,7 +46,7 @@ dependencies:
   cached_network_image: ^3.4.1
 
   # Format tanggal untuk dashboard
-  intl: ^0.19.0
+  intl: ^0.20.3
 
   # Buka link eksternal (cari lirik di Google)
   url_launcher: ^6.3.1
@@ -58,3 +60,4 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true

@@ -73,9 +73,9 @@ class MiniPlayer extends StatelessWidget {
                   },
                 ),
                 StreamBuilder(
-                  // Key berdasarkan player aktif supaya StreamBuilder re-subscribe
-                  // setelah crossfade (player instance berganti). Tanpa ini
-                  // ikon play/pause macet di state lama.
+                  // Key based on the active player so the StreamBuilder re-subscribes
+                  // after a crossfade (player instance changes). Without this
+                  // the play/pause icon gets stuck on the old state.
                   key: ValueKey(
                       'mp_state_${player.player.hashCode}_${song.id}'),
                   stream: player.player.playerStateStream,

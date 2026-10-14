@@ -9,11 +9,14 @@ import 'collections_screen.dart';
 import 'dashboard_screen.dart';
 import 'settings_screen.dart';
 import 'search_screen.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import '../providers/library_provider.dart';
 import '../widgets/mini_player.dart';
 
 // ─────────────────────────────────────────────────────────────
-// Definisi tab Perpustakaan (id, label, visible, order)
+// Library tab definitions (id, label, visible, order)
+// The label below is the stored fallback; the displayed label is
+// resolved via _tabLabel() so it follows the active locale.
 // ─────────────────────────────────────────────────────────────
 
 class _TabDef {
@@ -34,7 +37,7 @@ final _defaultTabDefs = <_TabDef>[
   _TabDef(id: 'genres', label: 'Genre'),
 ];
 
-// Buat widget berdasarkan id tab
+// Build a widget from a tab id
 Widget _tabWidget(String id) {
   switch (id) {
     case 'songs': return const LibraryScreen();
@@ -60,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _groupIndex = 0;
   DateTime? _lastBackPress;
 
-  // Tab definitions untuk Perpustakaan
+  // Tab definitions for the Library
   late List<_TabDef> _allTabDefs;
   late TabController _libTabController;
 
@@ -82,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final raw = prefs.getStringList(_kTabConfigKey);
     if (raw == null || raw.isEmpty) return;
 
-    // Format: "id:visible" per item, urutan menentukan order
+    // Format: "id:visible" per item, order defines the tab order
     final parsed = raw
         .map((s) {
           final parts = s.split(':');
@@ -96,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         .whereType<_TabDef>()
         .toList();
 
-    // Tambahkan tab baru yang belum ada di config
+    // Add new tabs missing from the saved config
     for (final d in _defaultTabDefs) {
       if (!parsed.any((p) => p.id == d.id)) parsed.add(d.copy());
     }
@@ -121,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _libTabController = TabController(
           length: enabledCount < 1 ? 1 : enabledCount, vsync: this);
     });
-    // Dispose setelah frame selesai agar animasi tidak crash
+    // Dispose after the frame so the animation does not crash
     WidgetsBinding.instance.addPostFrameCallback((_) => oldCtrl.dispose());
   }
 
@@ -133,7 +136,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memuat library: $e')),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)!
+                .homeLoadLibraryFailed('$e'))),
       );
     }
   }
@@ -144,8 +149,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  // Reload dashboard dengan guard waktu: lewati bila data baru saja dimuat
-  // (< 2 detik) agar pindah tab cepat tidak memicu reload berulang.
+  // Reload the dashboard with a time guard: skip when data was just loaded
+  // (< 2 seconds) so fast tab switches do not trigger repeated reloads.
   void _maybeReloadDashboard() {
     final now = DateTime.now();
     if (_lastDashboardReload != null &&
@@ -162,9 +167,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
       _lastBackPress = now;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Tekan sekali lagi untuk keluar'),
-            duration: Duration(seconds: 2)),
+        SnackBar(
+            content:
+                Text(AppLocalizations.of(context)!.homePressAgainToExit),
+            duration: const Duration(seconds: 2)),
       );
       return false;
     }
@@ -172,15 +178,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return false;
   }
 
-  String get _groupTitle {
+  String _groupTitle(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     switch (_groupIndex) {
-      case 0: return 'Perpustakaan';
-      case 1: return 'Koleksi';
-      default: return 'Dashboard';
+      case 0: return l.homeLibrary;
+      case 1: return l.homeCollection;
+      default: return l.homeDashboard;
     }
   }
 
-  // Tab bar Perpustakaan dengan icon pengaturan
+  // Localized display label for a configurable library tab
+  String _tabLabel(BuildContext context, _TabDef t) {
+    final l = AppLocalizations.of(context)!;
+    switch (t.id) {
+      case 'songs': return l.homeTabSongs;
+      case 'albums': return l.homeTabAlbums;
+      case 'artists': return l.homeTabArtists;
+      case 'folders': return l.homeTabFolders;
+      case 'genres': return l.homeTabGenres;
+      default: return t.label;
+    }
+  }
+
+  // Library tab bar with a settings icon
   PreferredSizeWidget _buildLibraryTabBar() {
     final enabledTabs = _allTabDefs.where((t) => t.visible).toList();
     return PreferredSize(
@@ -194,13 +214,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               tabAlignment: enabledTabs.length > 3
                   ? TabAlignment.start
                   : TabAlignment.fill,
-              tabs: enabledTabs.map((t) => Tab(text: t.label)).toList(),
+              tabs: enabledTabs.map((t) => Tab(text: _tabLabel(context, t))).toList(),
             ),
           ),
-          // Icon pengaturan tab
+          // Tab settings icon
           IconButton(
             icon: const Icon(Icons.tune, size: 20),
-            tooltip: 'Pengaturan tab',
+            tooltip: AppLocalizations.of(context)!.homeTabSettings,
             padding: const EdgeInsets.symmetric(horizontal: 8),
             onPressed: _showTabSettings,
           ),
@@ -254,10 +274,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final enabledTabs = _allTabDefs.where((t) => t.visible).toList();
 
     return PopScope(
-      // canPop: false hanya mem-veto pop untuk route Home (root) ini.
-      // Dialog/bottom-sheet/halaman push adalah route terpisah di atasnya,
-      // sehingga tombol back saat itu terbuka tetap mem-pop route tersebut
-      // sekali tekan tanpa memicu logika double-back di bawah.
+      // canPop: false only vetoes pops for this Home (root) route.
+      // Dialogs/bottom sheets/pushed pages are separate routes on top,
+      // so pressing back while one is open still pops that route
+      // with a single press without triggering the double-back logic below.
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop || !mounted) return;
@@ -265,27 +285,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(_groupTitle),
+          title: Text(_groupTitle(context)),
           actions: [
             IconButton(
               icon: const Icon(Icons.search_outlined),
-              tooltip: 'Cari',
+              tooltip: AppLocalizations.of(context)!.search,
               onPressed: _openSearch,
             ),
             IconButton(
               icon: const Icon(Icons.settings_outlined),
-              tooltip: 'Pengaturan',
+              tooltip: AppLocalizations.of(context)!.homeSettings,
               onPressed: _openSettings,
             ),
           ],
           bottom: _groupIndex == 0 ? _buildLibraryTabBar() : null,
         ),
 
-        // IndexedStack: semua halaman tetap di memori
+        // IndexedStack: every page stays in memory
         body: IndexedStack(
           index: _groupIndex,
           children: [
-            // Perpustakaan - TabBarView
+            // Library - TabBarView
             TabBarView(
               controller: _libTabController,
               children: enabledTabs
@@ -296,7 +316,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       : list),
             ),
 
-            // Koleksi - layar tunggal (kartu + playlist)
+            // Collection - single screen (cards + playlists)
             const CollectionsScreen(),
 
             // Dashboard
@@ -314,19 +334,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 setState(() => _groupIndex = i);
                 if (i == 2) _maybeReloadDashboard();
               },
-              destinations: const [
+              destinations: [
                 NavigationDestination(
-                    icon: Icon(Icons.library_music_outlined),
-                    selectedIcon: Icon(Icons.library_music),
-                    label: 'Perpustakaan'),
+                    icon: const Icon(Icons.library_music_outlined),
+                    selectedIcon: const Icon(Icons.library_music),
+                    label: AppLocalizations.of(context)!.homeLibrary),
                 NavigationDestination(
-                    icon: Icon(Icons.folder_special_outlined),
-                    selectedIcon: Icon(Icons.folder_special),
-                    label: 'Koleksi'),
+                    icon: const Icon(Icons.folder_special_outlined),
+                    selectedIcon: const Icon(Icons.folder_special),
+                    label: AppLocalizations.of(context)!.homeCollection),
                 NavigationDestination(
-                    icon: Icon(Icons.bar_chart_outlined),
-                    selectedIcon: Icon(Icons.bar_chart),
-                    label: 'Dashboard'),
+                    icon: const Icon(Icons.bar_chart_outlined),
+                    selectedIcon: const Icon(Icons.bar_chart),
+                    label: AppLocalizations.of(context)!.homeDashboard),
               ],
             ),
           ],
@@ -365,8 +385,22 @@ class _TabSettingsSheetState extends State<_TabSettingsSheet> {
     });
   }
 
+  // Localized display label for a tab id
+  String _labelOf(BuildContext context, _TabDef t) {
+    final l = AppLocalizations.of(context)!;
+    switch (t.id) {
+      case 'songs': return l.homeTabSongs;
+      case 'albums': return l.homeTabAlbums;
+      case 'artists': return l.homeTabArtists;
+      case 'folders': return l.homeTabFolders;
+      case 'genres': return l.homeTabGenres;
+      default: return t.label;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     return SafeArea(
       child: Column(
@@ -381,11 +415,11 @@ class _TabSettingsSheetState extends State<_TabSettingsSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Pengaturan tab',
-                          style: TextStyle(
+                      Text(l.homeTabSettings,
+                          style: const TextStyle(
                               fontSize: 17, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 2),
-                      Text('Seret tab untuk mengubah urutan',
+                      Text(l.homeTabReorderHint,
                           style: TextStyle(
                               fontSize: 12, color: Colors.grey[500])),
                     ],
@@ -393,7 +427,7 @@ class _TabSettingsSheetState extends State<_TabSettingsSheet> {
                 ),
                 TextButton(
                   onPressed: _reset,
-                  child: const Text('Atur Ulang'),
+                  child: Text(l.homeReset),
                 ),
               ],
             ),
@@ -424,7 +458,7 @@ class _TabSettingsSheetState extends State<_TabSettingsSheet> {
                           color: Colors.grey[500], size: 22),
                     ),
                     title: Text(
-                      _defs[i].label,
+                      _labelOf(context, _defs[i]),
                       style: TextStyle(
                         color: _defs[i].visible
                             ? cs.onSurface
@@ -434,13 +468,13 @@ class _TabSettingsSheetState extends State<_TabSettingsSheet> {
                     ),
                     trailing: GestureDetector(
                       onTap: () {
-                        // Minimal 1 tab harus aktif
+                        // At least 1 tab must stay enabled
                         final enabledCount =
                             _defs.where((t) => t.visible).length;
                         if (_defs[i].visible && enabledCount <= 1) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Minimal 1 tab harus aktif')),
+                            SnackBar(
+                                content: Text(l.homeMinOneTab)),
                           );
                           return;
                         }
@@ -485,7 +519,7 @@ class _TabSettingsSheetState extends State<_TabSettingsSheet> {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(24)),
                         padding: const EdgeInsets.symmetric(vertical: 12)),
-                    child: const Text('Batal'),
+                    child: Text(l.cancel),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -499,7 +533,7 @@ class _TabSettingsSheetState extends State<_TabSettingsSheet> {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(24)),
                         padding: const EdgeInsets.symmetric(vertical: 12)),
-                    child: const Text('Terapkan'),
+                    child: Text(l.homeApply),
                   ),
                 ),
               ],

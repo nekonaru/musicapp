@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import '../models/song.dart';
 import '../providers/library_provider.dart';
 import '../providers/playlist_provider.dart';
@@ -17,7 +18,7 @@ import '../widgets/playing_indicator.dart';
 import 'playlist_detail_screen.dart';
 
 // ─────────────────────────────────────────────────────────────
-// SHARED WIDGET: Song list tile yang konsisten di semua layar
+// SHARED WIDGET: consistent song list tile used on every screen
 // ─────────────────────────────────────────────────────────────
 
 Widget buildSongTile(
@@ -73,14 +74,16 @@ Widget buildSongTile(
       style: const TextStyle(fontSize: 12),
     ),
     onTap: () async {
-      // setQueueAndPlay bisa gagal (file hilang/format tak didukung) -
-      // tangkap supaya error putar tidak hilang tanpa jejak.
+      // setQueueAndPlay can fail (missing file/unsupported format) -
+      // catch it so playback errors do not disappear without a trace.
       try {
         await PlayerService.instance.setQueueAndPlay(queue, index);
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Gagal memutar lagu: $e')),
+            SnackBar(
+                content: Text(AppLocalizations.of(context)!
+                    .libraryPlayFailed('$e'))),
           );
         }
       }
@@ -101,7 +104,7 @@ Widget buildSongTile(
 }
 
 // ─────────────────────────────────────────────────────────────
-// SHARED WIDGET: Header info + tombol play/shuffle
+// SHARED WIDGET: info header + play/shuffle buttons
 // ─────────────────────────────────────────────────────────────
 
 Widget buildCollectionHeader({
@@ -117,7 +120,8 @@ Widget buildCollectionHeader({
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
         child: Text(
-          '$songCount lagu \u00B7 ${formatDurationLong(totalMs)}',
+          AppLocalizations.of(context)!
+              .librarySongCountDuration(songCount, formatDurationLong(totalMs)),
           style: TextStyle(fontSize: 13, color: Colors.grey[500]),
         ),
       ),
@@ -135,13 +139,16 @@ Widget buildCollectionHeader({
                         } catch (e) {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Gagal memutar lagu: $e')),
+                              SnackBar(
+                                  content: Text(
+                                      AppLocalizations.of(context)!
+                                          .libraryPlayFailed('$e'))),
                             );
                           }
                         }
                       },
                 icon: const Icon(Icons.play_arrow, size: 18),
-                label: const Text('Mulai Putar'),
+                label: Text(AppLocalizations.of(context)!.libraryStartPlaying),
                 style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 10)),
               ),
@@ -157,7 +164,7 @@ Widget buildCollectionHeader({
                         PlayerService.instance.setShuffle(true);
                       },
                 icon: const Icon(Icons.shuffle, size: 18),
-                label: const Text('Acak'),
+                label: Text(AppLocalizations.of(context)!.libraryShuffle),
                 style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 10)),
               ),
@@ -196,8 +203,8 @@ class _FoldersScreenState extends State<FoldersScreen> {
   @override
   void initState() {
     super.initState();
-    // Prefs gagal (corrupt/tidak tersedia) tidak boleh bikin layar kosong -
-    // tetap lanjut tampilkan folder dari DB.
+    // A prefs failure (corrupt/unavailable) must not blank the screen -
+    // keep going and show folders from the DB.
     _loadPrefs().catchError((Object _) {}).then((_) => _load());
   }
 
@@ -216,9 +223,9 @@ class _FoldersScreenState extends State<FoldersScreen> {
 
   Future<void> _load() async {
     try {
-      // SATU getAllSongs() lalu grouping di memori pakai folderOf.
-      // Sebelumnya N+1: listMusicFolders + getSongsInFolder per folder,
-      // yang tiap panggilannya full-table-scan getAllSongs().
+      // ONE getAllSongs() call, then group in memory with folderOf.
+      // Previously N+1: listMusicFolders + getSongsInFolder per folder,
+      // where each call did a full-table-scan getAllSongs().
       final all = await DBHelper.instance.getAllSongs();
       final excluded = await DBHelper.instance.getExcludedFolders();
       final songsByFolder = <String, List<Song>>{};
@@ -240,7 +247,9 @@ class _FoldersScreenState extends State<FoldersScreen> {
         _songsByFolder = {};
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memuat folder: $e')),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)!
+                .foldersLoadFailed('$e'))),
       );
     }
   }
@@ -255,8 +264,8 @@ class _FoldersScreenState extends State<FoldersScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text(isHidden
-                  ? 'Folder ditampilkan lagi'
-                  : 'Folder disembunyikan dari library')),
+                  ? AppLocalizations.of(context)!.foldersShownAgain
+                  : AppLocalizations.of(context)!.foldersHidden)),
         );
       }
     }
@@ -290,7 +299,8 @@ class _FoldersScreenState extends State<FoldersScreen> {
     );
 
     if (_folders.isEmpty) {
-      return const Center(child: Text('Belum ada folder musik terdeteksi.'));
+      return Center(
+          child: Text(AppLocalizations.of(context)!.foldersEmpty));
     }
 
     return Column(
@@ -301,7 +311,8 @@ class _FoldersScreenState extends State<FoldersScreen> {
             children: [
               Expanded(
                 child: Text(
-                  '${visibleFolders.length} folder',
+                  AppLocalizations.of(context)!
+                      .foldersCount(visibleFolders.length),
                   style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                 ),
               ),
@@ -320,9 +331,15 @@ class _FoldersScreenState extends State<FoldersScreen> {
                   _savePrefs();
                 },
                 itemBuilder: (context) => [
-                  _sortItem(FolderSortOption.nameAZ, 'Nama \u2191'),
-                  _sortItem(FolderSortOption.nameZA, 'Nama \u2193'),
-                  _sortItem(FolderSortOption.songCountDesc, 'Jumlah lagu'),
+                  _sortItem(
+                      FolderSortOption.nameAZ,
+                      AppLocalizations.of(context)!.foldersSortNameAsc),
+                  _sortItem(
+                      FolderSortOption.nameZA,
+                      AppLocalizations.of(context)!.foldersSortNameDesc),
+                  _sortItem(
+                      FolderSortOption.songCountDesc,
+                      AppLocalizations.of(context)!.foldersSortCount),
                 ],
               ),
               IconButton(
@@ -330,8 +347,8 @@ class _FoldersScreenState extends State<FoldersScreen> {
                     _showHidden ? Icons.visibility_off : Icons.visibility_outlined,
                     size: 18),
                 tooltip: _showHidden
-                    ? 'Sembunyikan folder tersembunyi'
-                    : 'Tampilkan folder tersembunyi',
+                    ? AppLocalizations.of(context)!.foldersHideHidden
+                    : AppLocalizations.of(context)!.foldersShowHidden,
                 onPressed: () => setState(() => _showHidden = !_showHidden),
               ),
             ],
@@ -360,7 +377,10 @@ class _FoldersScreenState extends State<FoldersScreen> {
                       color: isHidden ? Colors.grey : Theme.of(context).colorScheme.primary),
                   title: Text(folder.split('/').last,
                       style: isHidden ? const TextStyle(color: Colors.grey) : null),
-                  subtitle: Text('${songsInFolder.length} lagu \u00B7 ${formatDurationLong(totalMs)}',
+                  subtitle: Text(
+                      AppLocalizations.of(context)!
+                          .librarySongCountDuration(songsInFolder.length,
+                              formatDurationLong(totalMs)),
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                   trailing: IconButton(
                     icon: Icon(
@@ -397,10 +417,11 @@ class _FoldersScreenState extends State<FoldersScreen> {
   }
 
   String _folderSortLabel(FolderSortOption opt) {
+    final l = AppLocalizations.of(context)!;
     switch (opt) {
-      case FolderSortOption.nameAZ: return 'Nama \u2191';
-      case FolderSortOption.nameZA: return 'Nama \u2193';
-      case FolderSortOption.songCountDesc: return 'Jumlah';
+      case FolderSortOption.nameAZ: return l.foldersSortNameAsc;
+      case FolderSortOption.nameZA: return l.foldersSortNameDesc;
+      case FolderSortOption.songCountDesc: return l.foldersSortCountShort;
     }
   }
 
@@ -512,7 +533,9 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
     if (targets.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Semua lagu di folder ini sudah pernah discan')),
+          SnackBar(
+              content: Text(
+                  AppLocalizations.of(context)!.foldersAllScanned)),
         );
       }
       return;
@@ -533,17 +556,20 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
         _localSongs = lib.songs.where((s) => updatedIds.contains(s.id)).toList();
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selesai scan metadata folder ini')),
+        SnackBar(
+            content:
+                Text(AppLocalizations.of(context)!.foldersScanDone)),
       );
     }
   }
 
   String _sortLabel(_SongSortOption opt) {
+    final l = AppLocalizations.of(context)!;
     switch (opt) {
-      case _SongSortOption.titleAZ: return 'Judul \u2191';
-      case _SongSortOption.titleZA: return 'Judul \u2193';
-      case _SongSortOption.artistAZ: return 'Artis \u2191';
-      case _SongSortOption.dateAddedNewest: return 'Tanggal \u2191';
+      case _SongSortOption.titleAZ: return l.foldersSortTitleAsc;
+      case _SongSortOption.titleZA: return l.foldersSortTitleDesc;
+      case _SongSortOption.artistAZ: return l.foldersSortArtistAsc;
+      case _SongSortOption.dateAddedNewest: return l.foldersSortDate;
     }
   }
 
@@ -573,10 +599,18 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
             ),
             onSelected: (v) { setState(() => _sortOption = v); _savePrefs(); },
             itemBuilder: (context) => [
-              _sortMenuItem(_SongSortOption.titleAZ, 'Judul \u2191'),
-              _sortMenuItem(_SongSortOption.titleZA, 'Judul \u2193'),
-              _sortMenuItem(_SongSortOption.artistAZ, 'Artis \u2191'),
-              _sortMenuItem(_SongSortOption.dateAddedNewest, 'Tanggal \u2191'),
+              _sortMenuItem(
+                  _SongSortOption.titleAZ,
+                  AppLocalizations.of(context)!.foldersSortTitleAsc),
+              _sortMenuItem(
+                  _SongSortOption.titleZA,
+                  AppLocalizations.of(context)!.foldersSortTitleDesc),
+              _sortMenuItem(
+                  _SongSortOption.artistAZ,
+                  AppLocalizations.of(context)!.foldersSortArtistAsc),
+              _sortMenuItem(
+                  _SongSortOption.dateAddedNewest,
+                  AppLocalizations.of(context)!.foldersSortDate),
             ],
           ),
           _isScanning
@@ -598,7 +632,9 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
                 value: _localSongs.isEmpty ? 0 : _scanProgress / _localSongs.length),
           Expanded(
             child: displayed.isEmpty
-                ? const Center(child: Text('Tidak ada lagu'))
+                ? Center(
+                    child: Text(
+                        AppLocalizations.of(context)!.foldersNoSongs))
                 : Stack(
                     children: [
                       AnimatedBuilder(
@@ -651,12 +687,12 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.cloud_sync_outlined),
-              title: const Text('Scan yang Belum Ada Metadata'),
+              title: Text(AppLocalizations.of(context)!.libraryScanMissing),
               onTap: () { Navigator.pop(ctx); _scanThisFolder(onlyMissing: true); },
             ),
             ListTile(
               leading: const Icon(Icons.refresh),
-              title: const Text('Scan Ulang Semua'),
+              title: Text(AppLocalizations.of(context)!.libraryRescanAll),
               onTap: () { Navigator.pop(ctx); _scanThisFolder(onlyMissing: false); },
             ),
           ],
@@ -694,7 +730,8 @@ class ArtistsScreen extends StatelessWidget {
     return Consumer<LibraryProvider>(
       builder: (context, lib, _) {
         if (lib.songs.isEmpty) {
-          return const Center(child: Text('Belum ada data artis.'));
+          return Center(
+              child: Text(AppLocalizations.of(context)!.artistsEmpty));
         }
         final grouped = lib.groupedByArtist;
         final artists = grouped.keys.toList()..sort();
@@ -704,7 +741,8 @@ class ArtistsScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('${artists.length} artis',
+                child: Text(AppLocalizations.of(context)!
+                    .artistsCount(artists.length),
                     style: TextStyle(fontSize: 12, color: Colors.grey[500])),
               ),
             ),
@@ -736,7 +774,9 @@ class ArtistsScreen extends StatelessWidget {
                       ),
                       title: Text(artist,
                           maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text('${songs.length} lagu',
+                      subtitle: Text(
+                          AppLocalizations.of(context)!
+                              .librarySongCount(songs.length),
                           style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                       onTap: () => Navigator.push(
                         context,
@@ -815,7 +855,8 @@ class GenresScreen extends StatelessWidget {
     return Consumer<LibraryProvider>(
       builder: (context, lib, _) {
         if (lib.songs.isEmpty) {
-          return const Center(child: Text('Belum ada data genre.'));
+          return Center(
+              child: Text(AppLocalizations.of(context)!.genresEmpty));
         }
         final grouped = lib.groupedByGenre;
         final genres = grouped.keys.toList()..sort();
@@ -825,7 +866,8 @@ class GenresScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('${genres.length} genre',
+                child: Text(AppLocalizations.of(context)!
+                    .genresCount(genres.length),
                     style: TextStyle(fontSize: 12, color: Colors.grey[500])),
               ),
             ),
@@ -859,7 +901,9 @@ class GenresScreen extends StatelessWidget {
                       ),
                       title: Text(genre,
                           maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text('${songs.length} lagu',
+                      subtitle: Text(
+                          AppLocalizations.of(context)!
+                              .librarySongCount(songs.length),
                           style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                       onTap: () => Navigator.push(
                         context,
@@ -1007,11 +1051,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   String _sortLabel(_FavSortOption opt) {
+    final l = AppLocalizations.of(context)!;
     switch (opt) {
-      case _FavSortOption.titleAZ: return 'Judul \u2191';
-      case _FavSortOption.titleZA: return 'Judul \u2193';
-      case _FavSortOption.artistAZ: return 'Artis \u2191';
-      case _FavSortOption.dateAddedNewest: return 'Tanggal \u2191';
+      case _FavSortOption.titleAZ: return l.foldersSortTitleAsc;
+      case _FavSortOption.titleZA: return l.foldersSortTitleDesc;
+      case _FavSortOption.artistAZ: return l.foldersSortArtistAsc;
+      case _FavSortOption.dateAddedNewest: return l.foldersSortDate;
     }
   }
 
@@ -1027,10 +1072,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               children: [
                 Icon(Icons.favorite_border, size: 64, color: Colors.grey[300]),
                 const SizedBox(height: 16),
-                const Text('Belum ada favorit',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                Text(AppLocalizations.of(context)!.collectionsFavoritesEmpty,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
-                Text('Tekan ikon hati pada lagu untuk menambahkan',
+                Text(AppLocalizations.of(context)!.collectionsFavoritesHint,
                     style: TextStyle(color: Colors.grey[500])),
               ],
             ),
@@ -1074,7 +1119,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     ),
                   ),
                   const Spacer(),
-                  Text('${allFavs.length} lagu \u00B7 ${formatDurationLong(totalMs)}',
+                  Text(AppLocalizations.of(context)!
+                      .librarySongCountDuration(
+                          allFavs.length, formatDurationLong(totalMs)),
                       style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                 ],
               ),
@@ -1093,13 +1140,17 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                               } catch (e) {
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Gagal memutar lagu: $e')),
+                                    SnackBar(
+                                        content: Text(
+                                            AppLocalizations.of(context)!
+                                                .libraryPlayFailed('$e'))),
                                   );
                                 }
                               }
                             },
                       icon: const Icon(Icons.play_arrow, size: 18),
-                      label: const Text('Mulai Putar'),
+                      label: Text(AppLocalizations.of(context)!
+                          .libraryStartPlaying),
                       style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 10)),
                     ),
                   ),
@@ -1112,7 +1163,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                         PlayerService.instance.setShuffle(true);
                       },
                       icon: const Icon(Icons.shuffle, size: 18),
-                      label: const Text('Acak'),
+                      label: Text(AppLocalizations.of(context)!
+                          .libraryShuffle),
                       style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 10)),
                     ),
                   ),
@@ -1187,10 +1239,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
-              child: Text('Urutkan berdasarkan',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Text(
+                  AppLocalizations.of(context)!.librarySortBy,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 15)),
             ),
             ..._FavSortOption.values.map((opt) => ListTile(
                   dense: true,
@@ -1230,21 +1284,23 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
   }
 
   Future<void> _createPlaylist() async {
+    final l = AppLocalizations.of(context)!;
     final controller = TextEditingController();
     final name = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Playlist Baru'),
+        title: Text(l.collectionsNewPlaylist),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(hintText: 'Nama playlist'),
+          decoration: InputDecoration(hintText: l.collectionsPlaylistNameHint),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, controller.text),
-              child: const Text('Buat')),
+              child: Text(l.create)),
         ],
       ),
     );
@@ -1255,18 +1311,19 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
 
   Future<void> _confirmDelete(
       BuildContext context, PlaylistProvider provider, int id, String name) async {
+    final l = AppLocalizations.of(context)!;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Hapus Playlist'),
-        content: Text('Hapus playlist "$name"?'),
+        title: Text(l.collectionsDeletePlaylist),
+        content: Text(l.collectionsDeletePlaylistConfirm(name)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Batal')),
+              child: Text(l.cancel)),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Hapus')),
+              child: Text(l.delete)),
         ],
       ),
     );
@@ -1275,6 +1332,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     return Consumer<PlaylistProvider>(
       builder: (context, provider, _) {
         if (provider.playlists.isEmpty) {
@@ -1284,13 +1342,13 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
               children: [
                 Icon(Icons.queue_music_outlined, size: 64, color: Colors.grey[300]),
                 const SizedBox(height: 16),
-                const Text('Belum ada playlist',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                Text(l.collectionsNoPlaylists,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 20),
                 FilledButton.icon(
                   onPressed: _createPlaylist,
                   icon: const Icon(Icons.add),
-                  label: const Text('Buat Playlist'),
+                  label: Text(l.collectionsCreatePlaylist),
                 ),
               ],
             ),
@@ -1303,7 +1361,8 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text('${provider.playlists.length} playlist',
+                    child: Text(l.collectionsPlaylistCountAlt(
+                        provider.playlists.length),
                         style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                   ),
                   IconButton.filled(
@@ -1407,7 +1466,9 @@ class _RecentlyAddedScreenState extends State<RecentlyAddedScreen> {
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_songs.isEmpty) {
-      return const Center(child: Text('Belum ada lagu yang ditambahkan.'));
+      return Center(
+          child: Text(
+              AppLocalizations.of(context)!.collectionsRecentlyAddedEmpty));
     }
     final totalMs = _songs.fold(0, (sum, s) => sum + s.durationMs);
     return RefreshIndicator(
@@ -1416,7 +1477,7 @@ class _RecentlyAddedScreenState extends State<RecentlyAddedScreen> {
         animation: PlayerService.instance,
         builder: (context, _) => CustomScrollView(
           slivers: [
-            // Header play buttons - collapse saat scroll
+            // Header play buttons - collapses on scroll
             SliverToBoxAdapter(
               child: buildCollectionHeader(
                   context: context,
@@ -1486,10 +1547,10 @@ class _MostPlayedScreenState extends State<MostPlayedScreen> {
           children: [
             Icon(Icons.trending_up_outlined, size: 64, color: Colors.grey[300]),
             const SizedBox(height: 16),
-            const Text('Belum ada data pemutaran',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            Text(AppLocalizations.of(context)!.collectionsMostPlayedEmpty,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
-            Text('Mulai putar lagu untuk melihat statistik',
+            Text(AppLocalizations.of(context)!.collectionsMostPlayedHint,
                 style: TextStyle(color: Colors.grey[500])),
           ],
         ),

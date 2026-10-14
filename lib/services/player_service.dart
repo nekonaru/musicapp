@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:offline_music_player/providers/language_provider.dart';
 import '../models/song.dart';
 import 'db_helper.dart';
 
@@ -12,14 +14,15 @@ class PlayerService extends ChangeNotifier {
   static final PlayerService instance = PlayerService._();
 
   final AudioPlayer _player = AudioPlayer();
-  // Player kedua khusus untuk crossfade (dinyalakan bergantian dengan _player)
+  // Second player dedicated to crossfade (alternates with _player)
   final AudioPlayer _crossfadePlayer = AudioPlayer();
   bool _usingCrossfadePlayer = false;
 
-  // _queue: daftar lagu asli (urutan asal, tidak berubah oleh shuffle)
+  // _queue: the original song list (source order, never changed by shuffle)
   List<Song> _queue = [];
-  // _playOrder: urutan pemutaran sebenarnya (berisi index ke _queue).
-  // Kalau shuffle mati: [0,1,2,...]. Kalau shuffle aktif: acak sekali, tidak berubah tiap next/previous.
+  // _playOrder: the actual playback order (holds indices into _queue).
+  // When shuffle is off: [0,1,2,...]. When shuffle is on: shuffled once,
+  // kept stable across next/previous.
   List<int> _playOrder = [];
   int _posInOrder = 0;
 
@@ -45,9 +48,9 @@ class PlayerService extends ChangeNotifier {
   bool _crossfadeCancelled = false;
   bool _disposed = false;
 
-  /// Player yang SEDANG terdengar sekarang (berganti tiap kali crossfade selesai)
+  /// The player that is CURRENTLY audible (switches each time a crossfade finishes)
   AudioPlayer get _activePlayer => _usingCrossfadePlayer ? _crossfadePlayer : _player;
-  /// Player "cadangan" yang dipakai buat fade-in lagu berikutnya
+  /// The "standby" player used to fade in the next song
   AudioPlayer get _fadeTargetPlayer => _usingCrossfadePlayer ? _player : _crossfadePlayer;
 
   AudioPlayer get player => _activePlayer;
@@ -60,7 +63,7 @@ class PlayerService extends ChangeNotifier {
   bool get isShuffle => _shuffle;
   SwaraRepeatMode get repeatMode => _repeatMode;
 
-  /// Antrean sesuai urutan pemutaran sebenarnya (dipakai halaman Antrean)
+  /// Queue in the actual playback order (used by the Queue page)
   List<Song> get queue => _playOrder.map((i) => _queue[i]).toList();
   int get currentIndex => _posInOrder;
 
@@ -84,8 +87,9 @@ class PlayerService extends ChangeNotifier {
   }
 
   void _maybeStartCrossfade(Duration position) {
-    // Guard cuma cek "sudah dipicu untuk lagu ini", TIDAK lagi cek _usingCrossfadePlayer -
-    // supaya crossfade tetap bisa terpicu berulang kali untuk setiap lagu, bukan cuma sekali.
+    // The guard only checks "already triggered for this song", and no longer
+    // checks _usingCrossfadePlayer - so crossfade can trigger again for every
+    // song instead of only once.
     if (!crossfadeEnabled || _crossfadeTriggeredForCurrent) return;
     final dur = _activePlayer.duration;
     if (dur == null) return;
@@ -102,8 +106,8 @@ class PlayerService extends ChangeNotifier {
     if (nextPos == null) return;
     final nextSong = _queue[_playOrder[nextPos]];
 
-    // Pakai getter dinamis - bukan hardcode _player/_crossfadePlayer - supaya
-    // benar untuk crossfade KE BERAPA PUN kalinya, bukan cuma yang pertama.
+    // Use the dynamic getters - never hardcode _player/_crossfadePlayer - so this
+    // stays correct for ANY crossfade count, not just the first one.
     final outgoing = _activePlayer;
     final incoming = _fadeTargetPlayer;
     _crossfadeCancelled = false;
@@ -117,13 +121,13 @@ class PlayerService extends ChangeNotifier {
       final stepDuration = crossfadeDuration ~/ steps;
       for (int i = 1; i <= steps; i++) {
         await Future.delayed(stepDuration);
-        if (_crossfadeCancelled || _disposed) break; // user pencet next/previous di tengah crossfade
+        if (_crossfadeCancelled || _disposed) break; // user pressed next/previous mid-crossfade
         final v = i / steps;
         await incoming.setVolume(v);
         await outgoing.setVolume(1 - v);
       }
       if (_crossfadeCancelled || _disposed) {
-        // Dibatalkan di tengah jalan - bersihkan player cadangan, jangan lanjut swap
+        // Cancelled halfway - clean up the standby player, do not swap
         await incoming.pause();
         await incoming.setVolume(1);
         await outgoing.setVolume(1);
@@ -134,9 +138,10 @@ class PlayerService extends ChangeNotifier {
       await outgoing.pause();
       await outgoing.setVolume(1);
 
-      // PENTING: catat riwayat dengar lagu LAMA dulu (pakai currentSong yang masih
-      // menunjuk ke lagu lama, sebelum _posInOrder berpindah), baru reset jam mulai
-      // untuk lagu BARU - supaya listening_entries tidak salah atribusi/durasi dobel.
+      // IMPORTANT: record the listening history of the OLD song first (using
+      // currentSong while it still points at the old song, before _posInOrder
+      // moves), then reset the start clock for the NEW song - so
+      // listening_entries never get the wrong attribution or doubled duration.
       _logListening();
       if (_disposed) return;
       _usingCrossfadePlayer = !_usingCrossfadePlayer;
@@ -158,17 +163,18 @@ class PlayerService extends ChangeNotifier {
   }
 
   int? _computeNextPosition() {
-    // SwaraRepeatMode.one harus dicek DULUAN sebelum kondisi lainnya,
-    // supaya crossfade juga mengulang lagu yang sama bukan maju ke berikutnya.
+    // SwaraRepeatMode.one must be checked FIRST, before every other condition,
+    // so crossfade also repeats the same song instead of moving to the next one.
     if (_repeatMode == SwaraRepeatMode.one) return _posInOrder;
     if (_posInOrder < _playOrder.length - 1) return _posInOrder + 1;
     if (_repeatMode == SwaraRepeatMode.all) return 0;
     return null;
   }
 
-  /// Mulai memutar daftar lagu baru. Ini SELALU mengganti seluruh antrean
-  /// jadi cuma isi `songs` (dipakai dari halaman Semua Lagu / Folder / Playlist / Favorit
-  /// masing-masing, jadi antrean otomatis terbatas sesuai sumbernya).
+  /// Start playing a new song list. This ALWAYS replaces the whole queue
+  /// with just `songs` (called from the All Songs / Folder / Playlist /
+  /// Favorites pages respectively, so the queue is automatically scoped to
+  /// its source).
   Future<void> setQueueAndPlay(List<Song> songs, int startIndex) async {
     _logListening();
     _crossfadeCancelled = true;
@@ -185,7 +191,7 @@ class PlayerService extends ChangeNotifier {
       _posInOrder = startIndex;
     }
 
-    notifyListeners(); // supaya mini-player langsung muncul, tanpa nunggu file selesai load
+    notifyListeners(); // so the mini-player shows immediately, without waiting for the file to finish loading
     await _playCurrent();
     notifyListeners();
   }
@@ -205,7 +211,7 @@ class PlayerService extends ChangeNotifier {
       await _player.setVolume(1);
     } catch (e) {
       debugPrint('Gagal memutar lagu: $e');
-      lastError = 'Gagal memutar "${song.title}": $e';
+      lastError = '${lookupAppLocalizations(LanguageProvider.instance.locale).corePlayFailed} "${song.title}": $e';
       notifyListeners();
       return;
     }
@@ -214,8 +220,8 @@ class PlayerService extends ChangeNotifier {
     _accumulatedListenedMs = 0;
     await DBHelper.instance.markPlayed(song.id);
     lastError = null;
-    // Pasang ulang listener posisi ke player yang sekarang aktif, supaya
-    // crossfade tetap terpicu untuk lagu-lagu berikutnya juga (bukan cuma sekali).
+    // Re-attach the position listener to the now-active player, so
+    // crossfade keeps triggering for the following songs too (not just once).
     await _positionSub?.cancel();
     if (_disposed) return;
     _positionSub = player.positionStream.listen(_maybeStartCrossfade);
@@ -233,8 +239,8 @@ class PlayerService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Lagu berikutnya SESUAI urutan antrean (_playOrder). Kalau shuffle aktif,
-  /// urutan acaknya sudah ditentukan sekali di awal - next tidak mengacak ulang.
+  /// Next song FOLLOWING the queue order (_playOrder). When shuffle is on,
+  /// the shuffled order is fixed once up front - next never reshuffles.
   Future<void> next() async {
     _logListening();
     _crossfadeCancelled = true;
@@ -246,13 +252,13 @@ class PlayerService extends ChangeNotifier {
     } else if (_repeatMode == SwaraRepeatMode.all) {
       _posInOrder = 0;
     } else {
-      return; // sudah di lagu terakhir, tidak ada repeat
+      return; // already on the last song with no repeat, nothing to do
     }
     await _playCurrent();
   }
 
-  /// Lagu sebelumnya SESUAI urutan antrean - benar-benar mundur satu posisi
-  /// di _playOrder, bukan lagu acak baru.
+  /// Previous song FOLLOWING the queue order - truly steps one position
+  /// back in _playOrder instead of picking a new random song.
   Future<void> previous() async {
     _logListening();
     _crossfadeCancelled = true;
@@ -272,9 +278,9 @@ class PlayerService extends ChangeNotifier {
   DateTime? _lastPreviousPressAt;
   static const _previousDoubleTapWindow = Duration(seconds: 3);
 
-  /// Logika "previous" pintar yang sama dipakai di layar player dan tombol
-  /// notifikasi: tekan sekali ulang lagu dari awal, tekan lagi dalam 3 detik
-  /// baru beneran pindah ke lagu sebelumnya.
+  /// Smart "previous" logic shared by the player screen and the
+  /// notification button: one press restarts the song, a second press
+  /// within 3 seconds actually moves to the previous song.
   Future<void> smartPrevious() async {
     final now = DateTime.now();
     if (_lastPreviousPressAt != null && now.difference(_lastPreviousPressAt!) < _previousDoubleTapWindow) {
@@ -318,29 +324,29 @@ class PlayerService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// ID slot antrean (index asli di _queue) untuk tiap posisi di _playOrder -
-  /// dipakai UI supaya bisa hapus lagu yang BENAR meski list sempat berubah
-  /// di tengah proses swipe (index posisi biasa bisa jadi basi, ID slot ini tidak).
+  /// Queue-slot IDs (original indices in _queue) for each _playOrder position -
+  /// used by the UI so it can delete the CORRECT song even when the list
+  /// changed mid-swipe (a plain positional index may be stale, this slot ID is not).
   List<int> get queueSlotIds => List.unmodifiable(_playOrder);
 
-  /// Hapus dari antrean (posisi di _playOrder, bukan currently playing)
+  /// Remove from the queue (position in _playOrder, not the currently playing item)
   void removeFromQueue(int posInOrder) {
     if (posInOrder == _posInOrder || posInOrder < 0 || posInOrder >= _playOrder.length) return;
     _playOrder.removeAt(posInOrder);
     if (posInOrder < _posInOrder) _posInOrder--;
-    // Compact _queue: buang entri yang sudah tidak direferensikan oleh _playOrder manapun
-    // supaya _queue tidak terus membesar sepanjang sesi tanpa restart app.
+    // Compact _queue: drop entries no longer referenced by any _playOrder slot
+    // so _queue does not keep growing for the whole session without an app restart.
     _compactQueue();
     notifyListeners();
   }
 
-  /// Buang entri _queue yang sudah tidak ada di _playOrder.
-  /// Setelah compact, remap semua index di _playOrder ke posisi baru.
+  /// Drop _queue entries that are no longer in _playOrder.
+  /// After compacting, remap every index in _playOrder to its new position.
   void _compactQueue() {
     final used = _playOrder.toSet();
-    if (used.length == _queue.length) return; // tidak ada yang perlu dibuang
+    if (used.length == _queue.length) return; // nothing to drop
 
-    // Buat mapping index lama → index baru
+    // Build the old-index to new-index mapping
     final Map<int, int> remap = {};
     int newIdx = 0;
     final newQueue = <Song>[];
@@ -354,15 +360,16 @@ class PlayerService extends ChangeNotifier {
     _playOrder = _playOrder.map((old) => remap[old]!).toList();
   }
 
-  /// Hapus dari antrean berdasarkan slot ID (stabil), bukan posisi index biasa -
-  /// aman dipanggil dari swipe-to-dismiss walau list sempat berubah di tengah jalan.
+  /// Remove from the queue by (stable) slot ID instead of a plain positional
+  /// index - safe to call from swipe-to-dismiss even when the list changed
+  /// midway.
   void removeQueueSlot(int slotId) {
     final pos = _playOrder.indexOf(slotId);
-    if (pos == -1) return; // sudah dihapus/berubah duluan, aman diabaikan
+    if (pos == -1) return; // already removed/changed first, safe to ignore
     removeFromQueue(pos);
   }
 
-  /// Drag reorder di halaman Antrean - yang diubah urutannya adalah _playOrder
+  /// Drag reorder on the Queue page - only the _playOrder sequence changes
   void reorderQueue(int oldIndex, int newIndex) {
     if (oldIndex < 0 || oldIndex >= _playOrder.length) return;
     if (newIndex < 0 || newIndex >= _playOrder.length) return;
@@ -385,7 +392,7 @@ class PlayerService extends ChangeNotifier {
   Future<void> setPlaybackSpeed(double speed) async {
     try {
       await _activePlayer.setSpeed(speed);
-      // Samakan juga player cadangan supaya tidak lompat speed saat crossfade.
+      // Mirror the speed on the standby player so it does not jump on crossfade.
       await _fadeTargetPlayer.setSpeed(speed);
     } catch (e) {
       debugPrint('Gagal set kecepatan: $e');
@@ -393,15 +400,15 @@ class PlayerService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Toggle shuffle TANPA mengubah lagu yang sedang diputar - cuma
-  /// menyusun ulang urutan lagu-lagu SETELAHNYA (kalau ON) atau
-  /// mengembalikan ke urutan asli (kalau OFF).
+  /// Toggle shuffle WITHOUT changing the currently playing song - only
+  /// reorders the songs AFTER it (when ON) or restores the original
+  /// order (when OFF).
   void toggleShuffle() {
     setShuffle(!_shuffle);
   }
 
-  /// Set status shuffle secara eksplisit (bukan toggle) - dipakai tombol
-  /// "Acak" supaya selalu MENGAKTIFKAN shuffle, tidak pernah mematikannya.
+  /// Set the shuffle state explicitly (not a toggle) - used by the
+  /// "Shuffle" button so it always TURNS shuffle on instead of turning it off.
   void setShuffle(bool value) {
     _shuffle = value;
     final song = currentSong;
@@ -433,21 +440,21 @@ class PlayerService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Timer tidur berbasis WAKTU dengan hitung mundur.
-  /// [finishCurrentSong] true = tidak langsung stop pas waktu habis, tapi
-  /// tunggu lagu yang sedang diputar selesai dulu baru berhenti.
+  /// Time-based sleep timer with a countdown.
+  /// [finishCurrentSong] true = do not stop right when the time runs out, but
+  /// wait until the currently playing song ends before stopping.
   void setSleepTimer(Duration duration, {bool finishCurrentSong = false}) {
     _sleepTimer?.cancel();
-    sleepSongsRemaining = null; // mode waktu & mode lagu saling eksklusif
+    sleepSongsRemaining = null; // time mode and song-count mode are mutually exclusive
     sleepTimerEndTime = DateTime.now().add(duration);
     _finishCurrentSongOnSleep = finishCurrentSong;
     _sleepTimer = Timer(duration, () async {
       sleepTimerEndTime = null;
       if (_finishCurrentSongOnSleep) {
-        _pendingSleepStop = true; // ditangani di _onTrackFinished()
+        _pendingSleepStop = true; // handled in _onTrackFinished()
       } else {
         _logListening();
-        // Pause KEDUA player supaya musik pasti berhenti walau sedang crossfade
+        // Pause BOTH players so playback really stops even mid-crossfade
         await _player.pause();
         await _crossfadePlayer.pause();
       }
@@ -456,11 +463,11 @@ class PlayerService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Timer tidur berbasis JUMLAH LAGU - berhenti otomatis setelah N lagu
-  /// (dihitung dari lagu yang sedang diputar sekarang, termasuk).
+  /// Song-count based sleep timer - stops automatically after N songs
+  /// (counted from the currently playing song, inclusive).
   void setSleepTimerBySongs(int songCount) {
     _sleepTimer?.cancel();
-    sleepTimerEndTime = null; // mode waktu & mode lagu saling eksklusif
+    sleepTimerEndTime = null; // time mode and song-count mode are mutually exclusive
     sleepSongsRemaining = songCount;
     notifyListeners();
   }
@@ -481,14 +488,14 @@ class PlayerService extends ChangeNotifier {
   }
 
   void _onTrackFinished() {
-    // Mode hitung jumlah lagu: kurangi 1, berhenti kalau sudah habis
+    // Song-count mode: decrement by 1, stop when exhausted
     if (sleepSongsRemaining != null) {
       sleepSongsRemaining = sleepSongsRemaining! - 1;
       if (sleepSongsRemaining! <= 0) {
         sleepSongsRemaining = null;
         _logListening();
-        // Fire-and-forget dengan error guard - _onTrackFinished dipicu dari
-        // stream listener yang tidak bisa async.
+        // Fire-and-forget with an error guard - _onTrackFinished is triggered
+        // from a stream listener that cannot be async.
         _player.pause().catchError((e) {
           debugPrint('Gagal pause saat sleep-timer: $e');
         });
@@ -499,7 +506,7 @@ class PlayerService extends ChangeNotifier {
         return;
       }
     }
-    // Mode waktu dengan "selesaikan lagu terakhir": lagu barusan itu yang terakhir
+    // Time mode with "finish the last song": the song that just ended was the last one
     if (_pendingSleepStop) {
       _pendingSleepStop = false;
       _logListening();
@@ -534,8 +541,8 @@ class PlayerService extends ChangeNotifier {
     _playStartedAt = null;
 
     if (_accumulatedListenedMs > 1000) {
-      // Jangan await di sini (dipanggil dari listener sync) tapi tangkap
-      // error supaya tidak jadi unhandled async error saat DB korup/disk penuh.
+      // Do not await here (called from a sync listener) but catch
+      // errors so a corrupt DB or full disk cannot become an unhandled async error.
       DBHelper.instance
           .addListeningEntry(ListeningEntry(
         songId: currentSong!.id,
@@ -558,8 +565,8 @@ class PlayerService extends ChangeNotifier {
     _positionSub?.cancel();
     _playerStateSub?.cancel();
     _crossfadeStateSub?.cancel();
-    // ChangeNotifier.dispose() itu sync void - jangan jadikan Future.
-    // Player dibuang fire-and-forget karena singleton hidup selama app berjalan.
+    // ChangeNotifier.dispose() is sync void - never turn it into a Future.
+    // Players are disposed fire-and-forget because the singleton lives for the whole app run.
     _player.dispose().catchError((e) {
       debugPrint('Gagal dispose player: $e');
     });

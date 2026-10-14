@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import '../models/song.dart';
 import '../services/db_helper.dart';
 import '../services/player_service.dart';
@@ -21,8 +22,8 @@ class HistoryScreenState extends State<HistoryScreen> {
     _load();
   }
 
-  /// Dipanggil dari HomeScreen tiap kali tab Riwayat dipilih, supaya lagu
-  /// yang baru saja diputar langsung muncul tanpa perlu pull-to-refresh manual.
+  /// Called from HomeScreen whenever the History tab is selected, so a
+  /// newly played song appears immediately without manual pull-to-refresh.
   Future<void> reload() => _load();
 
   Future<void> _load() async {
@@ -34,24 +35,25 @@ class HistoryScreenState extends State<HistoryScreen> {
         _error = null;
       });
     } catch (e) {
-      // DB korup/rusak - tampilkan pesan error, jangan red screen.
+      // Corrupt/broken DB - show an error message instead of a red screen.
       if (!mounted) return;
-      setState(() => _error = 'Gagal memuat riwayat: $e');
+      setState(() => _error = e.toString());
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     if (_error != null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(_error!, textAlign: TextAlign.center),
+          child: Text(l.historyLoadFailed(_error!), textAlign: TextAlign.center),
         ),
       );
     }
     if (_history.isEmpty) {
-      return const Center(child: Text('Belum ada riwayat pemutaran'));
+      return Center(child: Text(l.historyEmpty));
     }
     return RefreshIndicator(
       onRefresh: _load,

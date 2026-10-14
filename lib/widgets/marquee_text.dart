@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Teks yang tampil center diam kalau muat, dan otomatis bergeser (marquee)
-/// bolak-balik kalau kepanjangan untuk lebar yang tersedia.
+/// Text that stays still and centered when it fits, and auto-scrolls (marquee)
+/// back and forth when it is too long for the available width.
 class MarqueeText extends StatefulWidget {
   final String text;
   final TextStyle? style;
@@ -14,30 +14,30 @@ class MarqueeText extends StatefulWidget {
 
 class _MarqueeTextState extends State<MarqueeText> {
   final ScrollController _scrollController = ScrollController();
-  // _loopId: bertambah setiap kali teks ganti - loop lama cek ini dan berhenti.
+  // _loopId: increments every time the text changes - the old loop checks it and stops.
   int _loopId = 0;
-  // _activeLoopId: ID loop yang sedang aktif berjalan saat ini.
-  // Dipakai untuk mencegah spawn loop dobel saat widget di-rebuild berkali-kali
-  // dengan teks yang SAMA (misal karena notifyListeners() dari bulk scan background).
+  // _activeLoopId: ID of the loop currently running.
+  // Used to prevent spawning a double loop when the widget rebuilds many times
+  // with the SAME text (e.g. due to notifyListeners() from a background bulk scan).
   int? _activeLoopId;
 
   @override
   void didUpdateWidget(covariant MarqueeText oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.text != widget.text && _scrollController.hasClients) {
-      _loopId++;          // batalkan loop lama
-      _activeLoopId = null; // bebaskan slot supaya loop baru bisa spawn
+      _loopId++;          // cancel the old loop
+      _activeLoopId = null; // free the slot so a new loop can spawn
       _scrollController.jumpTo(0);
     }
   }
 
   Future<void> _runMarquee(double maxScroll, int myLoopId) async {
-    // Cegah dobel-spawn: kalau loop dengan loopId yang sama sudah aktif, skip.
+    // Prevent double-spawn: if a loop with the same loopId is already active, skip.
     if (_activeLoopId == myLoopId) return;
     _activeLoopId = myLoopId;
 
-    // Loop ini hanya boleh jalan kalau myLoopId masih sama dengan _loopId saat ini.
-    // Begitu teks ganti (_loopId naik), loop ini akan berhenti di cek berikutnya.
+    // This loop may only run while myLoopId still matches the current _loopId.
+    // Once the text changes (_loopId increases), this loop stops at the next check.
     while (mounted && _scrollController.hasClients && myLoopId == _loopId) {
       await Future.delayed(const Duration(seconds: 1));
       if (!mounted || !_scrollController.hasClients || myLoopId != _loopId) break;
@@ -55,13 +55,13 @@ class _MarqueeTextState extends State<MarqueeText> {
       );
     }
 
-    // Loop selesai atau dibatalkan - bebaskan slot supaya loopId baru bisa spawn
+    // Loop finished or cancelled - free the slot so a new loopId can spawn
     if (_activeLoopId == myLoopId) _activeLoopId = null;
   }
 
   @override
   void dispose() {
-    _loopId++; // pastikan loop yang mungkin masih berjalan langsung berhenti
+    _loopId++; // make sure a loop that may still be running stops immediately
     _scrollController.dispose();
     super.dispose();
   }
@@ -79,14 +79,14 @@ class _MarqueeTextState extends State<MarqueeText> {
         final overflows = textPainter.width > constraints.maxWidth;
 
         if (!overflows) {
-          // Teks muat: tampil diam, center seperti biasa
+          // Text fits: render still, centered as usual
           return Center(
             child: Text(widget.text, style: widget.style, maxLines: 1, overflow: TextOverflow.ellipsis),
           );
         }
 
-        // Teks kepanjangan: mulai animasi marquee setelah frame ini selesai.
-        // Capture _loopId saat ini supaya hanya satu loop yang aktif per teks.
+        // Text too long: start the marquee animation after this frame finishes.
+        // Capture the current _loopId so only one loop is active per text.
         final currentLoopId = _loopId;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && _scrollController.hasClients && currentLoopId == _loopId) {

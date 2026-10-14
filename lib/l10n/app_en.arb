@@ -1,0 +1,791 @@
+{
+    "@@locale":  "en",
+    "settingsTitle":  "Settings",
+    "@settingsTitle":  {
+                           "description":  "Title of the settings screen"
+                       },
+    "settingsAppearance":  "Appearance",
+    "@settingsAppearance":  {
+                                "description":  "Section header for theme appearance options"
+                            },
+    "settingsFollowSystem":  "Follow system",
+    "@settingsFollowSystem":  {
+                                  "description":  "Theme option that follows the system theme"
+                              },
+    "settingsLight":  "Light",
+    "@settingsLight":  {
+                           "description":  "Light theme option"
+                       },
+    "settingsDark":  "Dark",
+    "@settingsDark":  {
+                          "description":  "Dark theme option"
+                      },
+    "settingsAccentColor":  "Accent color",
+    "@settingsAccentColor":  {
+                                 "description":  "Section header for accent color picker"
+                             },
+    "settingsAccentPurple":  "Purple",
+    "@settingsAccentPurple":  {
+                                  "description":  "Accent color name purple"
+                              },
+    "settingsAccentBlue":  "Blue",
+    "@settingsAccentBlue":  {
+                                "description":  "Accent color name blue"
+                            },
+    "settingsAccentTeal":  "Teal",
+    "@settingsAccentTeal":  {
+                                "description":  "Accent color name teal"
+                            },
+    "settingsAccentGreen":  "Green",
+    "@settingsAccentGreen":  {
+                                 "description":  "Accent color name green"
+                             },
+    "settingsAccentOrange":  "Orange",
+    "@settingsAccentOrange":  {
+                                  "description":  "Accent color name orange"
+                              },
+    "settingsAccentRed":  "Red",
+    "@settingsAccentRed":  {
+                               "description":  "Accent color name red"
+                           },
+    "settingsAccentDeepPurple":  "Deep purple",
+    "@settingsAccentDeepPurple":  {
+                                      "description":  "Accent color name dark purple"
+                                  },
+    "settingsAccentPink":  "Pink",
+    "@settingsAccentPink":  {
+                                "description":  "Accent color name pink"
+                            },
+    "settingsAccentCyan":  "Cyan",
+    "@settingsAccentCyan":  {
+                                "description":  "Accent color name cyan"
+                            },
+    "settingsAccentLightGreen":  "Light green",
+    "@settingsAccentLightGreen":  {
+                                      "description":  "Accent color name light green"
+                                  },
+    "settingsPlayback":  "Playback",
+    "@settingsPlayback":  {
+                              "description":  "Section header for playback options"
+                          },
+    "settingsCrossfade":  "Crossfade",
+    "@settingsCrossfade":  {
+                               "description":  "Crossfade toggle title"
+                           },
+    "settingsCrossfadeSubtitle":  "Seamless transition between songs (3 seconds)",
+    "@settingsCrossfadeSubtitle":  {
+                                       "description":  "Crossfade toggle subtitle"
+                                   },
+    "settingsEqualizer":  "Equalizer",
+    "@settingsEqualizer":  {
+                               "description":  "Section header for equalizer presets"
+                           },
+    "settingsEqualizerNote":  "These presets are only a visual preview and do not change the actual sound. Your choice is saved between sessions.",
+    "@settingsEqualizerNote":  {
+                                   "description":  "Honest disclaimer that EQ presets are visual only"
+                               },
+    "settingsLibrary":  "Library",
+    "@settingsLibrary":  {
+                             "description":  "Section header for library actions"
+                         },
+    "settingsScanFiles":  "Scan music files",
+    "@settingsScanFiles":  {
+                               "description":  "Title for scanning device music files"
+                           },
+    "settingsScanFilesSubtitle":  "Check for new or removed music files on this device (offline)",
+    "@settingsScanFilesSubtitle":  {
+                                       "description":  "Subtitle for scanning device music files"
+                                   },
+    "settingsScanMissing":  "Scan missing metadata",
+    "@settingsScanMissing":  {
+                                 "description":  "Title for scanning only missing metadata"
+                             },
+    "settingsScanMissingSubtitle":  "Fetch title/artist/cover from the internet for new songs",
+    "@settingsScanMissingSubtitle":  {
+                                         "description":  "Subtitle for scanning only missing metadata"
+                                     },
+    "settingsScanProgress":  "Processing {progress}/{total}...",
+    "@settingsScanProgress":  {
+                                  "description":  "Progress text while bulk metadata scan runs",
+                                  "placeholders":  {
+                                                       "progress":  {
+                                                                        "type":  "int",
+                                                                        "description":  "Number of songs processed so far"
+                                                                    },
+                                                       "total":  {
+                                                                     "type":  "int",
+                                                                     "description":  "Total number of songs to process"
+                                                                 }
+                                                   }
+                              },
+    "settingsRescanAll":  "Rescan all metadata",
+    "@settingsRescanAll":  {
+                               "description":  "Title for rescanning all metadata"
+                           },
+    "settingsRescanAllSubtitle":  "Fetch again from the internet for ALL songs",
+    "@settingsRescanAllSubtitle":  {
+                                       "description":  "Subtitle for rescanning all metadata"
+                                   },
+    "settingsAbout":  "About",
+    "@settingsAbout":  {
+                           "description":  "Section header for about info"
+                       },
+    "settingsAboutVersion":  "v1.6.0 · by Niko",
+    "@settingsAboutVersion":  {
+                                  "description":  "App version and author credit"
+                              },
+    "settingsRescanTitle":  "Rescan all",
+    "@settingsRescanTitle":  {
+                                 "description":  "Confirmation dialog title for rescan all"
+                             },
+    "settingsRescanMessage":  "Fetch metadata again for all {count} songs from the internet? This takes longer.",
+    "@settingsRescanMessage":  {
+                                   "description":  "Confirmation message for rescan all",
+                                   "placeholders":  {
+                                                        "count":  {
+                                                                      "type":  "int",
+                                                                      "description":  "Total number of songs"
+                                                                  }
+                                                    }
+                               },
+    "settingsRescanStart":  "Start",
+    "@settingsRescanStart":  {
+                                 "description":  "Confirm button to start rescan all"
+                             },
+    "languageSection":  "Language",
+    "@languageSection":  {
+                             "description":  "Section header for language selection"
+                         },
+    "languageSubtitle":  "Application language",
+    "@languageSubtitle":  {
+                              "description":  "Subtitle for the language section"
+                          },
+    "languageEnglish":  "English",
+    "@languageEnglish":  {
+                             "description":  "Label for the English language option"
+                         },
+    "languageIndonesian":  "Bahasa Indonesia",
+    "@languageIndonesian":  {
+                                "description":  "Label for the Indonesian language option"
+                            },
+    "ok":  "OK",
+    "cancel":  "Cancel",
+    "retry":  "Retry",
+    "close":  "Close",
+    "save":  "Save",
+    "delete":  "Delete",
+    "edit":  "Edit",
+    "remove":  "Remove",
+    "add":  "Add",
+    "create":  "Create",
+    "search":  "Search",
+    "loading":  "Loading...",
+    "error":  "Something went wrong",
+    "empty":  "Nothing here yet",
+    "confirm":  "Confirm",
+    "yes":  "Yes",
+    "no":  "No",
+    "unknown":  "Unknown",
+    "failed":  "Failed",
+    "corePlayFailed":  "Could not play",
+    "coreScanFailed":  "Scan failed",
+    "coreUpdateFavoritesFailed":  "Could not update favorites",
+    "coreSongAlreadyInPlaylist":  "This song is already in the playlist",
+    "coreRemoveFromPlaylistFailed":  "Could not remove the song from the playlist",
+    "coreSavePlaylistOrderFailed":  "Could not save the playlist order",
+    "corePermissionDenied":  "Music access permission was denied",
+    "coreSongs":  "songs",
+    "playlistLoadFailed":  "Failed to load playlist: {error}",
+    "@playlistLoadFailed":  {
+                                "placeholders":  {
+                                                     "error":  {
+                                                                   "type":  "String"
+                                                               }
+                                                 }
+                            },
+    "playlistReorderFailed":  "Failed to save order: {error}",
+    "@playlistReorderFailed":  {
+                                   "placeholders":  {
+                                                        "error":  {
+                                                                      "type":  "String"
+                                                                  }
+                                                    }
+                               },
+    "playlistRemoveFailed":  "Failed to remove song: {error}",
+    "@playlistRemoveFailed":  {
+                                  "placeholders":  {
+                                                       "error":  {
+                                                                     "type":  "String"
+                                                                 }
+                                                   }
+                              },
+    "playlistSortCustom":  "Custom order",
+    "playlistSortTitleAZ":  "Title A-Z",
+    "playlistSortTitleZA":  "Title Z-A",
+    "playlistSortArtistAZ":  "Artist A-Z",
+    "playlistEmpty":  "This playlist is still empty",
+    "playlistSummary":  "{count} songs - {duration}",
+    "@playlistSummary":  {
+                             "placeholders":  {
+                                                  "count":  {
+                                                                "type":  "int"
+                                                            },
+                                                  "duration":  {
+                                                                   "type":  "String"
+                                                               }
+                                              }
+                         },
+    "playlistSearchHint":  "Search in this playlist...",
+    "playlistPlay":  "Play",
+    "playlistShuffle":  "Shuffle",
+    "playlistReorderHint":  "Press and drag to reorder",
+    "playlistNoResults":  "No songs found",
+    "historyLoadFailed":  "Failed to load history: {error}",
+    "@historyLoadFailed":  {
+                               "placeholders":  {
+                                                    "error":  {
+                                                                  "type":  "String"
+                                                              }
+                                                }
+                           },
+    "historyEmpty":  "No playback history yet",
+    "dashboardLoadFailedTitle":  "Failed to load dashboard",
+    "dashboardRetry":  "Try Again",
+    "dashboardEmptyTitle":  "Empty dashboard",
+    "dashboardEmptySubtitle":  "Listening stats will appear after you start playing songs.",
+    "dashboardTotalSongsLibrary":  "Total songs in library",
+    "dashboardTotalSongs":  "Total songs",
+    "dashboardTotalListened":  "Total listened",
+    "dashboardThisMonth":  "This month",
+    "dashboardHoursValue":  "{hours} hours",
+    "@dashboardHoursValue":  {
+                                 "placeholders":  {
+                                                      "hours":  {
+                                                                    "type":  "String"
+                                                                }
+                                                  }
+                             },
+    "dashboardListeningWeekTitle":  "Listening Hours in the Last 7 Days",
+    "dashboardWeekTotal":  "{hours} hours total",
+    "@dashboardWeekTotal":  {
+                                "placeholders":  {
+                                                     "hours":  {
+                                                                   "type":  "String"
+                                                               }
+                                                 }
+                            },
+    "dashboardTopSongs":  "Top 5 Songs",
+    "dashboardUnknownSong":  "Song #{id}",
+    "@dashboardUnknownSong":  {
+                                  "placeholders":  {
+                                                       "id":  {
+                                                                  "type":  "int"
+                                                              }
+                                                   }
+                              },
+    "dashboardPlayCount":  "{count}x played",
+    "@dashboardPlayCount":  {
+                                "placeholders":  {
+                                                     "count":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "dashboardPlayFailed":  "Failed to play song: {error}",
+    "@dashboardPlayFailed":  {
+                                 "placeholders":  {
+                                                      "error":  {
+                                                                    "type":  "String"
+                                                                }
+                                                  }
+                             },
+    "dashboardTopArtists":  "Top 5 Artists",
+    "dashboardGenreTitle":  "Genre Distribution",
+    "dashboardGenreCount":  "{count} genres",
+    "@dashboardGenreCount":  {
+                                 "placeholders":  {
+                                                      "count":  {
+                                                                    "type":  "int"
+                                                                }
+                                                  }
+                             },
+    "dashboardNeverPlayedTitle":  "Never Played",
+    "dashboardSongCount":  "{count} songs",
+    "@dashboardSongCount":  {
+                                "placeholders":  {
+                                                     "count":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "dashboardNeverPlayedSubtitle":  "{count} songs in your library have never been played.",
+    "@dashboardNeverPlayedSubtitle":  {
+                                          "placeholders":  {
+                                                               "count":  {
+                                                                             "type":  "int"
+                                                                         }
+                                                           }
+                                      },
+    "dashboardPlayAll":  "Play All",
+    "dashboardWeekActivityTitle":  "This Week Activity",
+    "dashboardNoWeekActivity":  "No activity this week yet.",
+    "dashboardActiveDays":  "{count} of 7 days actively listening",
+    "@dashboardActiveDays":  {
+                                 "placeholders":  {
+                                                      "count":  {
+                                                                    "type":  "int"
+                                                                }
+                                                  }
+                             },
+    "dashboardNeverPlayedSheetTitle":  "{count} songs never played",
+    "@dashboardNeverPlayedSheetTitle":  {
+                                            "placeholders":  {
+                                                                 "count":  {
+                                                                               "type":  "int"
+                                                                           }
+                                                             }
+                                        },
+    "dashboardDaySun":  "Sun",
+    "dashboardDayMon":  "Mon",
+    "dashboardDayTue":  "Tue",
+    "dashboardDayWed":  "Wed",
+    "dashboardDayThu":  "Thu",
+    "dashboardDayFri":  "Fri",
+    "dashboardDaySat":  "Sat",
+    "dashboardTooltipMinutes":  "{mins}m",
+    "@dashboardTooltipMinutes":  {
+                                     "placeholders":  {
+                                                          "mins":  {
+                                                                       "type":  "int"
+                                                                   }
+                                                      }
+                                 },
+    "dashboardTooltipHours":  "{hours}h",
+    "@dashboardTooltipHours":  {
+                                   "placeholders":  {
+                                                        "hours":  {
+                                                                      "type":  "String"
+                                                                  }
+                                                    }
+                               },
+    "editMetadataValidationEmpty":  "Title, artist, and album cannot be empty",
+    "editMetadataSaveFailed":  "Failed to save: {error}",
+    "@editMetadataSaveFailed":  {
+                                    "placeholders":  {
+                                                         "error":  {
+                                                                       "type":  "String"
+                                                                   }
+                                                     }
+                                },
+    "editMetadataRescanTitle":  "Rescan from the Internet?",
+    "editMetadataRescanMessage":  "Data from the internet will overwrite your manual edits in this form. Continue?",
+    "editMetadataRescanConfirm":  "Yes, Overwrite",
+    "editMetadataRescanFailed":  "Failed to rescan: {error}",
+    "@editMetadataRescanFailed":  {
+                                      "placeholders":  {
+                                                           "error":  {
+                                                                         "type":  "String"
+                                                                     }
+                                                       }
+                                  },
+    "editMetadataRescanSuccess":  "Metadata updated from the internet",
+    "editMetadataTitle":  "Edit Metadata",
+    "editMetadataFetching":  "Fetching data...",
+    "editMetadataRescanButton":  "Rescan from the Internet",
+    "editMetadataFieldTitle":  "Title",
+    "editMetadataFieldArtist":  "Artist",
+    "editMetadataFieldAlbum":  "Album",
+    "editMetadataFieldGenre":  "Genre",
+    "editMetadataFieldRegion":  "Region Origin",
+    "editMetadataEditLyricsButton":  "Edit Lyrics (separate page)",
+    "editMetadataSaveButton":  "Save Changes",
+    "editLyricsClipboardEmpty":  "Clipboard is empty, no text to paste",
+    "editLyricsPasteTitle":  "Paste Lyrics",
+    "editLyricsPasteMessage":  "There are already lyrics here. Overwrite them (start over) or append to the existing lyrics?",
+    "editLyricsAppend":  "Append",
+    "editLyricsOverwrite":  "Overwrite",
+    "editLyricsSaveFailed":  "Failed to save lyrics: {error}",
+    "@editLyricsSaveFailed":  {
+                                  "placeholders":  {
+                                                       "error":  {
+                                                                     "type":  "String"
+                                                                 }
+                                                   }
+                              },
+    "editLyricsTruncated":  "Lyrics exceeded 100KB and were trimmed when saved",
+    "editLyricsTitle":  "Edit Lyrics: {title}",
+    "@editLyricsTitle":  {
+                             "placeholders":  {
+                                                  "title":  {
+                                                                "type":  "String"
+                                                            }
+                                              }
+                         },
+    "editLyricsPasteButton":  "Paste",
+    "editLyricsSearchWeb":  "Search on Web",
+    "editLyricsHint":  "No lyrics yet. Paste from clipboard, search the web, or type manually here.",
+    "editLyricsSaveButton":  "Save Lyrics",
+    "songOptionsPlayNext":  "Play Next",
+    "songOptionsAddedPlayNext":  "Added to play next",
+    "songOptionsAddToQueueEnd":  "Add to End of Queue",
+    "songOptionsAddedToQueue":  "Added to queue",
+    "songOptionsAddFavorite":  "Add to Favorites",
+    "songOptionsRemoveFavorite":  "Remove from Favorites",
+    "songOptionsFavoriteFailed":  "Failed to update favorite: {error}",
+    "@songOptionsFavoriteFailed":  {
+                                       "placeholders":  {
+                                                            "error":  {
+                                                                          "type":  "String"
+                                                                      }
+                                                        }
+                                   },
+    "songOptionsAddToPlaylist":  "Add to Playlist",
+    "songOptionsRename":  "Rename Song",
+    "songOptionsEditMetadata":  "Edit Metadata",
+    "songOptionsRemoveFromPlaylist":  "Remove from This Playlist",
+    "songOptionsRemoveFromPlaylistFailed":  "Failed to remove from playlist: {error}",
+    "@songOptionsRemoveFromPlaylistFailed":  {
+                                                 "placeholders":  {
+                                                                      "error":  {
+                                                                                    "type":  "String"
+                                                                                }
+                                                                  }
+                                             },
+    "songOptionsRemovedFromPlaylist":  "Removed from this playlist only",
+    "songOptionsDeleteFromLibrary":  "Delete from Library",
+    "songOptionsDeleteTitle":  "Delete Song",
+    "songOptionsDeleteConfirm":  "Delete \"{title}\" from All Songs, Folders, Favorites, and Playlists? The original file on your phone is kept - it will appear again if the folder is rescanned.",
+    "@songOptionsDeleteConfirm":  {
+                                      "placeholders":  {
+                                                           "title":  {
+                                                                         "type":  "String"
+                                                                     }
+                                                       }
+                                  },
+    "songOptionsDeleteFailed":  "Failed to delete song: {error}",
+    "@songOptionsDeleteFailed":  {
+                                     "placeholders":  {
+                                                          "error":  {
+                                                                        "type":  "String"
+                                                                    }
+                                                      }
+                                 },
+    "songOptionsRenameFailed":  "Failed to rename: {error}",
+    "@songOptionsRenameFailed":  {
+                                     "placeholders":  {
+                                                          "error":  {
+                                                                        "type":  "String"
+                                                                    }
+                                                      }
+                                 },
+    "songOptionsCreatePlaylist":  "Create New Playlist",
+    "songOptionsPlaylistNameTitle":  "Playlist Name",
+    "songOptionsAddToPlaylistFailed":  "Failed to add to playlist: {error}",
+    "@songOptionsAddToPlaylistFailed":  {
+                                            "placeholders":  {
+                                                                 "error":  {
+                                                                               "type":  "String"
+                                                                           }
+                                                             }
+                                        },
+    "songOptionsPlaylistCreated":  "Playlist \"{name}\" created and song added",
+    "@songOptionsPlaylistCreated":  {
+                                        "placeholders":  {
+                                                             "name":  {
+                                                                          "type":  "String"
+                                                                      }
+                                                         }
+                                    },
+    "songOptionsPlaylistExists":  "Playlist \"{name}\" already exists, pick it from the list",
+    "@songOptionsPlaylistExists":  {
+                                       "placeholders":  {
+                                                            "name":  {
+                                                                         "type":  "String"
+                                                                     }
+                                                        }
+                                   },
+    "songOptionsCreatePlaylistFailed":  "Failed to create playlist: {error}",
+    "@songOptionsCreatePlaylistFailed":  {
+                                             "placeholders":  {
+                                                                  "error":  {
+                                                                                "type":  "String"
+                                                                            }
+                                                              }
+                                         },
+    "librarySortBy":  "Sort by",
+    "librarySortTitleAsc":  "Title ↑",
+    "librarySortTitleDesc":  "Title ↓",
+    "librarySortArtistAsc":  "Artist ↑",
+    "librarySortArtistDesc":  "Artist ↓",
+    "librarySortAlbumAsc":  "Album ↑",
+    "librarySortAlbumDesc":  "Album ↓",
+    "librarySortDateNewest":  "Date ↑",
+    "librarySortDateOldest":  "Date ↓",
+    "librarySortGenre":  "Genre ↑",
+    "libraryCreatePlaylistFirst":  "Create a playlist first in the Collections tab",
+    "libraryChoosePlaylist":  "Choose playlist",
+    "libraryAddedToPlaylist":  "{count} songs added to {name}",
+    "@libraryAddedToPlaylist":  {
+                                    "placeholders":  {
+                                                         "count":  {
+                                                                       "type":  "int"
+                                                                   },
+                                                         "name":  {
+                                                                      "type":  "String"
+                                                                  }
+                                                     }
+                                },
+    "librarySelectedCount":  "{count} selected",
+    "@librarySelectedCount":  {
+                                  "placeholders":  {
+                                                       "count":  {
+                                                                     "type":  "int"
+                                                                 }
+                                                   }
+                              },
+    "libraryAddToPlaylist":  "Add to playlist",
+    "libraryAddToFavorites":  "Add to favorites",
+    "librarySongCount":  "{count} songs",
+    "@librarySongCount":  {
+                              "placeholders":  {
+                                                   "count":  {
+                                                                 "type":  "int"
+                                                             }
+                                               }
+                          },
+    "librarySongCountDuration":  "{count} songs · {duration}",
+    "@librarySongCountDuration":  {
+                                      "placeholders":  {
+                                                           "count":  {
+                                                                         "type":  "int"
+                                                                     },
+                                                           "duration":  {
+                                                                            "type":  "String"
+                                                                        }
+                                                       }
+                                  },
+    "libraryScanMetadata":  "Scan metadata",
+    "libraryStartPlaying":  "Start playing",
+    "libraryShuffle":  "Shuffle",
+    "libraryScanningMusic":  "Scanning music...",
+    "libraryNoMusic":  "No music yet",
+    "libraryScanMusic":  "Scan Music",
+    "libraryScanMissing":  "Scan missing metadata",
+    "libraryRescanAll":  "Rescan all",
+    "libraryRescanConfirm":  "Fetch metadata again for {count} songs?",
+    "@libraryRescanConfirm":  {
+                                  "placeholders":  {
+                                                       "count":  {
+                                                                     "type":  "int"
+                                                                 }
+                                                   }
+                              },
+    "libraryStart":  "Start",
+    "libraryPlayFailed":  "Failed to play song: {error}",
+    "@libraryPlayFailed":  {
+                               "placeholders":  {
+                                                    "error":  {
+                                                                  "type":  "String"
+                                                              }
+                                                }
+                           },
+    "searchHint":  "Search music...",
+    "searchFilterSong":  "Song",
+    "searchFilterAlbum":  "Album",
+    "searchFilterArtist":  "Artist",
+    "searchFilterFolder":  "Folder",
+    "searchFilterGenre":  "Genre",
+    "searchPromptTitle":  "Search your music",
+    "searchPromptSubtitle":  "Type a title, artist, album, or more",
+    "searchNoResults":  "No results",
+    "searchNotFound":  "\"{query}\" not found",
+    "@searchNotFound":  {
+                            "placeholders":  {
+                                                 "query":  {
+                                                               "type":  "String"
+                                                           }
+                                             }
+                        },
+    "searchResultCount":  "{count} results",
+    "@searchResultCount":  {
+                               "placeholders":  {
+                                                    "count":  {
+                                                                  "type":  "int"
+                                                              }
+                                                }
+                           },
+    "searchOther":  "Other",
+    "albumsEmpty":  "No album data yet.",
+    "albumsCount":  "{count} albums",
+    "@albumsCount":  {
+                         "placeholders":  {
+                                              "count":  {
+                                                            "type":  "int"
+                                                        }
+                                          }
+                     },
+    "collectionsNewPlaylist":  "New Playlist",
+    "collectionsPlaylistNameHint":  "Playlist name",
+    "collectionsDeletePlaylist":  "Delete Playlist",
+    "collectionsDeleteConfirm":  "Delete \"{name}\"?",
+    "@collectionsDeleteConfirm":  {
+                                      "placeholders":  {
+                                                           "name":  {
+                                                                        "type":  "String"
+                                                                    }
+                                                       }
+                                  },
+    "collectionsDeletePlaylistConfirm":  "Delete playlist \"{name}\"?",
+    "@collectionsDeletePlaylistConfirm":  {
+                                              "placeholders":  {
+                                                                   "name":  {
+                                                                                "type":  "String"
+                                                                            }
+                                                               }
+                                          },
+    "collectionsFavorites":  "Favorites",
+    "collectionsRecentlyAdded":  "Recently added",
+    "collectionsRecentlyPlayed":  "Recently played",
+    "collectionsMostPlayed":  "Most played",
+    "collectionsRecentlyAddedTitle":  "Recently Added",
+    "collectionsRecentlyPlayedTitle":  "Recently Played",
+    "collectionsMostPlayedTitle":  "Most Played",
+    "collectionsSortNameAsc":  "Name ↑",
+    "collectionsSortNameDesc":  "Name ↓",
+    "collectionsPlaylistCount":  "{count} playlists",
+    "@collectionsPlaylistCount":  {
+                                      "placeholders":  {
+                                                           "count":  {
+                                                                         "type":  "int"
+                                                                     }
+                                                       }
+                                  },
+    "collectionsPlaylistCountAlt":  "{count} playlists",
+    "@collectionsPlaylistCountAlt":  {
+                                         "placeholders":  {
+                                                              "count":  {
+                                                                            "type":  "int"
+                                                                        }
+                                                          }
+                                     },
+    "collectionsNoPlaylists":  "No playlists yet",
+    "collectionsCreatePlaylist":  "Create Playlist",
+    "collectionsFavoritesEmpty":  "No favorites yet",
+    "collectionsFavoritesHint":  "Tap the heart icon on a song to add it",
+    "collectionsRecentlyAddedEmpty":  "No songs added yet.",
+    "collectionsMostPlayedEmpty":  "No playback data yet",
+    "collectionsMostPlayedHint":  "Play songs to see statistics",
+    "foldersLoadFailed":  "Failed to load folders: {error}",
+    "@foldersLoadFailed":  {
+                               "placeholders":  {
+                                                    "error":  {
+                                                                  "type":  "String"
+                                                              }
+                                                }
+                           },
+    "foldersShownAgain":  "Folder shown again",
+    "foldersHidden":  "Folder hidden from library",
+    "foldersEmpty":  "No music folders detected yet.",
+    "foldersCount":  "{count} folders",
+    "@foldersCount":  {
+                          "placeholders":  {
+                                               "count":  {
+                                                             "type":  "int"
+                                                         }
+                                           }
+                      },
+    "foldersSortNameAsc":  "Name ↑",
+    "foldersSortNameDesc":  "Name ↓",
+    "foldersSortCount":  "Song count",
+    "foldersSortCountShort":  "Count",
+    "foldersHideHidden":  "Hide hidden folders",
+    "foldersShowHidden":  "Show hidden folders",
+    "foldersNoSongs":  "No songs",
+    "foldersAllScanned":  "All songs in this folder have already been scanned",
+    "foldersScanDone":  "Finished scanning this folder\u0027s metadata",
+    "foldersSortTitleAsc":  "Title ↑",
+    "foldersSortTitleDesc":  "Title ↓",
+    "foldersSortArtistAsc":  "Artist ↑",
+    "foldersSortDate":  "Date ↑",
+    "artistsEmpty":  "No artist data yet.",
+    "artistsCount":  "{count} artists",
+    "@artistsCount":  {
+                          "placeholders":  {
+                                               "count":  {
+                                                             "type":  "int"
+                                                         }
+                                           }
+                      },
+    "genresEmpty":  "No genre data yet.",
+    "genresCount":  "{count} genres",
+    "@genresCount":  {
+                         "placeholders":  {
+                                              "count":  {
+                                                            "type":  "int"
+                                                        }
+                                          }
+                     },
+    "homeLibrary":  "Library",
+    "homeCollection":  "Collection",
+    "homeDashboard":  "Dashboard",
+    "homeTabSongs":  "Songs",
+    "homeTabAlbums":  "Albums",
+    "homeTabArtists":  "Artists",
+    "homeTabFolders":  "Folders",
+    "homeTabGenres":  "Genres",
+    "homeTabSettings":  "Tab settings",
+    "homeTabReorderHint":  "Drag tabs to reorder",
+    "homeReset":  "Reset",
+    "homeApply":  "Apply",
+    "homeMinOneTab":  "At least 1 tab must be active",
+    "homeSettings":  "Settings",
+    "homeLoadLibraryFailed":  "Failed to load library: {error}",
+    "@homeLoadLibraryFailed":  {
+                                   "placeholders":  {
+                                                        "error":  {
+                                                                      "type":  "String"
+                                                                  }
+                                                    }
+                               },
+    "homePressAgainToExit":  "Press again to exit",
+    "playerPlaybackSpeed":  "Playback speed",
+    "playerCannotOpenBrowser":  "Cannot open the browser",
+    "playerSearchOpenFailed":  "Failed to open search",
+    "playerLyricsFound":  "Lyrics found!",
+    "playerLyricsNotFoundHint":  "Lyrics still not found, try adding them manually",
+    "playerSongsRemaining":  "{count} more songs",
+    "@playerSongsRemaining":  {
+                                  "placeholders":  {
+                                                       "count":  {
+                                                                     "type":  "int"
+                                                                 }
+                                                   }
+                              },
+    "playerEmptyState":  "No song is playing yet",
+    "playerTapToReturnToCover":  "Tap to return to the cover",
+    "playerEditLyrics":  "Edit Lyrics",
+    "playerLyricsNotFound":  "Lyrics not found",
+    "playerTapHereToReturnToCover":  "Tap here to return to the cover",
+    "playerSearchOnGoogle":  "Search on Google",
+    "playerAutoSearch":  "Auto Search",
+    "playerAddManually":  "Add Manually",
+    "playerPrevious":  "Previous",
+    "playerNext":  "Next",
+    "playerFavorite":  "Favorite",
+    "playerAddToPlaylist":  "Add to Playlist",
+    "playerSleepTimer":  "Sleep Timer",
+    "queueTitle":  "Play Queue",
+    "queueEmpty":  "Queue is empty",
+    "queueReorderHint":  "Press and hold to reorder - swipe left to remove",
+    "sleepTitle":  "Sleep timer",
+    "sleepSetTimeAboveZero":  "Set a time greater than 0",
+    "sleepRemaining":  "remaining",
+    "sleepFinishLastSong":  "Finish the last song",
+    "sleepSongsRemaining":  "songs remaining",
+    "sleepStop":  "Stop",
+    "sleepTimeMode":  "Time",
+    "sleepSongMode":  "Songs",
+    "sleepStart":  "Start",
+    "sleepSongUnit":  "songs",
+    "sleepTimerStopped":  "Sleep timer stopped"
+}
