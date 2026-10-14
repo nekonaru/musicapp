@@ -53,7 +53,7 @@ class MetadataService {
           song.region = _guessRegion(track['country']?.toString(), song.artist);
         }
       } else if (res.statusCode == 429) {
-        // Rate-limit iTunes saat bulk scan — jangan tandai gagal permanen,
+        // Rate-limit iTunes saat bulk scan - jangan tandai gagal permanen,
         // biarkan retry di scan berikutnya.
         debugPrint('iTunes rate-limit (429), skip enrich ${song.title}');
       }
@@ -73,10 +73,10 @@ class MetadataService {
     await DBHelper.instance.upsertSong(song);
   }
 
-  /// Fetch lirik saja TANPA menimpa judul/artis/album — dipakai PlayerScreen
+  /// Fetch lirik saja TANPA menimpa judul/artis/album - dipakai PlayerScreen
   /// auto-fetch supaya edit manual user tidak ketimpa.
   Future<bool> fetchLyricsOnly(Song song) async {
-    // Jangan panggil API dengan field kosong/unknown — pasti 404 + buang kuota.
+    // Jangan panggil API dengan field kosong/unknown - pasti 404 + buang kuota.
     if (song.artist.isEmpty ||
         song.title.isEmpty ||
         song.artist == 'Unknown Artist' ||
@@ -103,7 +103,7 @@ class MetadataService {
         }
       }
     } catch (_) {
-      // lirik tidak ditemukan, biarkan null — user bisa isi manual lewat fitur edit
+      // lirik tidak ditemukan, biarkan null - user bisa isi manual lewat fitur edit
     }
     return false;
   }

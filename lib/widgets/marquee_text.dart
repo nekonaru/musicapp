@@ -14,7 +14,7 @@ class MarqueeText extends StatefulWidget {
 
 class _MarqueeTextState extends State<MarqueeText> {
   final ScrollController _scrollController = ScrollController();
-  // _loopId: bertambah setiap kali teks ganti — loop lama cek ini dan berhenti.
+  // _loopId: bertambah setiap kali teks ganti - loop lama cek ini dan berhenti.
   int _loopId = 0;
   // _activeLoopId: ID loop yang sedang aktif berjalan saat ini.
   // Dipakai untuk mencegah spawn loop dobel saat widget di-rebuild berkali-kali
@@ -55,7 +55,7 @@ class _MarqueeTextState extends State<MarqueeText> {
       );
     }
 
-    // Loop selesai atau dibatalkan — bebaskan slot supaya loopId baru bisa spawn
+    // Loop selesai atau dibatalkan - bebaskan slot supaya loopId baru bisa spawn
     if (_activeLoopId == myLoopId) _activeLoopId = null;
   }
 

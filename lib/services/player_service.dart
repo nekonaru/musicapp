@@ -487,7 +487,7 @@ class PlayerService extends ChangeNotifier {
       if (sleepSongsRemaining! <= 0) {
         sleepSongsRemaining = null;
         _logListening();
-        // Fire-and-forget dengan error guard — _onTrackFinished dipicu dari
+        // Fire-and-forget dengan error guard - _onTrackFinished dipicu dari
         // stream listener yang tidak bisa async.
         _player.pause().catchError((e) {
           debugPrint('Gagal pause saat sleep-timer: $e');
@@ -558,7 +558,7 @@ class PlayerService extends ChangeNotifier {
     _positionSub?.cancel();
     _playerStateSub?.cancel();
     _crossfadeStateSub?.cancel();
-    // ChangeNotifier.dispose() itu sync void — jangan jadikan Future.
+    // ChangeNotifier.dispose() itu sync void - jangan jadikan Future.
     // Player dibuang fire-and-forget karena singleton hidup selama app berjalan.
     _player.dispose().catchError((e) {
       debugPrint('Gagal dispose player: $e');

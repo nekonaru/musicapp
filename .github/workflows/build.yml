@@ -139,7 +139,7 @@ jobs:
           cat >> "$APP_GRADLE" << 'GRADLEOF'
 
           // === Patch oleh CI: desugar ===
-          // CATATAN: jangan append blok kotlinOptions/jvmTarget di sini — di
+          // CATATAN: jangan append blok kotlinOptions/jvmTarget di sini - di
           // AGP 9 + Kotlin 2.x itu script-compilation ERROR. Template Flutter
           // 3.47 sudah set JVM target sendiri via `kotlin { compilerOptions }`.
           dependencies {

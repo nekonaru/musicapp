@@ -239,7 +239,7 @@ Future<void> pickPlaylist(BuildContext context, Song song, PlaylistProvider prov
                 final trimmed = name?.trim() ?? '';
                 if (trimmed.isEmpty || !context.mounted) return;
                 try {
-                  // Ambil id dari hasil insert — bukan playlists.first,
+                  // Ambil id dari hasil insert - bukan playlists.first,
                   // karena urutan load (createdAt DESC) tidak dijamin.
                   final newId = await DBHelper.instance.createPlaylist(trimmed);
                   await provider.load();

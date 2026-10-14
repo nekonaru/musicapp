@@ -23,7 +23,7 @@ class PlaylistProvider extends ChangeNotifier {
   Future<void> addSong(int playlistId, int songId) async {
     try {
       // DB memakai ConflictAlgorithm.ignore sehingga duplikat tidak melempar
-      // error SQLite — cek eksplisit supaya UI dapat pesan yang jelas.
+      // error SQLite - cek eksplisit supaya UI dapat pesan yang jelas.
       final current = await DBHelper.instance.getSongsInPlaylist(playlistId);
       if (current.any((s) => s.id == songId)) {
         throw Exception('Lagu sudah ada di playlist ini');

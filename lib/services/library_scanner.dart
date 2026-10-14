@@ -39,7 +39,7 @@ class LibraryScanner {
     final allDeviceIds = tracks.map((t) => t.id).toSet();
 
     // 🛡️ Safety guard: jangan hapus apapun kalau querySongs() kelihatan return
-    // hasil yang mencurigakan — bisa jadi MediaStore belum selesai indexing,
+    // hasil yang mencurigakan - bisa jadi MediaStore belum selesai indexing,
     // izin storage baru saja dikasih (race condition), atau plugin gagal sementara.
     // Tanpa guard ini, seluruh library bisa terhapus permanen dari DB padahal
     // file aslinya masih ada di HP.
@@ -47,11 +47,11 @@ class LibraryScanner {
     // Kondisi yang dianggap tidak aman:
     //   1. Device tidak return lagu sama sekali (paling bahaya)
     //   2. Jumlah lagu turun >50% dibanding yang sudah ada di DB dalam satu scan
-    //      — penurunan wajar biasanya cuma beberapa lagu (file yang memang dihapus user),
+    //      - penurunan wajar biasanya cuma beberapa lagu (file yang memang dihapus user),
     //        bukan separuh library sekaligus.
     final bool safeToDelete;
     if (allDeviceIds.isEmpty) {
-      // Tidak ada lagu terdeteksi sama sekali — hampir pasti bukan kondisi normal.
+      // Tidak ada lagu terdeteksi sama sekali - hampir pasti bukan kondisi normal.
       safeToDelete = false;
     } else {
       final dbCount = await DBHelper.instance.getSongCount();

@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎵 Swara — Pemutar Musik Offline
+# 🎵 Swara - Pemutar Musik Offline
 
 **Putar koleksi musik HP tanpa internet, dengan metadata dan lirik otomatis, plus dashboard analitik kebiasaan mendengarkanmu.**
 
@@ -15,7 +15,7 @@
 
 ## 📖 Tentang
 
-**Swara** adalah aplikasi pemutar musik offline berbasis Flutter. Scan dan putar lagu langsung dari penyimpanan HP — tanpa akun, tanpa iklan, tanpa internet. Judul, artis, cover album, genre, dan lirik dilengkapi otomatis dari internet, dan semua aktivitas mendengarkan dirangkum di dashboard analitik.
+**Swara** adalah aplikasi pemutar musik offline berbasis Flutter. Scan dan putar lagu langsung dari penyimpanan HP - tanpa akun, tanpa iklan, tanpa internet. Judul, artis, cover album, genre, dan lirik dilengkapi otomatis dari internet, dan semua aktivitas mendengarkan dirangkum di dashboard analitik.
 
 > _"Koleksi musikmu, didengarkan dengan tenang, bahkan tanpa internet."_
 
@@ -90,7 +90,7 @@ Setiap versi punya catatan perubahan bilingual (Inggris–Indonesia) di halaman 
 
 ## 📄 Lisensi
 
-Source code open source di bawah lisensi MIT — bebas dipakai, dimodifikasi, dan didistribusikan ulang termasuk komersial, selama notice lisensi disertakan. Lihat [LICENSE](LICENSE).
+Source code open source di bawah lisensi MIT - bebas dipakai, dimodifikasi, dan didistribusikan ulang termasuk komersial, selama notice lisensi disertakan. Lihat [LICENSE](LICENSE).
 
 APK di halaman Releases bebas digunakan untuk keperluan pribadi.
 

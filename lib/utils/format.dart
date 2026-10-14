@@ -33,7 +33,7 @@ String folderOf(String filePath) {
   return normalized.substring(0, idx);
 }
 
-/// Huruf pertama yang aman untuk avatar/A-Z — tidak pernah RangeError.
+/// Huruf pertama yang aman untuk avatar/A-Z - tidak pernah RangeError.
 String safeInitial(String s) => s.isEmpty ? '#' : s[0].toUpperCase();
 String formatDuration(int ms) {
   final totalSeconds = (ms / 1000).round();

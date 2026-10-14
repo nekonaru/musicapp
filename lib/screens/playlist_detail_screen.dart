@@ -79,7 +79,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       await context.read<PlaylistProvider>().reorder(widget.playlistId, _songs.map((s) => s.id).toList());
     } catch (e) {
       if (!mounted) return;
-      // DB gagal — rollback ke urutan sebelumnya.
+      // DB gagal - rollback ke urutan sebelumnya.
       setState(() => _songs = previousOrder);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal menyimpan urutan: $e')),
@@ -92,7 +92,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       await context.read<PlaylistProvider>().removeSong(widget.playlistId, song.id);
     } catch (e) {
       if (!mounted) return;
-      // Gagal — bangun ulang supaya tile yang ter-dismiss muncul lagi.
+      // Gagal - bangun ulang supaya tile yang ter-dismiss muncul lagi.
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal menghapus lagu: $e')),

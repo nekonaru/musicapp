@@ -73,7 +73,7 @@ Widget buildSongTile(
       style: const TextStyle(fontSize: 12),
     ),
     onTap: () async {
-      // setQueueAndPlay bisa gagal (file hilang/format tak didukung) —
+      // setQueueAndPlay bisa gagal (file hilang/format tak didukung) -
       // tangkap supaya error putar tidak hilang tanpa jejak.
       try {
         await PlayerService.instance.setQueueAndPlay(queue, index);
@@ -196,7 +196,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
   @override
   void initState() {
     super.initState();
-    // Prefs gagal (corrupt/tidak tersedia) tidak boleh bikin layar kosong —
+    // Prefs gagal (corrupt/tidak tersedia) tidak boleh bikin layar kosong -
     // tetap lanjut tampilkan folder dari DB.
     _loadPrefs().catchError((Object _) {}).then((_) => _load());
   }

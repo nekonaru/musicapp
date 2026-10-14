@@ -16,7 +16,7 @@ class EditLyricsScreen extends StatefulWidget {
 class _EditLyricsScreenState extends State<EditLyricsScreen> {
   late final TextEditingController _controller;
 
-  /// Batas panjang lirik (100KB) supaya DB tidak bloat — sama dengan
+  /// Batas panjang lirik (100KB) supaya DB tidak bloat - sama dengan
   /// cap di MetadataService.fetchLyricsOnly.
   static const _kMaxLyricsChars = 100 * 1024;
 
@@ -89,7 +89,7 @@ class _EditLyricsScreenState extends State<EditLyricsScreen> {
     }
     final newLyrics = text.isEmpty ? null : text;
 
-    // Simpan via salinan dulu — widget.song.lyrics baru dimutasi setelah DB sukses.
+    // Simpan via salinan dulu - widget.song.lyrics baru dimutasi setelah DB sukses.
     final s = widget.song;
     final updated = Song(
       id: s.id,

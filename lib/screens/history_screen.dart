@@ -34,7 +34,7 @@ class HistoryScreenState extends State<HistoryScreen> {
         _error = null;
       });
     } catch (e) {
-      // DB korup/rusak — tampilkan pesan error, jangan red screen.
+      // DB korup/rusak - tampilkan pesan error, jangan red screen.
       if (!mounted) return;
       setState(() => _error = 'Gagal memuat riwayat: $e');
     }

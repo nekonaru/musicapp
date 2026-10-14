@@ -57,7 +57,7 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
       return;
     }
 
-    // Salin ke objek terpisah dulu — widget.song baru dimutasi setelah DB sukses,
+    // Salin ke objek terpisah dulu - widget.song baru dimutasi setelah DB sukses,
     // supaya memori tidak kotor kalau penyimpanan gagal.
     final s = widget.song;
     final updated = Song(
@@ -95,7 +95,7 @@ class _EditMetadataScreenState extends State<EditMetadataScreen> {
   }
 
   Future<void> _rescanFromInternet() async {
-    // Rescan menimpa edit manual — minta konfirmasi dulu.
+    // Rescan menimpa edit manual - minta konfirmasi dulu.
     final confirm = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(

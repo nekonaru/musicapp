@@ -89,7 +89,7 @@ jobs:
 
       - name: Patch namespace untuk plugin lama yang belum kompatibel AGP terbaru
         # on_audio_query dan plugin Flutter lama lainnya tidak punya 'namespace' di build.gradle mereka.
-        # AGP 8+ mewajibkan namespace — tanpanya build langsung gagal.
+        # AGP 8+ mewajibkan namespace - tanpanya build langsung gagal.
         #
         # Cara yang benar untuk AGP 8+ (bukan afterEvaluate yang sudah deprecated):
         # Inject blok Groovy ke masing-masing build.gradle plugin LEWAT gradle init script.
@@ -172,7 +172,7 @@ jobs:
           # 3. Append desugar dependency ke akhir file.
           #    Gradle merge beberapa blok dependencies{} secara otomatis.
           #
-          #    CATATAN: jangan append blok kotlinOptions/jvmTarget di sini — di
+          #    CATATAN: jangan append blok kotlinOptions/jvmTarget di sini - di
           #    AGP 9 + Kotlin 2.x itu script-compilation ERROR. Template Flutter
           #    3.47 sudah set JVM target sendiri via `kotlin { compilerOptions }`.
           cat >> "$APP_GRADLE" << 'GRADLEOF'

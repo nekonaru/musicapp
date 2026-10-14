@@ -17,7 +17,7 @@ class _QueueScreenState extends State<QueueScreen> {
   void initState() {
     super.initState();
     // Scroll awal sekali setelah frame pertama; perubahan antrean berikutnya
-    // dipantau lewat listener — tidak ada side-effect di build.
+    // dipantau lewat listener - tidak ada side-effect di build.
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToCurrentIfNeeded());
     _player.addListener(_onQueueChanged);
   }

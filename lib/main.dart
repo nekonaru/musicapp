@@ -14,7 +14,7 @@ void main() async {
   try {
     await PlayerService.instance.init();
   } catch (e) {
-    // Jangan biarkan splash hitam — lanjut dengan player yang belum init,
+    // Jangan biarkan splash hitam - lanjut dengan player yang belum init,
     // halaman home akan menampilkan error state yang bisa di-retry.
     debugPrint('PlayerService init gagal: $e');
   }

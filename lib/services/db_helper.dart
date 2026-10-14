@@ -100,7 +100,7 @@ class DBHelper {
           // supaya fitur "scan yang belum ada metadata saja" akurat.
           try {
             await db.execute('ALTER TABLE songs ADD COLUMN metadataScanned INTEGER DEFAULT 0');
-            // Jangan tandai 'Tidak diketahui' sebagai scanned — itu nilai
+            // Jangan tandai 'Tidak diketahui' sebagai scanned - itu nilai
             // fallback, bukan hasil fetch sungguhan. Hanya genre/lirik asli.
             await db.execute(
                 "UPDATE songs SET metadataScanned = 1 WHERE (genre IS NOT NULL AND genre != 'Tidak diketahui') OR lyrics IS NOT NULL");
@@ -156,7 +156,7 @@ class DBHelper {
   /// (dihapus/dipindah user di luar aplikasi). [existingIds] adalah SEMUA id
   /// lagu yang masih benar-benar terdeteksi di device (termasuk yang folder-nya
   /// disembunyikan - supaya lagu di folder tersembunyi TIDAK ikut kehapus).
-  /// Jumlah lagu di DB — dipakai safety guard di scanAndSync()
+  /// Jumlah lagu di DB - dipakai safety guard di scanAndSync()
   /// untuk mendeteksi kalau querySongs() return hasil yang mencurigakan.
   Future<int> getSongCount() async {
     final database = await db;
@@ -210,7 +210,7 @@ class DBHelper {
   Future<void> updateSongMetadata(Song s) async {
     final database = await db;
     // Baca isFavorite dari DB dulu supaya tidak ter-reset oleh objek Song yang stale.
-    // Sama seperti perlindungan di upsertSong() — user bisa saja me-favorite lagu
+    // Sama seperti perlindungan di upsertSong() - user bisa saja me-favorite lagu
     // di tab lain sementara layar Edit Metadata masih terbuka.
     final existing = await database.query('songs', columns: ['isFavorite'], where: 'id = ?', whereArgs: [s.id], limit: 1);
     final map = s.toMap();
@@ -432,7 +432,7 @@ class DBHelper {
   }
 
   /// Lagu diurutkan berdasarkan jumlah diputar (paling sering dulu).
-  /// Satu query JOIN — tidak lagi load seluruh tabel songs ke memori.
+  /// Satu query JOIN - tidak lagi load seluruh tabel songs ke memori.
   Future<List<Song>> getMostPlayedSongs({int limit = 50}) async {
     final database = await db;
     final rows = await database.rawQuery('''
