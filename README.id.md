@@ -41,6 +41,9 @@
 | 🎼 **Lirik sinkron** | Lirik per baris mengikuti lagu, dengan fallback tampilan biasa |
 | 😴 **Sleep timer lembut** | Volume memudar, bukan berhenti mendadak |
 | 💾 **Backup dan restore** | Export dan import playlist, favorit, dan riwayat sebagai JSON |
+| 📥 **Import M3U** | Import playlist dari file .m3u, dicocokkan ke library |
+| 📤 **Bagikan lagu** | Bagikan info lagu plus file audio |
+| 🔥 **Streak mendengarkan** | Streak harian dan genre teratas bulan ini di dashboard |
 | 🔍 **Pencarian** | Cari real-time berdasarkan judul, artis, album, folder, atau genre |
 | 📊 **Dashboard** | Grafik 7 hari terakhir, lagu dan artis teratas, distribusi genre dan region |
 | 🌍 **UI English dan Indonesia** | Default English; ganti ke Bahasa Indonesia di Pengaturan |

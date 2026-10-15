@@ -1056,5 +1056,65 @@
     "lyricsPlain":  "Plain",
     "@lyricsPlain":  {
                           "description":  "Plain lyrics toggle label"
-                      }
+                      },
+    "songShare":  "Share",
+    "@songShare":  {
+                        "description":  "Share song menu item"
+                    },
+    "songShareFailed":  "Could not share song: {error}",
+    "@songShareFailed":  {
+                              "description":  "Share failure message",
+                              "placeholders":  {
+                                                   "error":  {
+                                                                 "type":  "String"
+                                                             }
+                                               }
+                          },
+    "m3uImportedDefault":  "Imported playlist",
+    "@m3uImportedDefault":  {
+                                 "description":  "Fallback playlist name for M3U import"
+                             },
+    "m3uImportSummary":  "Imported {added} of {total} songs into \"{name}\" ({missing} not found in library)",
+    "@m3uImportSummary":  {
+                               "description":  "M3U import summary",
+                               "placeholders":  {
+                                                    "added":  {
+                                                                  "type":  "int"
+                                                              },
+                                                    "total":  {
+                                                                  "type":  "int"
+                                                              },
+                                                    "name":  {
+                                                                 "type":  "String"
+                                                             },
+                                                    "missing":  {
+                                                                    "type":  "int"
+                                                                }
+                                                }
+                           },
+    "m3uImportFailed":  "Import M3U failed: {error}",
+    "@m3uImportFailed":  {
+                              "description":  "M3U import failure message",
+                              "placeholders":  {
+                                                   "error":  {
+                                                                 "type":  "String"
+                                                             }
+                                               }
+                          },
+    "m3uImportButton":  "Import M3U",
+    "@m3uImportButton":  {
+                              "description":  "Import M3U chip button"
+                          },
+    "dashStreak":  "Day streak",
+    "@dashStreak":  {
+                         "description":  "Listening streak label"
+                     },
+    "dashTopGenreMonth":  "Top genre this month",
+    "@dashTopGenreMonth":  {
+                                "description":  "Top genre this month label"
+                            },
+    "dashCached":  "cached",
+    "@dashCached":  {
+                         "description":  "Badge shown when numbers come from cache"
+                     }
 }

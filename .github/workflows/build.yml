@@ -196,21 +196,19 @@ jobs:
           body: |
             # English
 
-            **Swara v1.9.0 - Smarter playlists and synced lyrics**
+            **Swara v1.9.1 - M3U import, sharing, and streaks**
 
             ## ✨ New features
 
-            - Smart auto-playlists: Daily Mix (25 fresh songs every day, reshufflable) and Unplayed, maintained automatically.
-            - Synced (LRC) lyrics with follow-along highlighting and auto-scroll, plus plain view toggle.
-            - Sleep timer fades volume out instead of stopping abruptly.
-            - Backup and restore: export/import playlists, favorites, and history as JSON, plus album-art cache size and cleanup.
-            - First-launch onboarding.
-            - Notification shuffle/repeat buttons now show clearly whether they are on or off.
-            - Polished UI: consistent padding, loading skeletons, centered empty states, 48px touch targets.
+            - Import playlists from .m3u/.m3u8 files, matched against your library.
+            - Share songs (info plus audio file) from the song menu.
+            - Listening day streak and top genre of the month on the dashboard, with cached aggregates.
+            - Faster cold start with parallel initialization behind a splash screen.
 
             ## ⚡ Optimizations
 
-            - Lyrics fetch results cached longer; synced lyrics stored locally.
+            - Remote album art cached on disk (100MB LRU) instead of re-downloaded every launch.
+            - Playlist data loads on demand; removed an unused icon font.
 
             ## 📦 Install / Update
 
@@ -224,21 +222,19 @@ jobs:
 
             # Bahasa Indonesia
 
-            **Swara v1.9.0 - Playlist pintar dan lirik sinkron**
+            **Swara v1.9.1 - Import M3U, berbagi, dan streak**
 
             ## ✨ Fitur baru
 
-            - Smart playlist otomatis: Daily Mix (25 lagu segar tiap hari, bisa diacak ulang) dan Unplayed, dirawat otomatis.
-            - Lirik sinkron (LRC) dengan highlight mengikuti lagu dan auto-scroll, plus toggle tampilan biasa.
-            - Sleep timer memudarkan volume, bukan berhenti mendadak.
-            - Backup dan restore: export/import playlist, favorit, dan riwayat sebagai JSON, plus info ukuran dan bersih-bersih cache cover.
-            - Onboarding saat pertama dibuka.
-            - Tombol shuffle/repeat notifikasi kini jelas aktif atau tidak.
-            - UI dipoles: padding konsisten, loading skeleton, empty state rata tengah, touch target 48px.
+            - Import playlist dari file .m3u/.m3u8, dicocokkan ke library.
+            - Bagikan lagu (info plus file audio) dari menu lagu.
+            - Streak harian dan genre teratas bulan ini di dashboard, dengan agregat ter-cache.
+            - Cold start lebih cepat dengan inisialisasi paralel di balik splash screen.
 
             ## ⚡ Pengoptimalan
 
-            - Hasil fetch lirik di-cache lebih lama; lirik sinkron tersimpan lokal.
+            - Cover art remote di-cache di disk (LRU 100MB) alih-alih diunduh ulang tiap buka app.
+            - Data playlist dimuat saat dibutuhkan; buang font ikon yang tak terpakai.
 
             ## 📦 Instalasi / Update
 

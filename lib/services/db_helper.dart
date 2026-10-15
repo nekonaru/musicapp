@@ -528,6 +528,57 @@ class DBHelper {
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
+  /// Consecutive days with at least one listening entry, ending today
+  /// or yesterday. Returns 0 when there is no recent activity.
+  /// No schema change: reads distinct calendar days from listening_entries.
+  Future<int> getListeningStreak() async {
+    final database = await db;
+    final rows = await database.rawQuery(
+      'SELECT DISTINCT substr(timestamp, 1, 10) as day '
+      'FROM listening_entries ORDER BY day DESC',
+    );
+    if (rows.isEmpty) return 0;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    // The streak stays alive when the latest entry is from today or yesterday.
+    final latest = DateTime.parse("${rows.first['day']}T00:00:00");
+    final gap = today.difference(latest).inDays;
+    if (gap > 1) return 0;
+    var cursor = gap == 1
+        ? today.subtract(const Duration(days: 1))
+        : today;
+    var streak = 0;
+    for (final r in rows) {
+      final day = DateTime.parse("${r['day']}T00:00:00");
+      if (day == cursor) {
+        streak++;
+        cursor = cursor.subtract(const Duration(days: 1));
+      } else if (day.isBefore(cursor)) {
+        break;
+      }
+    }
+    return streak;
+  }
+
+  /// Most played genre this month, or null when there is no history yet.
+  /// No schema change: joins listening_entries against songs.
+  Future<String?> getTopGenreThisMonth() async {
+    final database = await db;
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, 1).toIso8601String();
+    final rows = await database.rawQuery('''
+      SELECT s.genre as genre, COUNT(*) as cnt
+      FROM listening_entries le
+      JOIN songs s ON s.id = le.songId
+      WHERE le.timestamp >= ? AND s.genre IS NOT NULL AND s.genre != ''
+      GROUP BY s.genre
+      ORDER BY cnt DESC
+      LIMIT 1
+    ''', [start]);
+    if (rows.isEmpty) return null;
+    return rows.first['genre'] as String?;
+  }
+
   // ---------- iTunes metadata disk cache ----------
   /// Raw cached iTunes response for [query], or null when absent.
   /// The returned map holds 'response' and 'fetchedAt' strings.

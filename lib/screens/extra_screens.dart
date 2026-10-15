@@ -7,6 +7,7 @@ import '../models/song.dart';
 import '../providers/library_provider.dart';
 import '../providers/playlist_provider.dart';
 import '../services/player_service.dart';
+import '../services/art_cache_service.dart';
 import '../services/metadata_service.dart';
 import '../services/db_helper.dart';
 import '../utils/song_options.dart';
@@ -126,17 +127,16 @@ Widget buildSongTile(
                 ),
               )
             : song.albumArtUrl != null
-                // Remote artwork without extra cache dependency.
+                // Disk cached artwork with network fallback.
                 ? ClipOval(
-                    child: Image.network(
-                      song.albumArtUrl!,
+                    child: CachedArtImage(
+                      url: song.albumArtUrl!,
                       width: 40,
                       height: 40,
                       fit: BoxFit.cover,
                       // Decode thumbnail size only to save image memory.
                       cacheWidth: 88,
-                      errorBuilder: (context, url, error) =>
-                          const CircleAvatar(
+                      fallback: const CircleAvatar(
                         child: Icon(Icons.music_note, size: 20),
                       ),
                     ),
@@ -1674,17 +1674,16 @@ class _RecentlyAddedScreenState extends State<RecentlyAddedScreen> {
                   final song = _songs[i];
                   return buildSongTile(context, song, _songs, i,
                       leading: song.albumArtUrl != null
-                          // Remote artwork without extra cache dependency.
+                          // Disk cached artwork with network fallback.
                           ? ClipOval(
-                              child: Image.network(
-                                song.albumArtUrl!,
+                              child: CachedArtImage(
+                                url: song.albumArtUrl!,
                                 width: 40,
                                 height: 40,
                                 fit: BoxFit.cover,
                                 // Decode thumbnail size only to save image memory.
                                 cacheWidth: 88,
-                                errorBuilder: (context, url, error) =>
-                                    const CircleAvatar(
+                                fallback: const CircleAvatar(
                                   child: Icon(Icons.music_note, size: 20),
                                 ),
                               ),
@@ -1774,18 +1773,16 @@ class _MostPlayedScreenState extends State<MostPlayedScreen> {
                       alignment: Alignment.center,
                       children: [
                         _songs[i].albumArtUrl != null
-                            // Remote artwork without extra cache dependency.
+                            // Disk cached artwork with network fallback.
                             ? ClipOval(
-                                child: Image.network(
-                                  _songs[i].albumArtUrl!,
+                                child: CachedArtImage(
+                                  url: _songs[i].albumArtUrl!,
                                   width: 40,
                                   height: 40,
                                   fit: BoxFit.cover,
                                   // Decode thumbnail size only to save image memory.
                                   cacheWidth: 88,
-                                  errorBuilder:
-                                      (context, url, error) =>
-                                          const CircleAvatar(
+                                  fallback: const CircleAvatar(
                                     child: Icon(
                                         Icons.music_note, size: 18),
                                   ),

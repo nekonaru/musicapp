@@ -1,6 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import 'package:provider/provider.dart';
+// Requires adding share_plus to pubspec dependencies to compile.
+// Standard API used below: Share.shareXFiles([XFile(path)], text: ...)
+// with Share.share(text) as fallback. Verify against the installed
+// share_plus version if the API differs.
+import 'package:share_plus/share_plus.dart';
 import '../models/song.dart';
 import '../providers/library_provider.dart';
 import '../providers/playlist_provider.dart';
@@ -104,6 +111,14 @@ Future<void> showSongOptions(
               Navigator.push(context, MaterialPageRoute(builder: (_) => EditMetadataScreen(song: song)));
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.share_outlined),
+            title: Text(l.songShare),
+            onTap: () async {
+              Navigator.pop(ctx);
+              await _shareSong(context, song);
+            },
+          ),
           if (playlistId != null)
             ListTile(
               leading: const Icon(Icons.playlist_remove, color: Colors.red),
@@ -160,6 +175,28 @@ Future<void> showSongOptions(
       ),
     ),
   );
+}
+
+Future<void> _shareSong(BuildContext context, Song song) async {
+  // Share "title - artist" text plus the audio file when it still exists.
+  final text = '${song.title} - ${song.artist}';
+  try {
+    final file = File(song.filePath);
+    if (await file.exists()) {
+      await SharePlus.instance
+          .share(ShareParams(files: [XFile(song.filePath)], text: text));
+    } else {
+      // File is gone, so share the text label only.
+      await SharePlus.instance.share(ShareParams(text: text));
+    }
+  } catch (e) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+          content: Text(AppLocalizations.of(context)!
+              .songShareFailed(e.toString()))),
+    );
+  }
 }
 
 Future<void> _renameSong(BuildContext context, Song song, LibraryProvider lib) async {

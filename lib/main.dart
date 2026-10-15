@@ -12,61 +12,97 @@ import 'services/player_service.dart';
 import 'services/swara_audio_handler.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/splash_screen.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await PlayerService.instance.init();
-  } catch (e) {
-    // Keep the app usable when the player fails to init:
-    // the home page shows a retryable error state instead of a black splash.
-    debugPrint('PlayerService init failed: $e');
-  }
-
-  try {
-    await Permission.notification.request();
-  } catch (e) {
-    debugPrint('Notification permission could not be requested: $e');
-  }
-
-  try {
-    await AudioService.init(
-      builder: () => SwaraAudioHandler(),
-      config: const AudioServiceConfig(
-        androidNotificationChannelId:
-            'com.nikodwidharma.offline_music_player.channel.audio',
-        androidNotificationChannelName: 'Kontrol Musik Swara',
-        androidNotificationIcon: 'drawable/ic_stat_swara',
-        androidNotificationOngoing: true,
-        androidStopForegroundOnPause: true,
-      ),
-    );
-  } catch (e) {
-    debugPrint('AudioService failed to initialize: $e');
-  }
 
   final themeProvider = ThemeProvider();
-  await themeProvider.load();
-
-  // Load the saved app language before startup (defaults to English).
   final languageProvider = LanguageProvider.instance;
-  try {
-    await languageProvider.load();
-  } catch (e) {
-    debugPrint('LanguageProvider failed to load: $e');
-  }
+
+  // Start all independent init tasks in parallel and paint first frame
+  // immediately, so the user sees the splash instead of a black screen.
+  final bootFuture = _bootApp(
+    themeProvider: themeProvider,
+    languageProvider: languageProvider,
+  );
 
   runApp(MusicApp(
-      themeProvider: themeProvider, languageProvider: languageProvider));
+    themeProvider: themeProvider,
+    languageProvider: languageProvider,
+    bootFuture: bootFuture,
+  ));
+}
+
+// Runs independent startup tasks concurrently. Each task guards its own
+// failure so one failing init never blocks the others or the app launch.
+// PlayerService and AudioService are safe to start together: the audio
+// handler only attaches a listener to the existing PlayerService singleton
+// and reads its state lazily at runtime.
+Future<void> _bootApp({
+  required ThemeProvider themeProvider,
+  required LanguageProvider languageProvider,
+}) {
+  return Future.wait([
+    () async {
+      try {
+        await PlayerService.instance.init();
+      } catch (e) {
+        // Keep the app usable when the player fails to init.
+        debugPrint('PlayerService init failed: $e');
+      }
+    }(),
+    () async {
+      try {
+        await Permission.notification.request();
+      } catch (e) {
+        debugPrint('Notification permission could not be requested: $e');
+      }
+    }(),
+    () async {
+      try {
+        await AudioService.init(
+          builder: () => SwaraAudioHandler(),
+          config: const AudioServiceConfig(
+            androidNotificationChannelId:
+                'com.nikodwidharma.offline_music_player.channel.audio',
+            androidNotificationChannelName: 'Kontrol Musik Swara',
+            androidNotificationIcon: 'drawable/ic_stat_swara',
+            androidNotificationOngoing: true,
+            androidStopForegroundOnPause: true,
+          ),
+        );
+      } catch (e) {
+        debugPrint('AudioService failed to initialize: $e');
+      }
+    }(),
+    () async {
+      try {
+        await themeProvider.load();
+      } catch (e) {
+        debugPrint('ThemeProvider failed to load: $e');
+      }
+    }(),
+    () async {
+      // Load the saved app language before startup (defaults to English).
+      try {
+        await languageProvider.load();
+      } catch (e) {
+        debugPrint('LanguageProvider failed to load: $e');
+      }
+    }(),
+  ]);
 }
 
 class MusicApp extends StatelessWidget {
   final ThemeProvider themeProvider;
   final LanguageProvider languageProvider;
+  final Future<void> bootFuture;
   const MusicApp(
       {super.key,
       required this.themeProvider,
-      required this.languageProvider});
+      required this.languageProvider,
+      required this.bootFuture});
 
   @override
   Widget build(BuildContext context) {
@@ -94,16 +130,36 @@ class MusicApp extends StatelessWidget {
             brightness: Brightness.dark,
             useMaterial3: true,
           ),
-          home: const StartupGate(),
+          home: BootGate(bootFuture: bootFuture),
         ),
       ),
     );
   }
 }
 
+// Shows the splash while boot init runs, then hands off to StartupGate.
+// Keeps the original StartupGate and HomeScreen flow untouched.
+class BootGate extends StatelessWidget {
+  final Future<void> bootFuture;
+  const BootGate({super.key, required this.bootFuture});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<void>(
+      future: bootFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const SplashScreen();
+        }
+        return const StartupGate();
+      },
+    );
+  }
+}
+
 // Chooses the first screen based on the persisted onboarding flag.
 // Shows onboarding when 'onboarding_done' is not true, else HomeScreen.
-// PlayerService and theme init above are untouched.
+// Boot init above runs in parallel behind BootGate and SplashScreen.
 class StartupGate extends StatelessWidget {
   const StartupGate({super.key});
 

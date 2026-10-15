@@ -2227,6 +2227,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Plain'**
   String get lyricsPlain;
+
+  /// Share song menu item
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get songShare;
+
+  /// Share failure message
+  ///
+  /// In en, this message translates to:
+  /// **'Could not share song: {error}'**
+  String songShareFailed(String error);
+
+  /// Fallback playlist name for M3U import
+  ///
+  /// In en, this message translates to:
+  /// **'Imported playlist'**
+  String get m3uImportedDefault;
+
+  /// M3U import summary
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {added} of {total} songs into \"{name}\" ({missing} not found in library)'**
+  String m3uImportSummary(int added, int total, String name, int missing);
+
+  /// M3U import failure message
+  ///
+  /// In en, this message translates to:
+  /// **'Import M3U failed: {error}'**
+  String m3uImportFailed(String error);
+
+  /// Import M3U chip button
+  ///
+  /// In en, this message translates to:
+  /// **'Import M3U'**
+  String get m3uImportButton;
+
+  /// Listening streak label
+  ///
+  /// In en, this message translates to:
+  /// **'Day streak'**
+  String get dashStreak;
+
+  /// Top genre this month label
+  ///
+  /// In en, this message translates to:
+  /// **'Top genre this month'**
+  String get dashTopGenreMonth;
+
+  /// Badge shown when numbers come from cache
+  ///
+  /// In en, this message translates to:
+  /// **'cached'**
+  String get dashCached;
 }
 
 class _AppLocalizationsDelegate

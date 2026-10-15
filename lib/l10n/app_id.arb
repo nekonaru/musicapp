@@ -1056,5 +1056,65 @@
     "lyricsPlain":  "Biasa",
     "@lyricsPlain":  {
                           "description":  "Label toggle lirik biasa"
-                      }
+                      },
+    "songShare":  "Bagikan",
+    "@songShare":  {
+                        "description":  "Item menu bagikan lagu"
+                    },
+    "songShareFailed":  "Tidak bisa membagikan lagu: {error}",
+    "@songShareFailed":  {
+                              "description":  "Pesan gagal bagikan",
+                              "placeholders":  {
+                                                   "error":  {
+                                                                 "type":  "String"
+                                                             }
+                                               }
+                          },
+    "m3uImportedDefault":  "Playlist import",
+    "@m3uImportedDefault":  {
+                                 "description":  "Nama fallback playlist import M3U"
+                             },
+    "m3uImportSummary":  "Mengimpor {added} dari {total} lagu ke \"{name}\" ({missing} tidak ketemu di library)",
+    "@m3uImportSummary":  {
+                               "description":  "Ringkasan import M3U",
+                               "placeholders":  {
+                                                    "added":  {
+                                                                  "type":  "int"
+                                                              },
+                                                    "total":  {
+                                                                  "type":  "int"
+                                                              },
+                                                    "name":  {
+                                                                 "type":  "String"
+                                                             },
+                                                    "missing":  {
+                                                                    "type":  "int"
+                                                                }
+                                                }
+                           },
+    "m3uImportFailed":  "Import M3U gagal: {error}",
+    "@m3uImportFailed":  {
+                              "description":  "Pesan gagal import M3U",
+                              "placeholders":  {
+                                                   "error":  {
+                                                                 "type":  "String"
+                                                             }
+                                               }
+                          },
+    "m3uImportButton":  "Import M3U",
+    "@m3uImportButton":  {
+                              "description":  "Tombol chip Import M3U"
+                          },
+    "dashStreak":  "Streak harian",
+    "@dashStreak":  {
+                         "description":  "Label streak mendengarkan"
+                     },
+    "dashTopGenreMonth":  "Genre teratas bulan ini",
+    "@dashTopGenreMonth":  {
+                                "description":  "Label genre teratas bulan ini"
+                            },
+    "dashCached":  "cache",
+    "@dashCached":  {
+                         "description":  "Badge angka dari cache"
+                     }
 }

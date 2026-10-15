@@ -1225,4 +1225,37 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get lyricsPlain => 'Biasa';
+
+  @override
+  String get songShare => 'Bagikan';
+
+  @override
+  String songShareFailed(String error) {
+    return 'Tidak bisa membagikan lagu: $error';
+  }
+
+  @override
+  String get m3uImportedDefault => 'Playlist import';
+
+  @override
+  String m3uImportSummary(int added, int total, String name, int missing) {
+    return 'Mengimpor $added dari $total lagu ke \"$name\" ($missing tidak ketemu di library)';
+  }
+
+  @override
+  String m3uImportFailed(String error) {
+    return 'Import M3U gagal: $error';
+  }
+
+  @override
+  String get m3uImportButton => 'Import M3U';
+
+  @override
+  String get dashStreak => 'Streak harian';
+
+  @override
+  String get dashTopGenreMonth => 'Genre teratas bulan ini';
+
+  @override
+  String get dashCached => 'cache';
 }

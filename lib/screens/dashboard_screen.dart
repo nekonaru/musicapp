@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:offline_music_player/l10n/gen/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/db_helper.dart';
 import '../models/song.dart';
 import '../services/player_service.dart';
@@ -21,9 +24,16 @@ class DashboardScreenState extends State<DashboardScreen> {
   int _totalSongs = 0;
   int _totalListeningMs = 0;
   int _thisMonthMs = 0;
+  int _streak = 0;
+  String? _topGenreMonth;
+  bool _fromCache = false;
   List<Song> _neverPlayed = [];
   bool _loading = true;
   String? _error;
+
+  // Aggregate cache for the dashboard summary numbers, with a 10 minute TTL.
+  static const _aggregateCacheKey = 'dashboard_aggregate_cache_v1';
+  static const _aggregateCacheTtl = Duration(minutes: 10);
 
   @override
   void initState() {
@@ -31,59 +41,137 @@ class DashboardScreenState extends State<DashboardScreen> {
     _load();
   }
 
-  Future<void> reload() => _load();
+  // Called on every tab switch, so it always recomputes and rewrites the
+  // cache. A newly recorded listening entry can never leave stale numbers
+  // behind on the next dashboard visit.
+  Future<void> reload() => _load(forceRefresh: true);
 
-  Future<void> _load() async {
+  /// Cached summary map, or null when absent, expired, or malformed.
+  /// Never throws: any problem means the caller recomputes instead.
+  Future<Map<String, dynamic>?> _readAggregateCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_aggregateCacheKey);
+      if (raw == null || raw.isEmpty) return null;
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      final cacheTime = DateTime.tryParse('${map['cacheTime']}');
+      if (cacheTime == null) return null;
+      if (DateTime.now().difference(cacheTime) >= _aggregateCacheTtl) {
+        return null;
+      }
+      return map;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Persist the summary numbers. Best effort only, never fails the load.
+  Future<void> _writeAggregateCache({
+    required int totalSongs,
+    required int totalMs,
+    required int monthMs,
+    required int streak,
+    required String? topGenre,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _aggregateCacheKey,
+        jsonEncode({
+          'totalSongs': totalSongs,
+          'totalMs': totalMs,
+          'monthMs': monthMs,
+          'streak': streak,
+          'topGenre': topGenre,
+          'cacheTime': DateTime.now().toIso8601String(),
+        }),
+      );
+    } catch (_) {
+      // Cache is optional, ignore write failures.
+    }
+  }
+
+  Future<void> _load({bool forceRefresh = false}) async {
     if (mounted) setState(() {
       _loading = true;
       _error = null;
     });
 
     try {
-      // Run all DB queries in parallel, not serially.
-      final dailyFuture = DBHelper.instance.getDailyListeningLast7Days();
-      final topSongsFuture = DBHelper.instance.getTopSongIds(limit: 5);
-      final topArtistsFuture = DBHelper.instance.getTopArtists(limit: 5);
-      final genreDistFuture = DBHelper.instance.getGenreDistribution();
-      final allSongsFuture = DBHelper.instance.getAllSongs();
-      final totalMsFuture = DBHelper.instance.getTotalListeningMs();
-      final monthMsFuture = DBHelper.instance.getThisMonthListeningMs();
-      final neverPlayedFuture = DBHelper.instance.getNeverPlayedSongs();
+      // Only the summary numbers come from the cache. Detail lists are
+      // always read fresh from the DB. When in doubt, recompute instead
+      // of showing data that might be stale.
+      final cached = forceRefresh ? null : await _readAggregateCache();
+      final useCache = cached != null;
 
-      final results = await Future.wait([
-        dailyFuture,
-        topSongsFuture,
-        topArtistsFuture,
-        genreDistFuture,
-        allSongsFuture,
-        totalMsFuture,
-        monthMsFuture,
-        neverPlayedFuture,
-      ]);
+      // Detail queries always run fresh so lists never go stale.
+      final futures = <Future>[
+        DBHelper.instance.getDailyListeningLast7Days(),
+        DBHelper.instance.getTopSongIds(limit: 5),
+        DBHelper.instance.getTopArtists(limit: 5),
+        DBHelper.instance.getGenreDistribution(),
+        DBHelper.instance.getAllSongs(),
+        DBHelper.instance.getNeverPlayedSongs(),
+      ];
+      // Summary queries only run on a cache miss or forced refresh.
+      if (!useCache) {
+        futures.addAll([
+          DBHelper.instance.getTotalListeningMs(),
+          DBHelper.instance.getThisMonthListeningMs(),
+          DBHelper.instance.getListeningStreak(),
+          DBHelper.instance.getTopGenreThisMonth(),
+        ]);
+      }
+
+      final results = await Future.wait(futures);
 
       final daily = results[0] as Map<DateTime, int>;
       final topSongs = results[1] as List<MapEntry<int, int>>;
       final topArtists = results[2] as List<MapEntry<String, int>>;
       final genreDist = results[3] as Map<String, int>;
       final allSongs = results[4] as List<Song>;
-      final totalMs = results[5] as int;
-      final monthMs = results[6] as int;
-      final neverPlayed = results[7] as List<Song>;
+      final neverPlayed = results[5] as List<Song>;
 
-      if (mounted) {
-        setState(() {
-          _daily = daily;
-          _topSongIds = topSongs;
-          _topArtists = topArtists;
-          _genreDist = genreDist;
-          _songLookup = {for (final s in allSongs) s.id: s};
-          _totalSongs = allSongs.length;
-          _totalListeningMs = totalMs;
-          _thisMonthMs = monthMs;
-          _neverPlayed = neverPlayed;
-          _loading = false;
-        });
+      final int totalMs;
+      final int monthMs;
+      final int streak;
+      final String? topGenre;
+      if (useCache) {
+        totalMs = (cached['totalMs'] as num?)?.toInt() ?? 0;
+        monthMs = (cached['monthMs'] as num?)?.toInt() ?? 0;
+        streak = (cached['streak'] as num?)?.toInt() ?? 0;
+        final rawGenre = cached['topGenre'];
+        topGenre = rawGenre is String && rawGenre.isNotEmpty ? rawGenre : null;
+      } else {
+        totalMs = results[6] as int;
+        monthMs = results[7] as int;
+        streak = results[8] as int;
+        topGenre = results[9] as String?;
+        await _writeAggregateCache(
+          totalSongs: allSongs.length,
+          totalMs: totalMs,
+          monthMs: monthMs,
+          streak: streak,
+          topGenre: topGenre,
+        );
       }
+
+      if (!mounted) return;
+      setState(() {
+        _daily = daily;
+        _topSongIds = topSongs;
+        _topArtists = topArtists;
+        _genreDist = genreDist;
+        _songLookup = {for (final s in allSongs) s.id: s};
+        _totalSongs = allSongs.length;
+        _totalListeningMs = totalMs;
+        _thisMonthMs = monthMs;
+        _streak = streak;
+        _topGenreMonth = topGenre;
+        _neverPlayed = neverPlayed;
+        _fromCache = useCache;
+        _loading = false;
+      });
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -144,7 +232,7 @@ class DashboardScreenState extends State<DashboardScreen> {
 
     if (!_hasAnyData) {
       return RefreshIndicator(
-        onRefresh: _load,
+        onRefresh: () => _load(forceRefresh: true),
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
@@ -184,7 +272,7 @@ class DashboardScreenState extends State<DashboardScreen> {
     final weekHours = weekMs / 3600000;
 
     return RefreshIndicator(
-      onRefresh: _load,
+      onRefresh: () => _load(forceRefresh: true),
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
@@ -219,6 +307,39 @@ class DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+
+          // Streak and top genre this month.
+          Row(
+            children: [
+              Expanded(
+                child: _StatCard(
+                  icon: Icons.local_fire_department_outlined,
+                  value: '$_streak',
+                  label: AppLocalizations.of(context)!.dashStreak,
+                  color: Colors.deepOrange,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _StatCard(
+                  icon: Icons.category_outlined,
+                  value: _topGenreMonth ?? '-',
+                  label:
+                      AppLocalizations.of(context)!.dashTopGenreMonth,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+          // Small badge shown when the summary numbers come from the cache.
+          if (_fromCache)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(AppLocalizations.of(context)!.dashCached,
+                  textAlign: TextAlign.end,
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+            ),
           const SizedBox(height: 16),
 
           // 7-day chart

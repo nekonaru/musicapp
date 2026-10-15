@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import '../models/song.dart';
 import '../services/player_service.dart';
+import '../services/art_cache_service.dart';
 import '../services/metadata_service.dart';
 import '../services/db_helper.dart';
 import '../utils/lrc.dart';
@@ -519,23 +520,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
                       child: song.albumArtUrl != null
-                          // Remote artwork without extra cache dependency.
-                          ? Image.network(
-                              song.albumArtUrl!,
+                          // Disk cached artwork with network fallback.
+                          ? CachedArtImage(
+                              url: song.albumArtUrl!,
                               width: 260, height: 260, fit: BoxFit.cover,
                               // Decode near display size to save image memory.
                               cacheWidth: 520,
-                              loadingBuilder: (context, child, progress) {
-                                if (progress == null) return child;
-                                return Container(
-                                  width: 260,
-                                  height: 260,
-                                  color: Colors.grey[300],
-                                  child: const Center(
-                                      child: CircularProgressIndicator()),
-                                );
-                              },
-                              errorBuilder: (context, url, error) => Container(
+                              loading: Container(
+                                width: 260,
+                                height: 260,
+                                color: Colors.grey[300],
+                                child: const Center(
+                                    child: CircularProgressIndicator()),
+                              ),
+                              fallback: Container(
                                 width: 260, height: 260, color: Colors.grey[300],
                                 child: const Icon(Icons.music_note, size: 80),
                               ),

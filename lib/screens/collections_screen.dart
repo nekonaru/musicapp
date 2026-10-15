@@ -5,6 +5,7 @@ import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import '../providers/library_provider.dart';
 import '../providers/playlist_provider.dart';
 import '../services/db_helper.dart';
+import '../services/m3u_service.dart';
 import 'extra_screens.dart';
 import 'history_screen.dart';
 import 'playlist_detail_screen.dart';
@@ -218,6 +219,72 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
     await _syncDailyMix(prov, lib);
   }
 
+  // Import an .m3u/.m3u8 file as a new playlist. The playlist name
+  // comes from the file name; on a duplicate name error (UNIQUE
+  // constraint from the existing DB layer) a numeric suffix is added
+  // and creation is retried until it succeeds.
+  Future<void> _importM3u() async {
+    try {
+      final lib = context.read<LibraryProvider>();
+      final prov = context.read<PlaylistProvider>();
+      final picked = await M3uService.pickAndMatch(lib.songs);
+      if (picked == null || !mounted) return;
+
+      var base = picked.playlistName.trim();
+      if (base.isEmpty) {
+        base = AppLocalizations.of(context)!.m3uImportedDefault;
+      }
+      var name = base;
+      var suffix = 2;
+      var playlistId = -1;
+      while (playlistId < 0) {
+        try {
+          await prov.create(name);
+          if (!mounted) return;
+          final found = prov.playlists.firstWhere(
+            (p) => (p['name'] as String) == name,
+          );
+          playlistId = found['id'] as int;
+        } catch (e) {
+          // Retry with a suffix only on duplicate name errors.
+          if (!e.toString().contains('UNIQUE')) rethrow;
+          name = '$base ($suffix)';
+          suffix++;
+        }
+      }
+
+      var added = 0;
+      for (final song in picked.match.matched) {
+        try {
+          await prov.addSong(playlistId, song.id);
+          added++;
+        } catch (_) {
+          // Ignore per-song duplicate errors, keep importing the rest.
+        }
+      }
+      await prov.load();
+      if (!mounted) return;
+      final missing = picked.match.missing;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.m3uImportSummary(
+              added,
+              picked.match.matched.length,
+              name,
+              missing)),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!
+              .m3uImportFailed(e.toString())),
+        ),
+      );
+    }
+  }
+
   void _openPage(BuildContext context, Widget page) {
     Navigator.push(
       context,
@@ -356,6 +423,33 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                           ),
                         ),
                         const Spacer(),
+                        GestureDetector(
+                          onTap: _importM3u,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: cs.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.upload_file_outlined,
+                                    size: 14, color: cs.primary),
+                                const SizedBox(width: 4),
+                                Text(
+                                    AppLocalizations.of(context)!
+                                        .m3uImportButton,
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: cs.primary)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         Text(
                           l.collectionsPlaylistCount(pl.length),
                           style: TextStyle(fontSize: 12, color: Colors.grey[500]),

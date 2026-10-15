@@ -6,6 +6,7 @@ import '../models/song.dart';
 import '../providers/library_provider.dart';
 import '../providers/playlist_provider.dart';
 import '../services/player_service.dart';
+import '../services/art_cache_service.dart';
 import '../widgets/az_scrollbar.dart';
 import '../widgets/playing_indicator.dart';
 import '../utils/song_options.dart';
@@ -679,17 +680,16 @@ class _SongTile extends StatelessWidget {
                                       .instance.player.playing,
                                   color: cs.primary))
                           : song.albumArtUrl != null
-                              // Remote artwork without extra cache dependency.
+                              // Disk cached artwork with network fallback.
                               ? ClipOval(
-                                  child: Image.network(
-                                    song.albumArtUrl!,
+                                  child: CachedArtImage(
+                                    url: song.albumArtUrl!,
                                     width: 40,
                                     height: 40,
                                     fit: BoxFit.cover,
                                     // Decode thumbnail size only to save image memory.
                                     cacheWidth: 88,
-                                    errorBuilder: (context, url, error) =>
-                                        const CircleAvatar(
+                                    fallback: const CircleAvatar(
                                       child:
                                           Icon(Icons.music_note, size: 20),
                                     ),

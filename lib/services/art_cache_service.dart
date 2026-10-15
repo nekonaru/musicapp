@@ -1,0 +1,290 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/widgets.dart';
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+
+// Disk cache for remote album art.
+//
+// Remote covers are downloaded once into the app temp dir and reused
+// across launches, so lists and players do not refetch them every time.
+// All failures return null and never throw, so callers can fall back
+// to Image.network or an icon.
+class ArtCacheService {
+  ArtCacheService._();
+  static final ArtCacheService instance = ArtCacheService._();
+
+  // Total cache budget. Oldest files are evicted first (best effort).
+  static const int maxTotalBytes = 100 * 1024 * 1024;
+
+  String? _dirPath;
+  final Map<String, Future<File?>> _inflight = {};
+  final Map<String, String> _knownPaths = {};
+
+  // Simple non crypto hash of the URL, stable across launches.
+  // Two 32 bit lanes are combined to keep collision risk low.
+  String _fileNameFor(String url) {
+    var h1 = 0x811c9dc5;
+    var h2 = 0x811c9dc5 ^ 0x5bd1e995;
+    for (final c in url.codeUnits) {
+      h1 ^= c;
+      h1 = (h1 * 0x01000193) & 0xFFFFFFFF;
+      h2 ^= c;
+      h2 = ((h2 << 5) + h2 + (c ^ 0x9e3779b9)) & 0xFFFFFFFF;
+    }
+    final a = h1.toRadixString(16).padLeft(8, '0');
+    final b = h2.toRadixString(16).padLeft(8, '0');
+    return 'art_${a}_${b}.jpg';
+  }
+
+  Future<Directory?> _cacheDir() async {
+    try {
+      if (_dirPath != null) {
+        final dir = Directory(_dirPath!);
+        if (await dir.exists()) return dir;
+      }
+      final tmp = await getTemporaryDirectory();
+      final dir = Directory(p.join(tmp.path, 'art_cache'));
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      _dirPath = dir.path;
+      return dir;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Sync fast path for already resolved files. Returns null when the
+  // file is unknown or no longer on disk. Never throws.
+  File? peekSync(String url) {
+    try {
+      final path = _knownPaths[url];
+      if (path != null) {
+        final file = File(path);
+        if (file.existsSync()) return file;
+        _knownPaths.remove(url);
+      }
+      if (_dirPath != null) {
+        final file = File(p.join(_dirPath!, _fileNameFor(url)));
+        if (file.existsSync() && file.lengthSync() > 0) {
+          _knownPaths[url] = file.path;
+          return file;
+        }
+      }
+    } catch (_) {
+      // Best effort only.
+    }
+    return null;
+  }
+
+  // Resolve the cached file for [url], downloading it once on a miss.
+  // Returns the file when it exists or the download succeeds,
+  // otherwise null. Concurrent calls for the same URL share one task.
+  Future<File?> resolveArtFile(String url) {
+    if (url.isEmpty) return Future.value(null);
+    final hit = peekSync(url);
+    if (hit != null) {
+      // Refresh recency in the background for LRU eviction.
+      _touch(hit);
+      return Future.value(hit);
+    }
+    final pending = _inflight[url];
+    if (pending != null) return pending;
+    final task = _resolveInner(url);
+    _inflight[url] = task;
+    task.whenComplete(() => _inflight.remove(url));
+    return task;
+  }
+
+  Future<File?> _resolveInner(String url) async {
+    try {
+      final dir = await _cacheDir();
+      if (dir == null) return null;
+      final file = File(p.join(dir.path, _fileNameFor(url)));
+      if (await file.exists()) {
+        if (await file.length() > 0) {
+          _knownPaths[url] = file.path;
+          _touch(file);
+          return file;
+        } else {
+          await file.delete();
+        }
+      }
+      final uri = Uri.tryParse(url);
+      if (uri == null || !uri.hasScheme) return null;
+      final res = await http
+          .get(uri, headers: const {'Accept': 'image/*'})
+          .timeout(const Duration(seconds: 15));
+      if (res.statusCode != 200 || res.bodyBytes.isEmpty) return null;
+      await file.writeAsBytes(res.bodyBytes, flush: true);
+      _knownPaths[url] = file.path;
+      await _enforceCap(dir);
+      return file;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Best effort LRU touch. Never throws.
+  void _touch(File file) {
+    try {
+      file.setLastModified(DateTime.now());
+    } catch (_) {
+      // Ignore.
+    }
+  }
+
+  // Delete oldest files until the folder fits the budget. Best effort.
+  Future<void> _enforceCap(Directory dir) async {
+    try {
+      final entries = await dir.list().toList();
+      final files = <File>[];
+      for (final e in entries) {
+        if (e is File &&
+            p.basename(e.path).startsWith('art_') &&
+            p.basename(e.path).endsWith('.jpg')) {
+          files.add(e);
+        }
+      }
+      var total = 0;
+      final sizes = <String, int>{};
+      final times = <String, DateTime>{};
+      for (final f in files) {
+        try {
+          final stat = await f.stat();
+          sizes[f.path] = stat.size;
+          times[f.path] = stat.modified;
+          total += stat.size;
+        } catch (_) {
+          // Skip unreadable entries.
+        }
+      }
+      if (total <= maxTotalBytes) return;
+      files.sort((a, b) {
+        final ta = times[a.path] ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final tb = times[b.path] ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return ta.compareTo(tb);
+      });
+      for (final f in files) {
+        if (total <= maxTotalBytes) break;
+        try {
+          await f.delete();
+          total -= sizes[f.path] ?? 0;
+          _knownPaths.removeWhere((_, v) => v == f.path);
+        } catch (_) {
+          // Keep going with the next file.
+        }
+      }
+    } catch (_) {
+      // Cache eviction must never break the UI.
+    }
+  }
+}
+
+// Small cover widget backed by [ArtCacheService].
+//
+// Shows the disk file when available, otherwise the plain network image
+// (so behavior and look stay the same as before), and [fallback] when
+// both fail. The future is stored in state, so parent rebuilds do not
+// restart the lookup and FutureBuilder needs no manual dispose.
+class CachedArtImage extends StatefulWidget {
+  final String url;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
+  final int? cacheWidth;
+  final Widget fallback;
+  final Widget? loading;
+
+  const CachedArtImage({
+    super.key,
+    required this.url,
+    required this.fallback,
+    this.width,
+    this.height,
+    this.fit = BoxFit.cover,
+    this.cacheWidth,
+    this.loading,
+  });
+
+  @override
+  State<CachedArtImage> createState() => _CachedArtImageState();
+}
+
+class _CachedArtImageState extends State<CachedArtImage> {
+  late Future<File?> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = ArtCacheService.instance.resolveArtFile(widget.url);
+  }
+
+  @override
+  void didUpdateWidget(CachedArtImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) {
+      _future = ArtCacheService.instance.resolveArtFile(widget.url);
+    }
+  }
+
+  Widget _networkFallback() {
+    return Image.network(
+      widget.url,
+      width: widget.width,
+      height: widget.height,
+      fit: widget.fit,
+      cacheWidth: widget.cacheWidth,
+      loadingBuilder: widget.loading == null
+          ? null
+          : (context, child, progress) {
+              if (progress == null) return child;
+              return widget.loading!;
+            },
+      errorBuilder: (_, __, ___) => widget.fallback,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Sync fast path avoids any flicker for files already on disk.
+    final hit = ArtCacheService.instance.peekSync(widget.url);
+    if (hit != null) {
+      return Image.file(
+        hit,
+        width: widget.width,
+        height: widget.height,
+        fit: widget.fit,
+        cacheWidth: widget.cacheWidth,
+        errorBuilder: (_, __, ___) => _networkFallback(),
+      );
+    }
+    return FutureBuilder<File?>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            widget.loading != null) {
+          return widget.loading!;
+        }
+        final file = snapshot.data;
+        if (file != null) {
+          return Image.file(
+            file,
+            width: widget.width,
+            height: widget.height,
+            fit: widget.fit,
+            cacheWidth: widget.cacheWidth,
+            errorBuilder: (_, __, ___) => _networkFallback(),
+          );
+        }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _networkFallback();
+        }
+        return _networkFallback();
+      },
+    );
+  }
+}

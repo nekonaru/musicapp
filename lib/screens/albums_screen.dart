@@ -4,6 +4,7 @@ import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import '../models/song.dart';
 import '../providers/library_provider.dart';
 import '../services/player_service.dart';
+import '../services/art_cache_service.dart';
 import '../widgets/mini_player.dart';
 import 'extra_screens.dart';
 
@@ -126,14 +127,13 @@ class _AlbumCard extends StatelessWidget {
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(12)),
                 child: coverUrl != null
-                    // Remote artwork without extra cache dependency.
-                    ? Image.network(
-                        coverUrl!,
+                    // Disk cached artwork with network fallback.
+                    ? CachedArtImage(
+                        url: coverUrl!,
                         fit: BoxFit.cover,
                         // Match grid column width to limit decoded size.
                         cacheWidth: 400,
-                        errorBuilder: (_, __, ___) =>
-                            _PlaceholderCover(cs: cs),
+                        fallback: _PlaceholderCover(cs: cs),
                       )
                     : _PlaceholderCover(cs: cs),
               ),

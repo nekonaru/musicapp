@@ -1224,4 +1224,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lyricsPlain => 'Plain';
+
+  @override
+  String get songShare => 'Share';
+
+  @override
+  String songShareFailed(String error) {
+    return 'Could not share song: $error';
+  }
+
+  @override
+  String get m3uImportedDefault => 'Imported playlist';
+
+  @override
+  String m3uImportSummary(int added, int total, String name, int missing) {
+    return 'Imported $added of $total songs into \"$name\" ($missing not found in library)';
+  }
+
+  @override
+  String m3uImportFailed(String error) {
+    return 'Import M3U failed: $error';
+  }
+
+  @override
+  String get m3uImportButton => 'Import M3U';
+
+  @override
+  String get dashStreak => 'Day streak';
+
+  @override
+  String get dashTopGenreMonth => 'Top genre this month';
+
+  @override
+  String get dashCached => 'cached';
 }
