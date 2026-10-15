@@ -2719,6 +2719,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Clear'**
   String get histClear;
+
+  /// Minimize player tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Minimize'**
+  String get playerMinimize;
+
+  /// Repeat off tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat off'**
+  String get playerRepeatOff;
+
+  /// Repeat all tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat all'**
+  String get playerRepeatAll;
+
+  /// Repeat one tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat one'**
+  String get playerRepeatOne;
 }
 
 class _AppLocalizationsDelegate

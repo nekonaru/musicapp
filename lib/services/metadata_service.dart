@@ -91,6 +91,12 @@ class MetadataService {
       }
     }
     bool rateLimited = false;
+    // True when the iTunes part failed without a definitive answer
+    // (exception/offline or unexpected status). Definitive outcomes are
+    // a hit, an empty result, or HTTP 404. Only definitive outcomes may
+    // write a MISS marker or set metadataScanned true, so transient
+    // failures stay retryable on the next scan.
+    bool itunesFailed = false;
     try {
       final url = Uri.https('itunes.apple.com', '/search', {
         'term': '${song.artist} ${song.title}'.trim(),
@@ -134,18 +140,25 @@ class MetadataService {
         rateLimited = true;
         _rateLimitUntil = DateTime.now().add(_rateLimitBackoff);
         debugPrint('iTunes rate-limit (429), skip enrich ${song.title}');
-      } else {
-        // Definite HTTP miss (for example 404): remember it so later
-        // scans skip the network. Network exceptions below are not
-        // cached, so offline songs are retried instead of poisoned.
+      } else if (res.statusCode == 404) {
+        // Definitive HTTP miss: remember it so later scans skip the
+        // network. Other statuses and exceptions below are not cached,
+        // so offline songs are retried instead of poisoned.
         try {
           await DBHelper.instance.putMetadataCache(cacheKey, _cacheMissMarker);
         } catch (_) {
           // Cache write failure must never break enrichment.
         }
+      } else {
+        // Unexpected status (for example 500): treat like an exception,
+        // no MISS marker and no scanned flag, so a later scan retries it.
+        itunesFailed = true;
       }
     } catch (_) {
-      // Fetch failed (offline/network error) - keep whatever metadata is there
+      // Fetch failed (offline/network error): no MISS marker and no
+      // scanned flag, so a later scan retries it. Keep whatever
+      // metadata is already there.
+      itunesFailed = true;
     }
     if (rateLimited) {
       // Persist harmless fallbacks but keep metadataScanned false so the
@@ -155,6 +168,17 @@ class MetadataService {
       song.metadataScanned = false;
       await DBHelper.instance.upsertSong(song);
       return true;
+    }
+    if (itunesFailed) {
+      // iTunes part failed without a definitive answer: persist harmless
+      // fallbacks but keep metadataScanned false so a later scan retries
+      // this song. Lyrics fetch is still attempted best effort below.
+      song.region ??= 'Tidak diketahui';
+      song.genre ??= 'Tidak diketahui';
+      await fetchLyricsOnly(song);
+      song.metadataScanned = false;
+      await DBHelper.instance.upsertSong(song);
+      return false;
     }
     // This fallback MUST stay outside the try-catch so it still runs when the
     // request succeeds but the song is simply not found on iTunes (resultCount == 0) -
@@ -241,21 +265,26 @@ class MetadataService {
           }
         }
       }
-      // Empty body or non-200 (for example 404): remember the miss so
-      // later calls skip the network for 90 days.
-      try {
-        await DBHelper.instance.putMetadataCache(lyricsKey, _cacheMissMarker);
-      } catch (_) {
-        // Cache write failure must never break lyric fetch.
+      if (res.statusCode == 429) {
+        // Rate limited: treat like a transient failure, no MISS marker
+        // and no scanned side effect, so a later call retries it.
+        return false;
+      }
+      // Definitive miss (HTTP 404 or 200 with empty lyrics): remember
+      // the miss so later calls skip the network for 90 days. Other
+      // statuses (including 429) are transient and must not poison
+      // the cache, so they return without a MISS marker.
+      if (res.statusCode == 404 || res.statusCode == 200) {
+        try {
+          await DBHelper.instance.putMetadataCache(lyricsKey, _cacheMissMarker);
+        } catch (_) {
+          // Cache write failure must never break lyric fetch.
+        }
       }
     } catch (_) {
-      // Lyrics not found, keep null - the user can fill them in via the edit feature
-      // Remember the failure as a miss so repeated calls skip the network.
-      try {
-        await DBHelper.instance.putMetadataCache(lyricsKey, _cacheMissMarker);
-      } catch (_) {
-        // Cache write failure must never break lyric fetch.
-      }
+      // Transient failure (offline/network error): keep null so the user
+      // can fill lyrics via the edit feature. No MISS marker here so a
+      // later call retries instead of reusing a poisoned miss.
     }
     return false;
   }

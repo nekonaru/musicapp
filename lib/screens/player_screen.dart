@@ -28,6 +28,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _showLyrics = false;
   bool _isFetchingLyrics = false;
   double _dragOffset = 0;
+  // True only when the vertical swipe started in the top art zone.
+  // Keeps lyric scroll gestures below that zone from dismissing the screen.
+  bool _verticalDismissArmed = false;
   Timer? _countdownTicker;
 
   // Synced (LRC) lyrics state. Lines load once per song from the DB,
@@ -301,17 +304,31 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final isFavorite = matchInLib.isNotEmpty ? matchInLib.first.isFavorite : false;
 
     return GestureDetector(
+      onVerticalDragStart: (details) {
+        // Track dismiss swipes only when the drag starts in the top
+        // 40 percent of the screen (art zone). Lower starts are ignored
+        // for vertical so lyric lists can scroll safely.
+        final height = MediaQuery.of(context).size.height;
+        _verticalDismissArmed =
+            details.globalPosition.dy < height * 0.4;
+      },
       onVerticalDragUpdate: (details) {
+        if (!_verticalDismissArmed) return;
         if (details.delta.dy > 0) {
           setState(() => _dragOffset += details.delta.dy);
         }
       },
       onVerticalDragEnd: (details) {
+        if (!_verticalDismissArmed) return;
+        _verticalDismissArmed = false;
         if (_dragOffset > 100 || (details.primaryVelocity ?? 0) > 600) {
           Navigator.pop(context);
         } else {
           setState(() => _dragOffset = 0);
         }
+      },
+      onVerticalDragCancel: () {
+        _verticalDismissArmed = false;
       },
       onHorizontalDragEnd: (details) {
         final velocity = details.primaryVelocity ?? 0;
@@ -338,7 +355,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.keyboard_arrow_down),
-                          tooltip: 'Minimize',
+                          tooltip: AppLocalizations.of(context)!
+                              .playerMinimize,
                           onPressed: () => Navigator.pop(context),
                         ),
                       ],
@@ -440,6 +458,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ? Column(
               children: [
                 GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: () => _setShowLyrics(false),
                   child: Column(
                     children: [
@@ -460,6 +479,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           : Column(
               children: [
                 GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: () => _setShowLyrics(false),
                   child: Column(
                     children: [
@@ -509,6 +529,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: () => _setShowLyrics(true),
             child: StreamBuilder(
               stream: _player.player.playerStateStream,
@@ -724,25 +745,38 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  /// Repeat button with clear contrast for each mode: off (grey outline),
-  /// repeat all (filled purple chip), repeat one (purple chip with a "1").
+  /// Repeat button with clear contrast for each mode: off (grey),
+  /// repeat all (primary) and repeat one (primary with a "1").
+  /// IconButton keeps the 48px target plus splash and tooltip.
   Widget _buildRepeatButton() {
     final mode = _player.repeatMode;
     final color = Theme.of(context).colorScheme.primary;
     final isActive = mode != SwaraRepeatMode.off;
+    final l10n = AppLocalizations.of(context)!;
+    final String tip;
+    switch (mode) {
+      case SwaraRepeatMode.one:
+        tip = l10n.playerRepeatOne;
+        break;
+      case SwaraRepeatMode.all:
+        tip = l10n.playerRepeatAll;
+        break;
+      case SwaraRepeatMode.off:
+        tip = l10n.playerRepeatOff;
+        break;
+    }
 
-    return GestureDetector(
-      onTap: _player.cycleRepeatMode,
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: isActive ? color.withValues(alpha: 0.15) : Colors.transparent,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          mode == SwaraRepeatMode.one ? Icons.repeat_one : Icons.repeat,
-          color: isActive ? color : Colors.grey,
-        ),
+    return IconButton(
+      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+      tooltip: tip,
+      onPressed: _player.cycleRepeatMode,
+      style: IconButton.styleFrom(
+        backgroundColor:
+            isActive ? color.withValues(alpha: 0.15) : Colors.transparent,
+      ),
+      icon: Icon(
+        mode == SwaraRepeatMode.one ? Icons.repeat_one : Icons.repeat,
+        color: isActive ? color : Colors.grey,
       ),
     );
   }

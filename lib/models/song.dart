@@ -22,12 +22,18 @@ String? encodeLyricsForDb(String? lyrics) {
 /// Plaintext rows written before compression pass through unchanged.
 /// Values with the 'gz:' marker are decoded, and a corrupt payload
 /// returns the original string instead of throwing.
-dynamic decodeLyricsFromDb(dynamic value) {
+/// Non-string values return null so callers never hit a cast error.
+String? decodeLyricsFromDb(dynamic value) {
   // Legacy plaintext (or null) passes through unchanged.
   if (value == null) {
     return null;
   }
-  if (value is! String || !value.startsWith(_lyricsGzipPrefix)) {
+  // Guard against corrupt column types (for example an int left by a bad
+  // write). Null is safer than echoing a non-string back to a String field.
+  if (value is! String) {
+    return null;
+  }
+  if (!value.startsWith(_lyricsGzipPrefix)) {
     return value;
   }
   try {
@@ -118,7 +124,7 @@ class Song {
         region: map['region'] as String?,
         albumArtPath: map['albumArtPath'] as String?,
         albumArtUrl: map['albumArtUrl'] as String?,
-        lyrics: decodeLyricsFromDb(map['lyrics']) as String?,
+        lyrics: decodeLyricsFromDb(map['lyrics']),
         durationMs: (map['durationMs'] as num?)?.toInt() ?? 0,
         isFavorite: (map['isFavorite'] ?? 0) == 1,
         addedAt: parsedAddedAt,

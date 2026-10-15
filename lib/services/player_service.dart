@@ -10,6 +10,9 @@ import 'equalizer_service.dart';
 
 enum SwaraRepeatMode { off, all, one }
 
+// Decision returned by _onNaturalTrackEnd after applying sleep logic.
+enum _TrackEndDecision { stop, repeatOne, advance }
+
 class PlayerService extends ChangeNotifier {
   PlayerService._();
   static final PlayerService instance = PlayerService._();
@@ -32,6 +35,12 @@ class PlayerService extends ChangeNotifier {
   SwaraRepeatMode _repeatMode = SwaraRepeatMode.off;
   bool crossfadeEnabled = false;
   static const Duration crossfadeDuration = Duration(seconds: 3);
+
+  // Public version counter for queue/order mutations. Incremented on every
+  // queue or order change so UI can detect stale snapshots.
+  int queueVersion = 0;
+  int _playGeneration = 0;
+  double _lastSpeed = 1.0;
 
   Timer? _sleepTimer;
   DateTime? sleepTimerEndTime;
@@ -63,8 +72,13 @@ class PlayerService extends ChangeNotifier {
   StreamSubscription? _positionSub;
   StreamSubscription? _playerStateSub;
   StreamSubscription? _crossfadeStateSub;
-  bool _crossfadeTriggeredForCurrent = false;
-  bool _crossfadeCancelled = false;
+  // Crossfade generation guards overlapping fades. Incremented on every
+  // start and every cancel. A fade loop captures its own generation and
+  // aborts when the global value no longer matches. _crossfadeActiveGeneration
+  // tracks the in flight fade for the current song (-1 means idle) so the
+  // position trigger fires only once per song without a bool flag.
+  int _crossfadeGeneration = 0;
+  int _crossfadeActiveGeneration = -1;
   bool _disposed = false;
 
   /// Subscribe to the active player position stream for crossfade triggers.
@@ -104,7 +118,7 @@ class PlayerService extends ChangeNotifier {
     if (existing != null) return existing;
     final created = AudioPlayer();
     _crossfadePlayer = created;
-    created.setSpeed(_player.speed).catchError((Object e) {
+    created.setSpeed(_lastSpeed).catchError((Object e) {
       debugPrint('Crossfade speed sync failed: $e');
     });
     _crossfadeStateSub?.cancel();
@@ -174,78 +188,93 @@ class PlayerService extends ChangeNotifier {
   }
 
   void _maybeStartCrossfade(Duration position) {
-    // The guard only checks "already triggered for this song", and no longer
-    // checks _usingCrossfadePlayer - so crossfade can trigger again for every
-    // song instead of only once.
-    if (!crossfadeEnabled || _crossfadeTriggeredForCurrent) return;
+    // Trigger only once per song: an in flight fade is marked by a
+    // non idle _crossfadeActiveGeneration, so later position ticks skip.
+    if (!crossfadeEnabled || _crossfadeActiveGeneration != -1) return;
     final dur = _activePlayer.duration;
     if (dur == null) return;
     final remaining = dur - position;
     if (remaining <= crossfadeDuration && remaining > Duration.zero) {
-      _crossfadeTriggeredForCurrent = true;
       _startCrossfadeToNext();
     }
   }
 
   Future<void> _startCrossfadeToNext() async {
+    if (_disposed) return;
     if (_playOrder.isEmpty) return;
+    final playGen = _playGeneration;
     final nextPos = _computeNextPosition();
     if (nextPos == null) return;
     final nextSong = _queue[_playOrder[nextPos]];
 
-    // Use the dynamic getters - never hardcode _player/_crossfadePlayer - so this
-    // stays correct for ANY crossfade count, not just the first one.
+    // Use the dynamic getters, never hardcode _player/_crossfadePlayer, so this
+    // stays correct for any crossfade count, not just the first one.
     final outgoing = _activePlayer;
     final incoming = _fadeTargetPlayer;
-    _crossfadeCancelled = false;
+    // Claim the trigger slot so position ticks do not start a second fade.
+    final fadeGen = ++_crossfadeGeneration;
+    _crossfadeActiveGeneration = fadeGen;
 
     try {
       await incoming.setFilePath(nextSong.filePath);
-      // Move the equalizer to the incoming session as well.
-      unawaited(EqualizerService.instance.attach(incoming));
+      if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
+      await incoming.setSpeed(_lastSpeed);
+      if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
       await incoming.setVolume(0);
+      if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
       await incoming.play();
+      if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
 
       const steps = 20;
       final stepDuration = crossfadeDuration ~/ steps;
       for (int i = 1; i <= steps; i++) {
         await Future.delayed(stepDuration);
-        if (_crossfadeCancelled || _disposed) break; // user pressed next/previous mid-crossfade
+        // Abort without side effects when a newer navigation took over.
+        if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
         final v = i / steps;
         await incoming.setVolume(v);
+        if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
         await outgoing.setVolume(1 - v);
       }
-      if (_crossfadeCancelled || _disposed) {
-        // Cancelled halfway - clean up the standby player, do not swap
-        await incoming.pause();
-        await incoming.setVolume(1);
-        await outgoing.setVolume(1);
-        _crossfadeTriggeredForCurrent = false;
-        return;
-      }
+      if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
 
       await outgoing.pause();
+      if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
+      // Keep the outgoing player muted at restore level; its volume is
+      // reset to full so a later reuse starts loud. Do not release it here.
       await outgoing.setVolume(1);
+      if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
 
       // IMPORTANT: record the listening history of the OLD song first (using
       // currentSong while it still points at the old song, before _posInOrder
-      // moves), then reset the start clock for the NEW song - so
-      // listening_entries never get the wrong attribution or doubled duration.
+      // moves), then reset the start clock for the NEW song, so
+      // listening entries never get the wrong attribution or doubled duration.
       _logListening();
-      if (_disposed) return;
+      if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
       _usingCrossfadePlayer = !_usingCrossfadePlayer;
+      // Attach the equalizer only after the flip, to the now audible player.
+      // The outgoing player is left alone until its pause above.
+      unawaited(EqualizerService.instance.attach(_activePlayer));
       _posInOrder = nextPos;
       _playStartedAt = DateTime.now();
       _accumulatedListenedMs = 0;
-      _crossfadeTriggeredForCurrent = false;
+      _crossfadeActiveGeneration = -1;
       await DBHelper.instance.markPlayed(nextSong.id);
+      if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
 
       await _subscribePosition();
+      if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
+
+      // Apply the same natural end completion (sleep decrement first, then
+      // repeat decision). When sleep is exhausted this pauses both players
+      // at full restored volume and notifies, so return without extra notify.
+      final decision = _onNaturalTrackEnd();
+      if (decision == _TrackEndDecision.stop) return;
 
       notifyListeners();
     } catch (e) {
-      debugPrint('Crossfade gagal, lanjut normal: $e');
-      _crossfadeTriggeredForCurrent = false;
+      debugPrint('Crossfade failed, continue normal: $e');
+      if (fadeGen == _crossfadeGeneration) _crossfadeActiveGeneration = -1;
     }
   }
 
@@ -258,16 +287,25 @@ class PlayerService extends ChangeNotifier {
     return null;
   }
 
+  /// Cancel any in flight crossfade by bumping the generation. The fade loop
+  /// aborts without side effects when its captured generation mismatches.
+  void _cancelCrossfade() {
+    _crossfadeGeneration++;
+    _crossfadeActiveGeneration = -1;
+  }
+
   /// Start playing a new song list. This ALWAYS replaces the whole queue
   /// with just `songs` (called from the All Songs / Folder / Playlist /
   /// Favorites pages respectively, so the queue is automatically scoped to
   /// its source).
   Future<void> setQueueAndPlay(List<Song> songs, int startIndex) async {
+    if (_disposed) return;
+    _playGeneration++;
+    queueVersion++;
     _logListening();
     if (_sleepFadeActive) _cancelSleepFadeOut();
     _cancelPauseFade();
-    _crossfadeCancelled = true;
-    _crossfadeTriggeredForCurrent = false;
+    _cancelCrossfade();
     _usingCrossfadePlayer = false;
     await _crossfadePlayer?.pause();
     // Drop the standby player while crossfade is off so manual
@@ -296,21 +334,30 @@ class PlayerService extends ChangeNotifier {
   }
 
   Future<void> _playCurrent() async {
+    if (_disposed) return;
+    final playGen = _playGeneration;
     final song = currentSong;
     if (song == null) return;
     try {
       await _player.setFilePath(song.filePath);
+      if (playGen != _playGeneration || _disposed) return;
+      await _player.setSpeed(_lastSpeed);
+      if (playGen != _playGeneration || _disposed) return;
       await _player.setVolume(1);
     } catch (e) {
-      debugPrint('Gagal memutar lagu: $e');
+      if (playGen != _playGeneration || _disposed) return;
+      debugPrint('Failed to play song: $e');
       lastError = '${lookupAppLocalizations(LanguageProvider.instance.locale).corePlayFailed} "${song.title}": $e';
       notifyListeners();
       return;
     }
+    if (playGen != _playGeneration || _disposed) return;
     await _player.play();
+    if (playGen != _playGeneration || _disposed) return;
     _playStartedAt = DateTime.now();
     _accumulatedListenedMs = 0;
     await DBHelper.instance.markPlayed(song.id);
+    if (playGen != _playGeneration || _disposed) return;
     lastError = null;
     // Attach the system equalizer to this session (fire and forget,
     // the service guards its own errors and never blocks playback).
@@ -318,6 +365,7 @@ class PlayerService extends ChangeNotifier {
     // Re-attach the position listener to the now-active player, so
     // crossfade keeps triggering for the following songs too (not just once).
     await _subscribePosition();
+    if (playGen != _playGeneration || _disposed) return;
     // Warm the idle player with the next file when crossfade is off.
     _preloadNextSong();
     notifyListeners();
@@ -362,9 +410,14 @@ class PlayerService extends ChangeNotifier {
         if (_disposed) return;
         if (generation != _pauseFadeGeneration) return;
         await target.pause();
-        // Restore full volume so the next play starts loud.
+        // Restore full volume on both players so the next play starts loud.
         try {
-          await target.setVolume(1);
+          await _player.setVolume(1);
+        } catch (e) {
+          debugPrint('Pause fade reset failed: $e');
+        }
+        try {
+          await _crossfadePlayer?.setVolume(1);
         } catch (e) {
           debugPrint('Pause fade reset failed: $e');
         }
@@ -420,23 +473,33 @@ class PlayerService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Cancel an in flight manual pause/resume fade without touching volume,
-  /// so track changes never fight the fade and never pause the new song late.
+  /// Cancel an in flight manual pause/resume fade. No fade runs concurrently
+  /// thanks to the generation guard, so always restore full volume on cancel.
   void _cancelPauseFade() {
     _pauseFadeGeneration++;
     _pauseFadeOutActive = false;
+    // Restore full volume fire and forget so a cancelled resume fade never
+    // leaves the player quiet.
+    _player.setVolume(1).catchError((Object e) {
+      debugPrint('Pause fade cancel failed: $e');
+    });
+    _crossfadePlayer?.setVolume(1).catchError((Object e) {
+      debugPrint('Pause fade cancel failed: $e');
+    });
   }
 
   /// Next song FOLLOWING the queue order (_playOrder). When shuffle is on,
-  /// the shuffled order is fixed once up front - next never reshuffles.
+  /// the shuffled order is fixed once up front, next never reshuffles.
   Future<void> next() async {
+    if (_disposed) return;
+    _playGeneration++;
+    queueVersion++;
     _logListening();
     if (_sleepFadeActive) _cancelSleepFadeOut();
     _cancelPauseFade();
-    _crossfadeCancelled = true;
+    _cancelCrossfade();
     await _crossfadePlayer?.pause();
     _usingCrossfadePlayer = false;
-    _crossfadeTriggeredForCurrent = false;
     if (!crossfadeEnabled) _releaseCrossfadePlayer();
     if (_posInOrder < _playOrder.length - 1) {
       _posInOrder++;
@@ -448,16 +511,18 @@ class PlayerService extends ChangeNotifier {
     await _playCurrent();
   }
 
-  /// Previous song FOLLOWING the queue order - truly steps one position
+  /// Previous song FOLLOWING the queue order, truly steps one position
   /// back in _playOrder instead of picking a new random song.
   Future<void> previous() async {
+    if (_disposed) return;
+    _playGeneration++;
+    queueVersion++;
     _logListening();
     if (_sleepFadeActive) _cancelSleepFadeOut();
     _cancelPauseFade();
-    _crossfadeCancelled = true;
+    _cancelCrossfade();
     await _crossfadePlayer?.pause();
     _usingCrossfadePlayer = false;
-    _crossfadeTriggeredForCurrent = false;
     if (!crossfadeEnabled) _releaseCrossfadePlayer();
     if (_posInOrder > 0) {
       _posInOrder--;
@@ -488,14 +553,16 @@ class PlayerService extends ChangeNotifier {
   }
 
   Future<void> playAtQueueIndex(int posInOrder) async {
+    if (_disposed) return;
     if (posInOrder < 0 || posInOrder >= _playOrder.length) return;
+    _playGeneration++;
+    queueVersion++;
     _logListening();
     if (_sleepFadeActive) _cancelSleepFadeOut();
     _cancelPauseFade();
-    _crossfadeCancelled = true;
+    _cancelCrossfade();
     await _crossfadePlayer?.pause();
     _usingCrossfadePlayer = false;
-    _crossfadeTriggeredForCurrent = false;
     if (!crossfadeEnabled) _releaseCrossfadePlayer();
     _posInOrder = posInOrder;
     await _playCurrent();
@@ -506,6 +573,7 @@ class PlayerService extends ChangeNotifier {
       await setQueueAndPlay([song], 0);
       return;
     }
+    queueVersion++;
     _queue.add(song);
     _playOrder.insert(_posInOrder + 1, _queue.length - 1);
     // The next song changed, so any cached preload is stale.
@@ -518,19 +586,28 @@ class PlayerService extends ChangeNotifier {
       await setQueueAndPlay([song], 0);
       return;
     }
+    queueVersion++;
     _queue.add(song);
     _playOrder.add(_queue.length - 1);
     notifyListeners();
   }
 
-  /// Queue-slot IDs (original indices in _queue) for each _playOrder position -
-  /// used by the UI so it can delete the CORRECT song even when the list
+  /// Queue-slot IDs (original indices in _queue) for each _playOrder position,
+  /// used by the UI so it can delete the correct song even when the list
   /// changed mid-swipe (a plain positional index may be stale, this slot ID is not).
   List<int> get queueSlotIds => List.unmodifiable(_playOrder);
+
+  /// Position in _playOrder for a stable slot ID, or null when gone.
+  int? queuePosForSlot(int slotId) {
+    final pos = _playOrder.indexOf(slotId);
+    if (pos == -1) return null;
+    return pos;
+  }
 
   /// Remove from the queue (position in _playOrder, not the currently playing item)
   void removeFromQueue(int posInOrder) {
     if (posInOrder == _posInOrder || posInOrder < 0 || posInOrder >= _playOrder.length) return;
+    queueVersion++;
     _playOrder.removeAt(posInOrder);
     if (posInOrder < _posInOrder) _posInOrder--;
     // Compact _queue: drop entries no longer referenced by any _playOrder slot
@@ -562,19 +639,20 @@ class PlayerService extends ChangeNotifier {
   }
 
   /// Remove from the queue by (stable) slot ID instead of a plain positional
-  /// index - safe to call from swipe-to-dismiss even when the list changed
+  /// index, safe to call from swipe-to-dismiss even when the list changed
   /// midway.
   void removeQueueSlot(int slotId) {
     final pos = _playOrder.indexOf(slotId);
-    if (pos == -1) return; // already removed/changed first, safe to ignore
+    if (pos == -1) return; // already removed or changed first, safe to ignore
+    queueVersion++;
     removeFromQueue(pos);
   }
 
-  /// Drag reorder on the Queue page - only the _playOrder sequence changes
+  /// Drag reorder on the Queue page, only the _playOrder sequence changes
   void reorderQueue(int oldIndex, int newIndex) {
     if (oldIndex < 0 || oldIndex >= _playOrder.length) return;
     if (newIndex < 0 || newIndex >= _playOrder.length) return;
-
+    queueVersion++;
     final moved = _playOrder.removeAt(oldIndex);
     _playOrder.insert(newIndex, moved);
 
@@ -593,6 +671,8 @@ class PlayerService extends ChangeNotifier {
   double get playbackSpeed => _activePlayer.speed;
 
   Future<void> setPlaybackSpeed(double speed) async {
+    if (_disposed) return;
+    _lastSpeed = speed;
     try {
       await _activePlayer.setSpeed(speed);
       // Mirror the speed on the standby player only when it already
@@ -600,19 +680,19 @@ class PlayerService extends ChangeNotifier {
       // A player created later copies the speed in _ensureCrossfadePlayer.
       await _crossfadePlayer?.setSpeed(speed);
     } catch (e) {
-      debugPrint('Gagal set kecepatan: $e');
+      debugPrint('Failed to set speed: $e');
     }
     notifyListeners();
   }
 
-  /// Toggle shuffle WITHOUT changing the currently playing song - only
+  /// Toggle shuffle WITHOUT changing the currently playing song, only
   /// reorders the songs AFTER it (when ON) or restores the original
   /// order (when OFF).
   void toggleShuffle() {
     setShuffle(!_shuffle);
   }
 
-  /// Set the shuffle state explicitly (not a toggle) - used by the
+  /// Set the shuffle state explicitly (not a toggle), used by the
   /// "Shuffle" button so it always TURNS shuffle on instead of turning it off.
   void setShuffle(bool value) {
     _shuffle = value;
@@ -650,8 +730,7 @@ class PlayerService extends ChangeNotifier {
       // at most one cached file while crossfade stays off. When the
       // standby player is currently audible, the release is deferred to
       // the next track change inside _releaseCrossfadePlayer.
-      _crossfadeCancelled = true;
-      _crossfadeTriggeredForCurrent = false;
+      _cancelCrossfade();
       _releaseCrossfadePlayer();
       // Refresh the gap preload for the new mode.
       _preloadNextSong();
@@ -810,6 +889,10 @@ class PlayerService extends ChangeNotifier {
     }
     final path = nextSong.filePath;
     idle.setFilePath(path).then((_) {
+      if (_disposed) return null;
+      if (crossfadeEnabled) return null;
+      return idle.setSpeed(_lastSpeed);
+    }).then((_) {
       if (_disposed) return;
       if (crossfadeEnabled) return;
       _preloadedFilePath = path;
@@ -828,54 +911,75 @@ class PlayerService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _onTrackFinished() {
-    // Song-count mode: decrement by 1, stop when exhausted
+  /// Shared natural track end completion used by both the normal completion
+  /// listener and the crossfade swap path. Applies the sleep decrement first,
+  /// then the pending sleep stop, then the repeat one decision. Stop paths
+  /// pause both players, restore full volume on both, stop position updates,
+  /// and notify. Returns whether playback should continue to the next song.
+  _TrackEndDecision _onNaturalTrackEnd() {
+    // Song count mode: decrement by 1, stop when exhausted.
     if (sleepSongsRemaining != null) {
       sleepSongsRemaining = sleepSongsRemaining! - 1;
       if (sleepSongsRemaining! <= 0) {
         sleepSongsRemaining = null;
         _logListening();
-        // Fire-and-forget with an error guard - _onTrackFinished is triggered
-        // from a stream listener that cannot be async.
-        _player.pause().catchError((e) {
-          debugPrint('Gagal pause saat sleep-timer: $e');
-        });
-        _crossfadePlayer?.pause().catchError((e) {
-          debugPrint('Gagal pause saat sleep-timer: $e');
-        });
+        // Fire and forget with an error guard, called from sync listeners.
+        _pauseBothForSleep();
         // Stop position updates while paused to save battery.
         _unsubscribePosition();
         notifyListeners();
-        return;
+        return _TrackEndDecision.stop;
       }
     }
-    // Time mode with "finish the last song": the song that just ended was the last one
+    // Time mode with finish last song: the song that just ended was the last one.
     if (_pendingSleepStop) {
       _pendingSleepStop = false;
       _logListening();
-      _player.pause().catchError((e) {
-        debugPrint('Gagal pause saat sleep-timer: $e');
-      });
-      _crossfadePlayer?.pause().catchError((e) {
-        debugPrint('Gagal pause saat sleep-timer: $e');
-      });
+      _pauseBothForSleep();
       // Stop position updates while paused to save battery.
       _unsubscribePosition();
       notifyListeners();
-      return;
+      return _TrackEndDecision.stop;
     }
-
     if (_repeatMode == SwaraRepeatMode.one) {
+      return _TrackEndDecision.repeatOne;
+    }
+    return _TrackEndDecision.advance;
+  }
+
+  /// Pause both players for a sleep stop and always restore full volume on
+  /// both, so the next manual play starts loud.
+  void _pauseBothForSleep() {
+    _player.pause().catchError((Object e) {
+      debugPrint('Failed to pause for sleep timer: $e');
+    }).then((_) => _player.setVolume(1)).catchError((Object e) {
+      debugPrint('Failed to reset volume for sleep timer: $e');
+    });
+    final standby = _crossfadePlayer;
+    if (standby == null) return;
+    standby.pause().catchError((Object e) {
+      debugPrint('Failed to pause for sleep timer: $e');
+    }).then((_) => standby.setVolume(1)).catchError((Object e) {
+      debugPrint('Failed to reset volume for sleep timer: $e');
+    });
+  }
+
+  void _onTrackFinished() {
+    if (_disposed) return;
+    final decision = _onNaturalTrackEnd();
+    if (decision == _TrackEndDecision.stop) return;
+
+    if (decision == _TrackEndDecision.repeatOne) {
       _usingCrossfadePlayer = false;
-      _crossfadeTriggeredForCurrent = false;
+      _cancelCrossfade();
       if (!crossfadeEnabled) _releaseCrossfadePlayer();
-      _playCurrent().then((_) {}, onError: (e) {
-        debugPrint('Gagal repeat-one: $e');
+      _playCurrent().then((_) {}, onError: (Object e) {
+        debugPrint('Failed repeat-one: $e');
       });
       return;
     }
-    next().then((_) {}, onError: (e) {
-      debugPrint('Gagal next: $e');
+    next().then((_) {}, onError: (Object e) {
+      debugPrint('Failed next: $e');
     });
   }
 
@@ -896,7 +1000,7 @@ class PlayerService extends ChangeNotifier {
         listenedMs: _accumulatedListenedMs,
       ))
           .catchError((e) {
-        debugPrint('Gagal simpan riwayat dengar: $e');
+        debugPrint('Failed to save listening history: $e');
       });
     }
     _accumulatedListenedMs = 0;
@@ -905,7 +1009,7 @@ class PlayerService extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    _crossfadeCancelled = true;
+    _cancelCrossfade();
     _sleepFadeGeneration++;
     _sleepFadeActive = false;
     _pauseFadeGeneration++;
@@ -917,13 +1021,13 @@ class PlayerService extends ChangeNotifier {
     _unsubscribePosition();
     _playerStateSub?.cancel();
     _crossfadeStateSub?.cancel();
-    // ChangeNotifier.dispose() is sync void - never turn it into a Future.
-    // Players are disposed fire-and-forget because the singleton lives for the whole app run.
+    // ChangeNotifier.dispose() is sync void, never turn it into a Future.
+    // Players are disposed fire and forget because the singleton lives for the whole app run.
     _player.dispose().catchError((e) {
-      debugPrint('Gagal dispose player: $e');
+      debugPrint('Failed to dispose player: $e');
     });
     _crossfadePlayer?.dispose().catchError((e) {
-      debugPrint('Gagal dispose crossfade player: $e');
+      debugPrint('Failed to dispose crossfade player: $e');
     });
     _crossfadePlayer = null;
     unawaited(EqualizerService.instance.release());

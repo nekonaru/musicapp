@@ -59,6 +59,8 @@ class _EditLyricsScreenState extends State<EditLyricsScreen> {
       builder: (ctx) => AlertDialog(
         title: Text(l.editLyricsPasteTitle),
         content: Text(l.editLyricsPasteMessage),
+        // Stack the three actions vertically on narrow screens.
+        actionsOverflowDirection: VerticalDirection.down,
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, 'cancel'), child: Text(l.cancel)),
           TextButton(onPressed: () => Navigator.pop(ctx, 'append'), child: Text(l.editLyricsAppend)),

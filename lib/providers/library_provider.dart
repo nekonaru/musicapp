@@ -48,6 +48,9 @@ class LibraryProvider extends ChangeNotifier {
   // Auto scan only when more than 30 minutes have passed
   static const _scanIntervalMs = 1800000;
 
+  // Time of the last full loadFromDb, backing the fetchSongsPage fast path.
+  DateTime? _lastFullLoadAt;
+
   // Guard so notifyListeners never runs after dispose.
   bool _disposed = false;
 
@@ -89,6 +92,7 @@ class LibraryProvider extends ChangeNotifier {
             return !excluded.contains(folder);
           }).toList();
     _applySort();
+    _lastFullLoadAt = DateTime.now();
     notifyListeners();
   }
 
@@ -204,11 +208,31 @@ class LibraryProvider extends ChangeNotifier {
   /// Single DB page using querySongsPage with the current sort and the
   /// stored excluded folders. Returns null when the paged query fails so
   /// the caller can fall back to the full in memory list.
+  ///
+  /// Fast path: when the in memory [songs] list is fresh (a full loadFromDb
+  /// less than 60 seconds ago), the query is empty, and the sort is the
+  /// default title A-Z, the in memory order already matches the DB order
+  /// produced by querySongsPage for orderBy 'title ASC', so a plain slice
+  /// is returned with no DB hit. Fallback: any other sort, a non empty
+  /// query, stale data, or an out of range page falls through to the DB
+  /// query below (and a DB failure still returns null for the caller to
+  /// fall back to the full in memory list).
   Future<List<Song>?> fetchSongsPage({
     required int limit,
     required int offset,
     String query = '',
   }) async {
+    final lastLoad = _lastFullLoadAt;
+    if (query.trim().isEmpty &&
+        sortOption == SortOption.titleAZ &&
+        lastLoad != null &&
+        DateTime.now().difference(lastLoad) < const Duration(seconds: 60)) {
+      final safeLimit = limit < 1 ? 50 : limit;
+      final safeOffset = offset < 0 ? 0 : offset;
+      if (safeOffset >= songs.length) return <Song>[];
+      final end = (safeOffset + safeLimit).clamp(0, songs.length);
+      return songs.sublist(safeOffset, end);
+    }
     try {
       final excluded = await DBHelper.instance.getExcludedFolders();
       final page = await DBHelper.instance.querySongsPage(

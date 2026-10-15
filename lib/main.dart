@@ -60,13 +60,6 @@ Future<void> _bootApp({
     }(),
     () async {
       try {
-        await Permission.notification.request();
-      } catch (e) {
-        debugPrint('Notification permission could not be requested: $e');
-      }
-    }(),
-    () async {
-      try {
         await AudioService.init(
           builder: () => SwaraAudioHandler(),
           config: const AudioServiceConfig(
@@ -170,24 +163,44 @@ class BootGate extends StatelessWidget {
 // Chooses the first screen based on the persisted onboarding flag.
 // Shows onboarding when 'onboarding_done' is not true, else HomeScreen.
 // Boot init above runs in parallel behind BootGate and SplashScreen.
-class StartupGate extends StatelessWidget {
+// The notification permission is requested here (once, best effort) only
+// after onboarding is done, so boot never pops a permission dialog.
+class StartupGate extends StatefulWidget {
   const StartupGate({super.key});
 
-  Future<bool> _onboardingDone() async {
+  @override
+  State<StartupGate> createState() => _StartupGateState();
+}
+
+class _StartupGateState extends State<StartupGate> {
+  // Stored once so the FutureBuilder below never restarts the future
+  // on rebuild (inline futures in build would refetch on every frame).
+  late final Future<bool> _doneFuture = _loadAndMaybeRequestNotification();
+
+  Future<bool> _loadAndMaybeRequestNotification() async {
+    final bool done;
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getBool(kOnboardingDoneKey) ?? false;
+      done = prefs.getBool(kOnboardingDoneKey) ?? false;
     } catch (e) {
       // On storage failure, fall back to home so the app stays usable.
       debugPrint('Failed to read onboarding flag: $e');
       return true;
     }
+    if (done) {
+      try {
+        await Permission.notification.request();
+      } catch (e) {
+        debugPrint('Notification permission could not be requested: $e');
+      }
+    }
+    return done;
   }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<bool>(
-      future: _onboardingDone(),
+      future: _doneFuture,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           // Minimal splash while the flag loads.

@@ -1533,4 +1533,16 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get histClear => 'Bersihkan';
+
+  @override
+  String get playerMinimize => 'Perkecil';
+
+  @override
+  String get playerRepeatOff => 'Ulangi mati';
+
+  @override
+  String get playerRepeatAll => 'Ulangi semua';
+
+  @override
+  String get playerRepeatOne => 'Ulangi satu';
 }

@@ -47,12 +47,23 @@ class _QueueScreenState extends State<QueueScreen> {
     });
   }
 
-  // Default name for the "save queue as playlist" dialog, e.g. "Queue 2026-10-16".
+  // Default name for the "save queue as playlist" dialog.
+  // Includes hour and minute so saving twice in one day does not collide.
   String _defaultQueuePlaylistName() {
     final now = DateTime.now();
     final mm = now.month.toString().padLeft(2, '0');
     final dd = now.day.toString().padLeft(2, '0');
-    return 'Queue ${now.year}-$mm-$dd';
+    final hh = now.hour.toString().padLeft(2, '0');
+    final min = now.minute.toString().padLeft(2, '0');
+    return 'Queue ${now.year}-$mm-$dd $hh-$min';
+  }
+
+  // Remove one queue entry by stable slot id. Resolves the live position
+  // first; a null result means the entry is already gone, so ignore it.
+  void _removeSlot(int slotId) {
+    final int? pos = _player.queuePosForSlot(slotId);
+    if (pos == null) return;
+    _player.removeFromQueue(pos);
   }
 
   // Save the current queue (in playback order) as a new playlist.
@@ -93,12 +104,28 @@ class _QueueScreenState extends State<QueueScreen> {
 
     try {
       final prov = context.read<PlaylistProvider>();
-      await prov.create(name);
-      if (!mounted) return;
-      final found = prov.playlists.firstWhere(
-        (p) => (p['name'] as String) == name,
-      );
-      final playlistId = found['id'] as int;
+      // Same duplicate name handling as collections: on a UNIQUE error
+      // retry with a numeric suffix until creation succeeds.
+      var base = name.trim();
+      if (base.isEmpty) base = _defaultQueuePlaylistName();
+      var finalName = base;
+      var suffix = 2;
+      var playlistId = -1;
+      while (playlistId < 0) {
+        try {
+          await prov.create(finalName);
+          if (!mounted) return;
+          final found = prov.playlists.firstWhere(
+            (p) => (p['name'] as String) == finalName,
+          );
+          playlistId = found['id'] as int;
+        } catch (e) {
+          // Retry with a suffix only on duplicate name errors.
+          if (!e.toString().contains('UNIQUE')) rethrow;
+          finalName = '$base ($suffix)';
+          suffix++;
+        }
+      }
       // Add every queued song in order. Per-song failures (for example
       // duplicates) are skipped so the rest of the queue still saves.
       var added = 0;
@@ -114,7 +141,7 @@ class _QueueScreenState extends State<QueueScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context)!
-              .queueSaved(added, queue.length, name)),
+              .queueSaved(added, queue.length, finalName)),
         ),
       );
     } catch (e) {
@@ -192,7 +219,7 @@ class _QueueScreenState extends State<QueueScreen> {
                             child: Dismissible(
                               key: ValueKey('queue_dismiss_slot_$slotId'),
                               direction: isPlaying ? DismissDirection.none : DismissDirection.endToStart,
-                              onDismissed: (_) => _player.removeQueueSlot(slotId),
+                              onDismissed: (_) => _removeSlot(slotId),
                               background: Container(
                                 color: Colors.red,
                                 alignment: Alignment.centerRight,
@@ -223,7 +250,7 @@ class _QueueScreenState extends State<QueueScreen> {
                                                   minWidth: 48,
                                                   minHeight: 48),
                                           icon: const Icon(Icons.close, size: 20),
-                                          onPressed: () => _player.removeQueueSlot(slotId),
+                                          onPressed: () => _removeSlot(slotId),
                                         ),
                                       const Icon(Icons.drag_handle, color: Colors.grey),
                                     ],

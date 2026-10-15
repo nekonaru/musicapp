@@ -383,7 +383,7 @@ class _SearchScreenState extends State<SearchScreen> {
           key = parts.length > 1 ? parts[parts.length - 2] : l.searchOther;
           break;
         case _SearchFilter.genre:
-          key = s.genre ?? 'Tidak diketahui';
+          key = s.genre ?? l.unknown;
           break;
         default:
           key = '';

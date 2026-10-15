@@ -1584,5 +1584,21 @@
     "histClear":  "Bersihkan",
     "@histClear":  {
                         "description":  "Label bersihkan riwayat"
-                    }
+                    },
+    "playerMinimize":  "Perkecil",
+    "@playerMinimize":  {
+                             "description":  "Tooltip perkecil player"
+                         },
+    "playerRepeatOff":  "Ulangi mati",
+    "@playerRepeatOff":  {
+                              "description":  "Tooltip ulangi mati"
+                          },
+    "playerRepeatAll":  "Ulangi semua",
+    "@playerRepeatAll":  {
+                              "description":  "Tooltip ulangi semua"
+                          },
+    "playerRepeatOne":  "Ulangi satu",
+    "@playerRepeatOne":  {
+                              "description":  "Tooltip ulangi satu"
+                          }
 }

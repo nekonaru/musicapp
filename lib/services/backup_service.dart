@@ -213,19 +213,41 @@ class BackupService {
 
     // Section 3: listening history. Re-insert validated rows with
     // fresh row ids so imports never collide on primary keys.
+    // Note: song ids are local MediaStore ids which are not stable
+    // across devices, so a restore on a different phone only matches
+    // when the ids happen to be the same. Rows pointing at missing
+    // songs are skipped.
     try {
       final database = await dbHelper.db;
+      // Preload existing triples so re-imports skip rows that are
+      // already stored (dedup on songId + timestamp + listenedMs).
+      final Set<String> existingTriples = {};
+      try {
+        final existing = await database.query('listening_entries',
+            columns: ['songId', 'timestamp', 'listenedMs']);
+        for (final r in existing) {
+          existingTriples.add(
+              '${r['songId']}|${r['timestamp']}|${r['listenedMs']}');
+        }
+      } catch (_) {
+        // When the preload fails, fall back to inserting validated rows.
+      }
       for (final item in (entriesRaw as List? ?? [])) {
         try {
           if (item is! Map) continue;
           final songId =
               (item['songId'] is num) ? (item['songId'] as num).toInt() : null;
-          final listenedMs = (item['listenedMs'] is num)
+          var listenedMs = (item['listenedMs'] is num)
               ? (item['listenedMs'] as num).toInt()
               : null;
           final tsRaw = item['timestamp']?.toString() ?? '';
           if (songId == null || listenedMs == null || tsRaw.isEmpty) continue;
           if (DateTime.tryParse(tsRaw) == null) continue;
+          // Clamp to a sane single-session range (0 to 24h in ms) so
+          // corrupt or negative values cannot skew stats.
+          listenedMs = listenedMs.clamp(0, 86400000);
+          final triple = '$songId|$tsRaw|$listenedMs';
+          if (existingTriples.contains(triple)) continue;
           // Skip entries pointing at songs that no longer exist.
           final found = await database.query('songs',
               columns: ['id'],
@@ -238,6 +260,7 @@ class BackupService {
             'timestamp': tsRaw,
             'listenedMs': listenedMs,
           });
+          existingTriples.add(triple);
           entriesRestored++;
         } catch (_) {
           continue;

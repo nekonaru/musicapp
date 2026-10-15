@@ -117,10 +117,12 @@ class SwaraAudioHandler extends BaseAudioHandler {
     // Build MediaSession queue in playback order with one stable id
     // per queue entry so repeated songs stay distinct.
     final q = ps.queue;
+    final slotIds = ps.queueSlotIds;
+    final queueVersion = ps.queueVersion;
     final items = <MediaItem>[
       for (var i = 0; i < q.length; i++)
         MediaItem(
-          id: 'queue_${i}_${q[i].filePath}',
+          id: 'queue_${slotIds.length > i ? slotIds[i] : i}_${q[i].filePath}',
           title: q[i].title,
           artist: q[i].artist,
           album: q[i].album,
@@ -130,7 +132,10 @@ class SwaraAudioHandler extends BaseAudioHandler {
     ];
     // Push the queue only when its fingerprint changed, so the 1 second
     // ticker and unrelated state syncs do not resend a huge list.
-    final fingerprint = '${q.length}|${q.map((s) => s.id).join(',')}';
+    // The fingerprint is order sensitive and duplicate safe because it
+    // uses the stable slot ids in playback order plus the version that
+    // bumps on every queue mutation.
+    final fingerprint = '$queueVersion|${slotIds.join(',')}';
     if (fingerprint != _lastQueueFingerprint) {
       _lastQueueFingerprint = fingerprint;
       queue.add(items);
@@ -228,8 +233,12 @@ class SwaraAudioHandler extends BaseAudioHandler {
   Future<void> skipToQueueItem(int? index) async {
     // The platform addresses queue entries by position, which matches
     // our playback order, so the index maps directly to posInOrder.
+    // Validate against the live queue at call time, never a cached copy,
+    // because the queue may have changed since the last sync.
     try {
       if (index == null) return;
+      final liveLength = PlayerService.instance.queue.length;
+      if (index < 0 || index >= liveLength) return;
       await PlayerService.instance.playAtQueueIndex(index);
     } catch (e) {
       debugPrint('skipToQueueItem failed: $e');
@@ -260,10 +269,9 @@ class SwaraAudioHandler extends BaseAudioHandler {
 
   @override
   Future<void> stop() async {
-    if (PlayerService.instance.player.playing) {
-      await PlayerService.instance.togglePlayPause();
-    }
-    _positionTicker?.cancel();
+    // Release the listener and ticker through the shared helper,
+    // then hand over to the base class to finish the stop.
+    disposeHandler();
     await super.stop();
   }
 }

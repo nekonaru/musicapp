@@ -2,6 +2,7 @@ import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import 'package:offline_music_player/providers/language_provider.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:sqflite/sqflite.dart';
 import '../models/song.dart';
 import 'db_helper.dart';
 import 'metadata_service.dart';
@@ -28,7 +29,21 @@ class LibraryScanner {
     }
 
     final excluded = await DBHelper.instance.getExcludedFolders();
-    final alreadyScannedIds = await DBHelper.instance.getScannedSongIds();
+    final database = await DBHelper.instance.db;
+    // Single SELECT for every stored row state needed below, keyed by id.
+    // This replaces one SELECT per song inside upsertSong, so a library of
+    // N songs costs 1 read plus 1 batched write instead of N round trips.
+    final existingRows = await database.query(
+      'songs',
+      columns: ['id', 'metadataScanned', 'addedAt', 'isFavorite', 'lastPlayedAt'],
+    );
+    final existingById = <int, Map<String, Object?>>{
+      for (final row in existingRows) (row['id'] as int): row,
+    };
+    final alreadyScannedIds = <int>{
+      for (final row in existingRows)
+        if (row['metadataScanned'] == 1) row['id'] as int,
+    };
     final tracks = await _audioQuery.querySongs(
       sortType: SongSortType.TITLE,
       orderType: OrderType.ASC_OR_SMALLER,
@@ -68,6 +83,11 @@ class LibraryScanner {
 
     final List<Song> result = [];
     final List<Song> needsMetadata = [];
+    // Merge device rows against the preloaded map, then flush with ONE
+    // batch commit. Preserved field semantics match upsertSong: keep the
+    // stored favorite, lastPlayedAt, and addedAt, and OR the scanned flag
+    // so a rescan never resets stored metadata state.
+    final pendingMaps = <Map<String, Object?>>[];
     for (final track in tracks) {
       final folder = folderOf(track.data);
       if (excluded.contains(folder)) continue;
@@ -88,14 +108,34 @@ class LibraryScanner {
             : 'Unknown Album',
         durationMs: track.duration ?? 0,
       );
-      await DBHelper.instance.upsertSong(song);
+      final map = song.toMap();
+      final existing = existingById[song.id];
+      if (existing != null) {
+        map['isFavorite'] = existing['isFavorite'];
+        map['lastPlayedAt'] = existing['lastPlayedAt'];
+        map['addedAt'] = existing['addedAt'];
+        final wasScanned = existing['metadataScanned'] == 1;
+        map['metadataScanned'] = (wasScanned || song.metadataScanned) ? 1 : 0;
+      } else {
+        map['addedAt'] = DateTime.now().toIso8601String();
+      }
+      pendingMaps.add(map);
       result.add(song);
 
-      // Check the REAL status from the DB (not the freshly built `song` object,
-      // which always has genre=null even when the data is already stored in the DB).
+      // Check the REAL status from the preloaded map (not the freshly built
+      // `song` object, which always has metadataScanned false even when the
+      // data is already stored in the DB).
       if (!alreadyScannedIds.contains(song.id)) {
         needsMetadata.add(song);
       }
+    }
+    if (pendingMaps.isNotEmpty) {
+      final batch = database.batch();
+      for (final map in pendingMaps) {
+        batch.insert('songs', map,
+            conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      await batch.commit(noResult: true);
     }
 
     // Clean up "ghost" songs - rows in the DB whose original files were
@@ -106,10 +146,15 @@ class LibraryScanner {
     }
 
     if (autoFetchMetadata && needsMetadata.isNotEmpty) {
+      // Same stop on rate limit pattern as bulkScanMetadata: enrichBatch
+      // returns true on iTunes 429, so later batches are skipped and the
+      // leftovers keep metadataScanned false for a later scan.
       const batchSize = 5;
       for (int i = 0; i < needsMetadata.length; i += batchSize) {
-        final batch = needsMetadata.skip(i).take(batchSize);
-        await Future.wait(batch.map((s) => MetadataService.instance.enrichSong(s)));
+        final end = (i + batchSize).clamp(0, needsMetadata.length);
+        final limited = await MetadataService.instance
+            .enrichBatch(needsMetadata.sublist(i, end));
+        if (limited) break;
       }
     }
 

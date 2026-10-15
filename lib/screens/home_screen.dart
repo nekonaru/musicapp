@@ -69,6 +69,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   final _dashboardKey = GlobalKey<DashboardScreenState>();
   DateTime? _lastDashboardReload;
+  // True after the dashboard tab was opened once, so the lazy first load
+  // (ensureLoaded) runs exactly once and later visits use the reload guard.
+  bool _dashboardFirstOpenDone = false;
 
   @override
   void initState() {
@@ -170,6 +173,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void dispose() {
     _libTabController.dispose();
     super.dispose();
+  }
+
+  // First dashboard visit runs the lazy first load (cached, not forced);
+  // later visits reuse the time guarded forced reload below.
+  void _openDashboardTab() {
+    if (!_dashboardFirstOpenDone) {
+      _dashboardFirstOpenDone = true;
+      _dashboardKey.currentState?.ensureLoaded();
+      return;
+    }
+    _maybeReloadDashboard();
   }
 
   // Reload the dashboard with a time guard: skip when data was just loaded
@@ -345,8 +359,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             // Collection - single screen (cards + playlists)
             const CollectionsScreen(),
 
-            // Dashboard
-            DashboardScreen(key: _dashboardKey),
+            // Dashboard (lazy: no load until the tab is first opened)
+            DashboardScreen(key: _dashboardKey, autoLoad: false),
           ],
         ),
 
@@ -358,7 +372,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               selectedIndex: _groupIndex,
               onDestinationSelected: (i) {
                 setState(() => _groupIndex = i);
-                if (i == 2) _maybeReloadDashboard();
+                if (i == 2) _openDashboardTab();
               },
               destinations: [
                 NavigationDestination(

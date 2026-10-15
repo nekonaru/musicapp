@@ -9,6 +9,7 @@ import '../services/player_service.dart';
 import '../services/art_cache_service.dart';
 import '../widgets/az_scrollbar.dart';
 import '../widgets/playing_indicator.dart';
+import '../widgets/sort_chip.dart';
 import '../utils/song_options.dart';
 import '../utils/format.dart';
 import 'missing_art_screen.dart';
@@ -398,7 +399,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   Widget _buildSortHeader(LibraryProvider lib, List<Song> songs) {
     final l = AppLocalizations.of(context)!;
-    final cs = Theme.of(context).colorScheme;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -407,31 +407,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
           child: Row(
             children: [
-              GestureDetector(
+              // Shared ripple chip, same label as before.
+              SortChip(
+                label: _sortLabel(context, lib.sortOption),
                 onTap: () => _showSortMenu(context, lib),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.sort, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        _sortLabel(context, lib.sortOption),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: cs.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ),
               const Spacer(),
               Text(

@@ -15,7 +15,11 @@ import '../services/player_service.dart';
 import '../utils/format.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  // When false, the screen skips the automatic load in initState so the
+  // parent can defer the first load until the tab is actually opened.
+  // Defaults to true to keep standalone uses unchanged.
+  final bool autoLoad;
+  const DashboardScreen({super.key, this.autoLoad = true});
   @override
   State<DashboardScreen> createState() => DashboardScreenState();
 }
@@ -50,13 +54,31 @@ class DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    // Lazy gate for startup: HomeScreen builds this screen inside an
+    // IndexedStack with autoLoad false, so no DB work runs until
+    // ensureLoaded is called on the first tab open.
+    if (widget.autoLoad) {
+      _loaded = true;
+      _load();
+    }
+  }
+
+  // First load entry point for lazy parents (HomeScreen). Runs the normal
+  // load exactly once; later calls are no-ops. Use reload() for refresh.
+  bool _loaded = false;
+  Future<void> ensureLoaded() {
+    if (_loaded) return Future.value();
+    _loaded = true;
+    return _load();
   }
 
   // Called on every tab switch, so it always recomputes and rewrites the
   // cache. A newly recorded listening entry can never leave stale numbers
   // behind on the next dashboard visit.
-  Future<void> reload() => _load(forceRefresh: true);
+  Future<void> reload() {
+    _loaded = true;
+    return _load(forceRefresh: true);
+  }
 
   /// Cached summary map, or null when absent, expired, or malformed.
   /// Never throws: any problem means the caller recomputes instead.

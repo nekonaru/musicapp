@@ -30,6 +30,8 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
   int _index = 0;
+  // Blocks double taps on Skip and Get Started while finishing.
+  bool _finishing = false;
 
   // Pages are built per locale so titles follow the selected language.
   static const int _pageCount = 3;
@@ -60,6 +62,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   // Mark onboarding as done then open the home screen.
   Future<void> _finish() async {
+    if (_finishing) return;
+    _finishing = true;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(kOnboardingDoneKey, true);
@@ -91,7 +95,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final isLast = _index == pages.length - 1;
 
-    return Scaffold(
+    // Back press exits without persisting, by design.
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
       appBar: AppBar(
         actions: [
           // Skip stays visible on every page except the last one.
@@ -190,6 +197,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             const SizedBox(height: 24),
           ],
         ),
+      ),
       ),
     );
   }

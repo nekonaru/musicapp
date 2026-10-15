@@ -24,14 +24,17 @@ class MiniPlayer extends StatelessWidget {
             offset: Offset(0, (1 - value) * 12),
             child: Opacity(opacity: value, child: child),
           ),
-          child: GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            SlideUpRoute(page: const PlayerScreen()),
-          ),
-          child: Container(
-            height: 64,
+          child: Material(
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            // Material plus InkWell keeps the tap to PlayerScreen
+            // while adding a proper ripple feedback.
+            child: InkWell(
+              onTap: () => Navigator.push(
+                context,
+                SlideUpRoute(page: const PlayerScreen()),
+              ),
+              child: SizedBox(
+                height: 64,
             child: Row(
               children: [
                 const SizedBox(width: 8),
@@ -102,6 +105,7 @@ class MiniPlayer extends StatelessWidget {
                 const SizedBox(width: 4),
               ],
             ),
+          ),
           ),
           ),
         );

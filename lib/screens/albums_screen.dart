@@ -6,6 +6,7 @@ import '../providers/library_provider.dart';
 import '../services/player_service.dart';
 import '../services/art_cache_service.dart';
 import '../widgets/mini_player.dart';
+import '../widgets/sort_chip.dart';
 import 'extra_screens.dart';
 
 // Sort mode for the album grid. Session only, no persistence needed.
@@ -138,7 +139,6 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
         grouped.putIfAbsent(s.album, () => []).add(s);
       }
       final albums = _sortedAlbums(grouped.keys.toList(), grouped);
-      final cs = Theme.of(context).colorScheme;
 
       return Column(
         children: [
@@ -151,31 +151,10 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
                       style:
                           TextStyle(fontSize: 12, color: Colors.grey[500])),
                 ),
-                GestureDetector(
+                // Shared ripple chip, same label as before.
+                SortChip(
+                  label: _sortChipLabel(l),
                   onTap: _showSortMenu,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.sort, size: 14),
-                        const SizedBox(width: 4),
-                        Text(
-                          _sortChipLabel(l),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: cs.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
               ],
             ),

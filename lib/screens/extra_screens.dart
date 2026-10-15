@@ -13,6 +13,7 @@ import '../services/db_helper.dart';
 import '../utils/song_options.dart';
 import '../utils/format.dart';
 import '../widgets/mini_player.dart';
+import '../widgets/sort_chip.dart';
 import '../widgets/az_scrollbar.dart';
 import '../widgets/playing_indicator.dart';
 import 'playlist_detail_screen.dart';
@@ -1443,27 +1444,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: Row(
                 children: [
-                  GestureDetector(
+                  // Shared ripple chip, same label as before.
+                  SortChip(
+                    label: _sortLabel(_sortOption),
                     onTap: () => _showSortMenu(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.sort, size: 14),
-                          const SizedBox(width: 4),
-                          Text(_sortLabel(_sortOption),
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Theme.of(context).colorScheme.primary)),
-                        ],
-                      ),
-                    ),
                   ),
                   const Spacer(),
                   Text(AppLocalizations.of(context)!

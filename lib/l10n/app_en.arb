@@ -1584,5 +1584,21 @@
     "histClear":  "Clear",
     "@histClear":  {
                         "description":  "Clear history label"
-                    }
+                    },
+    "playerMinimize":  "Minimize",
+    "@playerMinimize":  {
+                             "description":  "Minimize player tooltip"
+                         },
+    "playerRepeatOff":  "Repeat off",
+    "@playerRepeatOff":  {
+                              "description":  "Repeat off tooltip"
+                          },
+    "playerRepeatAll":  "Repeat all",
+    "@playerRepeatAll":  {
+                              "description":  "Repeat all tooltip"
+                          },
+    "playerRepeatOne":  "Repeat one",
+    "@playerRepeatOne":  {
+                              "description":  "Repeat one tooltip"
+                          }
 }

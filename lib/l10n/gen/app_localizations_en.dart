@@ -1532,4 +1532,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get histClear => 'Clear';
+
+  @override
+  String get playerMinimize => 'Minimize';
+
+  @override
+  String get playerRepeatOff => 'Repeat off';
+
+  @override
+  String get playerRepeatAll => 'Repeat all';
+
+  @override
+  String get playerRepeatOne => 'Repeat one';
 }

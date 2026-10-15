@@ -19,7 +19,7 @@ class DBHelper {
     final path = p.join(dbPath, 'music_app.db');
     return openDatabase(
       path,
-      version: 7,
+      version: 8,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE songs(
@@ -122,8 +122,10 @@ class DBHelper {
             await db.execute('ALTER TABLE songs ADD COLUMN metadataScanned INTEGER DEFAULT 0');
             // Never mark 'Tidak diketahui' as scanned - that is a fallback
             // value, not a real fetch result. Only genuine genre/lyrics count.
+            // Empty strings count as unscanned too, so use NULLIF to treat
+            // '' the same as NULL for both genre and lyrics.
             await db.execute(
-                "UPDATE songs SET metadataScanned = 1 WHERE (genre IS NOT NULL AND genre != 'Tidak diketahui') OR lyrics IS NOT NULL");
+                "UPDATE songs SET metadataScanned = 1 WHERE (NULLIF(genre, '') IS NOT NULL AND genre != 'Tidak diketahui') OR NULLIF(lyrics, '') IS NOT NULL");
           } catch (_) {
             // Column may already exist, ignore
           }
@@ -176,6 +178,40 @@ class DBHelper {
             // Column may already exist, ignore
           }
         }
+        if (oldVersion < 8) {
+          try {
+            // Backfill rows whose addedAt is NULL so the Recently Added sort
+            // stays stable. Use the earliest known addedAt in the table so
+            // backfilled rows sort as the oldest, and fall back to now only
+            // when the table has no non-null addedAt at all.
+            final minRows = await db.rawQuery(
+                'SELECT MIN(addedAt) as m FROM songs WHERE addedAt IS NOT NULL');
+            final minAdded = minRows.isNotEmpty
+                ? minRows.first['m'] as String?
+                : null;
+            final fallback = (minAdded != null && minAdded.isNotEmpty)
+                ? minAdded
+                : DateTime.now().toIso8601String();
+            await db.execute(
+                'UPDATE songs SET addedAt = ? WHERE addedAt IS NULL',
+                [fallback]);
+          } catch (_) {
+            // Best effort only, the list still renders with NULL addedAt last.
+          }
+          try {
+            // Demote rows that were wrongly marked scanned when genre or
+            // lyrics was only an empty string. Empty string means unscanned,
+            // same as NULL, so it must not keep the scanned flag.
+            await db.execute('''
+              UPDATE songs SET metadataScanned = 0
+              WHERE metadataScanned = 1
+                AND (NULLIF(genre, '') IS NULL OR genre = 'Tidak diketahui')
+                AND NULLIF(lyrics, '') IS NULL
+            ''');
+          } catch (_) {
+            // Best effort only, unscanned songs are retried on next scan.
+          }
+        }
       },
     );
   }
@@ -183,26 +219,26 @@ class DBHelper {
   // ---------- Songs ----------
   Future<void> upsertSong(Song s) async {
     final database = await db;
-    // Keep the existing favorite status, lastPlayedAt, and addedAt,
-    // so they are not reset every time the library is rescanned.
-    final existing = await database.query('songs', where: 'id = ?', whereArgs: [s.id], limit: 1);
-    final map = s.toMap();
+    // Rescans must never wipe enrich results or manual edits. When the row
+    // already exists, only file facts are refreshed (filePath and
+    // durationMs). Title, artist, album, genre, region, art, lyrics,
+    // favorite, lastPlayed, addedAt, and scanned flags stay as stored.
+    // Tradeoff: changed tags inside the audio file itself are not adopted
+    // automatically on rescan. Users pick them up via manual edit or a
+    // deliberate metadata refresh, which keeps the 30 minute scan from
+    // deleting enriched data.
+    final existing = await database.query('songs', columns: ['id'], where: 'id = ?', whereArgs: [s.id], limit: 1);
     if (existing.isNotEmpty) {
-      map['isFavorite'] = existing.first['isFavorite'];
-      map['lastPlayedAt'] = existing.first['lastPlayedAt'];
-      map['addedAt'] = existing.first['addedAt'];
-      // IMPORTANT: use OR, not a plain copy of the old value.
-      // - Called from library_scanner (file sync on every app open): the `s`
-      //   object always has metadataScanned=false, so the OR result keeps the
-      //   stored DB value (correct, never reset).
-      // - Called from metadata_service (after enrich): the `s` object has
-      //   metadataScanned=true, so the OR result is true (correct, SAVED,
-      //   never clobbered by the still-false stored value).
-      final wasScanned = existing.first['metadataScanned'] == 1;
-      map['metadataScanned'] = (wasScanned || s.metadataScanned) ? 1 : 0;
-    } else {
-      map['addedAt'] = DateTime.now().toIso8601String();
+      await database.update(
+        'songs',
+        {'filePath': s.filePath, 'durationMs': s.durationMs},
+        where: 'id = ?',
+        whereArgs: [s.id],
+      );
+      return;
     }
+    final map = s.toMap();
+    map['addedAt'] = DateTime.now().toIso8601String();
     await database.insert('songs', map, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
@@ -349,10 +385,15 @@ class DBHelper {
       result[DateTime(d.year, d.month, d.day)] = 0;
     }
     for (final r in rows) {
-      final ts = DateTime.parse(r['timestamp'] as String);
+      // Skip corrupt rows instead of throwing, so one bad timestamp
+      // never breaks the whole dashboard chart.
+      final rawTs = r['timestamp'];
+      if (rawTs is! String) continue;
+      final ts = DateTime.tryParse(rawTs);
+      if (ts == null) continue;
       final key = DateTime(ts.year, ts.month, ts.day);
       if (result.containsKey(key)) {
-        result[key] = result[key]! + (r['listenedMs'] as int);
+        result[key] = result[key]! + ((r['listenedMs'] as num?)?.toInt() ?? 0);
       }
     }
     return result;
@@ -780,7 +821,15 @@ class DBHelper {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     // The streak stays alive when the latest entry is from today or yesterday.
-    final latest = DateTime.parse("${rows.first['day']}T00:00:00");
+    // Corrupt day strings are skipped so one bad row never breaks the streak.
+    DateTime? latest;
+    for (final r in rows) {
+      final raw = r['day']?.toString() ?? '';
+      if (raw.isEmpty) continue;
+      latest = DateTime.tryParse('${raw}T00:00:00');
+      if (latest != null) break;
+    }
+    if (latest == null) return 0;
     final gap = today.difference(latest).inDays;
     if (gap > 1) return 0;
     var cursor = gap == 1
@@ -788,7 +837,10 @@ class DBHelper {
         : today;
     var streak = 0;
     for (final r in rows) {
-      final day = DateTime.parse("${r['day']}T00:00:00");
+      final raw = r['day']?.toString() ?? '';
+      if (raw.isEmpty) continue;
+      final day = DateTime.tryParse('${raw}T00:00:00');
+      if (day == null) continue;
       if (day == cursor) {
         streak++;
         cursor = cursor.subtract(const Duration(days: 1));
@@ -849,6 +901,22 @@ class DBHelper {
         'fetchedAt': DateTime.now().toIso8601String(),
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Delete stale iTunes metadata cache rows older than [maxAgeDays].
+  /// Only the metadata_cache table is pruned. Listening history in
+  /// listening_entries is product data and is never deleted here.
+  /// Returns the number of cache rows removed.
+  Future<int> pruneMetadataCache({int maxAgeDays = 90}) async {
+    final database = await db;
+    final cutoff = DateTime.now()
+        .subtract(Duration(days: maxAgeDays))
+        .toIso8601String();
+    return database.delete(
+      'metadata_cache',
+      where: 'fetchedAt < ?',
+      whereArgs: [cutoff],
     );
   }
 

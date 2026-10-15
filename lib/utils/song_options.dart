@@ -280,14 +280,16 @@ Future<void> pickPlaylist(BuildContext context, Song song, PlaylistProvider prov
                   }
                   return;
                 }
-                Navigator.pop(ctx);
+                // Guard the sheet context before closing it.
+                if (ctx.mounted) Navigator.pop(ctx);
               },
             ),
           ListTile(
             leading: const Icon(Icons.add),
             title: Text(l.songOptionsCreatePlaylist),
             onTap: () async {
-              Navigator.pop(ctx);
+              // Guard the sheet context before closing it.
+              if (ctx.mounted) Navigator.pop(ctx);
               final controller = TextEditingController();
               try {
                 final name = await showDialog<String>(

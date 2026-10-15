@@ -13,6 +13,7 @@ import 'duplicates_screen.dart';
 import 'history_screen.dart';
 import 'playlist_detail_screen.dart';
 import '../widgets/mini_player.dart';
+import '../widgets/sort_chip.dart';
 
 // Reference card colors (matching the Nomad Music artwork)
 const _cardColors = [
@@ -780,30 +781,12 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                     child: Row(
                       children: [
-                        GestureDetector(
+                        // Shared ripple chip, same label as before.
+                        SortChip(
+                          label: _sortLabel(context),
                           onTap: () => setState(() {
                             _sortAZ = !_sortAZ;
                           }),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: cs.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.sort, size: 14),
-                                const SizedBox(width: 4),
-                                Text(_sortLabel(context),
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: cs.primary)),
-                              ],
-                            ),
-                          ),
                         ),
                         const Spacer(),
                         GestureDetector(
