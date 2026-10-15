@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +7,7 @@ import '../providers/library_provider.dart';
 import '../providers/playlist_provider.dart';
 import '../services/db_helper.dart';
 import '../services/m3u_service.dart';
+import '../services/playlist_art_service.dart';
 import 'extra_screens.dart';
 import 'history_screen.dart';
 import 'playlist_detail_screen.dart';
@@ -77,8 +79,32 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
     );
     controller.dispose();
     if (name != null && name.isNotEmpty && mounted) {
-      context.read<PlaylistProvider>().create(name);
+      final prov = context.read<PlaylistProvider>();
+      await prov.create(name);
+      if (!mounted) return;
+      try {
+        final found = prov.playlists.firstWhere(
+          (p) => (p['name'] as String) == name,
+        );
+        _scheduleArtRefresh(prov, found['id'] as int);
+      } catch (_) {
+        // New row shows the fallback icon until art is available.
+      }
     }
+  }
+
+  // Fire and forget collage rebuild after playlist content changes.
+  // Never blocks the UI and never throws: failures keep the fallback icon.
+  void _scheduleArtRefresh(PlaylistProvider prov, int playlistId) {
+    Future(() async {
+      try {
+        final songs = await prov.songsIn(playlistId);
+        await PlaylistArtService.buildPlaylistArt(playlistId, songs);
+        if (mounted) setState(() {});
+      } catch (_) {
+        // Keep the fallback icon on any failure.
+      }
+    });
   }
 
   Future<void> _confirmDelete(
@@ -100,7 +126,14 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
         ],
       ),
     );
-    if (ok == true) prov.delete(id);
+    if (ok == true) {
+      await prov.delete(id);
+      try {
+        await PlaylistArtService.clearPlaylistArt(id);
+      } catch (_) {
+        // Cache cleanup is best effort only.
+      }
+    }
   }
 
   bool _isAutoPlaylist(String name) =>
@@ -170,6 +203,8 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
         }
       }
       await prov.load();
+      // Refresh the collage after the content changed, without blocking.
+      _scheduleArtRefresh(prov, playlistId);
     } catch (e) {
       _showAutoError(e);
     }
@@ -263,6 +298,8 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
         }
       }
       await prov.load();
+      // Refresh the collage for the imported content, without blocking.
+      _scheduleArtRefresh(prov, playlistId);
       if (!mounted) return;
       final missing = picked.match.missing;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -500,23 +537,9 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                               child: ListTile(
                                 contentPadding:
                                     const EdgeInsets.fromLTRB(16, 4, 8, 4),
-                                leading: Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: BoxDecoration(
-                                    color: isAuto
-                                        ? cs.secondaryContainer
-                                        : cs.primaryContainer,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Icon(
-                                      isAuto
-                                          ? Icons.auto_awesome_outlined
-                                          : Icons.queue_music,
-                                      color: isAuto
-                                          ? cs.onSecondaryContainer
-                                          : cs.onPrimaryContainer,
-                                      size: 22),
+                                leading: _PlaylistTileArt(
+                                  playlistId: p['id'] as int,
+                                  isAuto: isAuto,
                                 ),
                                 title: Text(name,
                                     maxLines: 1,
@@ -598,6 +621,58 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
               ),
             ),
           ],
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Playlist tile art: cached collage file with icon fallback.
+// ─────────────────────────────────────────────────────────────
+
+// Small square tile showing the generated collage when cached,
+// otherwise the same icon style the list used before.
+class _PlaylistTileArt extends StatelessWidget {
+  final int playlistId;
+  final bool isAuto;
+
+  const _PlaylistTileArt({required this.playlistId, required this.isAuto});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final fallback = Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: isAuto ? cs.secondaryContainer : cs.primaryContainer,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(
+        isAuto ? Icons.auto_awesome_outlined : Icons.queue_music,
+        color: isAuto ? cs.onSecondaryContainer : cs.onPrimaryContainer,
+        size: 22,
+      ),
+    );
+    // A fresh future per build keeps the code simple: playlist rows are
+    // few and the lookup is a cheap file stat. Parent rebuilds (for
+    // example after _scheduleArtRefresh calls setState) pick up new art.
+    return FutureBuilder<File?>(
+      future: PlaylistArtService.existingArt(playlistId),
+      builder: (context, snapshot) {
+        final file = snapshot.data;
+        if (file == null) return fallback;
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.file(
+            file,
+            width: 44,
+            height: 44,
+            fit: BoxFit.cover,
+            cacheWidth: 88,
+            errorBuilder: (_, __, ___) => fallback,
+          ),
         );
       },
     );

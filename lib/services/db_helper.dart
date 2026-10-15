@@ -528,6 +528,145 @@ class DBHelper {
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
+  /// Top songs filtered by timestamp >= [isoStart].
+  /// Same shape as [getTopSongIds], no schema change.
+  Future<List<MapEntry<int, int>>> getTopSongIdsSince(String isoStart,
+      {int limit = 10}) async {
+    final database = await db;
+    final safeLimit = limit < 1 ? 10 : limit;
+    final rows = await database.rawQuery('''
+      SELECT songId, COUNT(*) as playCount
+      FROM listening_entries
+      WHERE timestamp >= ?
+      GROUP BY songId
+      ORDER BY playCount DESC
+      LIMIT ?
+    ''', [isoStart, safeLimit]);
+    return rows
+        .map((r) => MapEntry((r['songId'] as num).toInt(),
+            (r['playCount'] as num).toInt()))
+        .toList();
+  }
+
+  /// Top artists filtered by timestamp >= [isoStart].
+  /// Same shape as [getTopArtists], no schema change.
+  Future<List<MapEntry<String, int>>> getTopArtistsSince(String isoStart,
+      {int limit = 10}) async {
+    final database = await db;
+    final safeLimit = limit < 1 ? 10 : limit;
+    final rows = await database.rawQuery('''
+      SELECT s.artist as artist, COUNT(*) as playCount
+      FROM listening_entries le
+      JOIN songs s ON s.id = le.songId
+      WHERE le.timestamp >= ?
+      GROUP BY s.artist
+      ORDER BY playCount DESC
+      LIMIT ?
+    ''', [isoStart, safeLimit]);
+    return rows
+        .map((r) => MapEntry(
+            (r['artist'] as String?) ?? 'Unknown Artist',
+            (r['playCount'] as num).toInt()))
+        .toList();
+  }
+
+  /// Total listening time (ms) filtered by timestamp >= [isoStart].
+  /// Same shape as [getTotalListeningMs], no schema change.
+  Future<int> getListeningMsSince(String isoStart) async {
+    final database = await db;
+    final result = await database.rawQuery(
+        'SELECT COALESCE(SUM(listenedMs), 0) as total FROM listening_entries WHERE timestamp >= ?',
+        [isoStart]);
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  /// Escape the LIKE wildcards in a user supplied search string.
+  String _escapeLike(String input) {
+    return input
+        .replaceAll(r'\', r'\\')
+        .replaceAll('%', r'\%')
+        .replaceAll('_', r'\_');
+  }
+
+  /// Map a caller supplied order key to a safe ORDER BY fragment.
+  /// Unknown values are ignored and fall back to title ASC.
+  String _sanitizeSongsOrderBy(String? orderBy) {
+    final normalized =
+        (orderBy ?? '').trim().replaceAll(RegExp(r'\s+'), ' ').toUpperCase();
+    switch (normalized) {
+      case 'TITLE ASC':
+        return 'title COLLATE NOCASE ASC';
+      case 'TITLE DESC':
+        return 'title COLLATE NOCASE DESC';
+      case 'ARTIST ASC':
+        return 'artist COLLATE NOCASE ASC';
+      case 'ARTIST DESC':
+        return 'artist COLLATE NOCASE DESC';
+      case 'ALBUM ASC':
+        return 'album COLLATE NOCASE ASC';
+      case 'ALBUM DESC':
+        return 'album COLLATE NOCASE DESC';
+      case 'ADDEDAT DESC':
+      case 'ADDED_AT DESC':
+        return 'addedAt DESC';
+      case 'ADDEDAT ASC':
+      case 'ADDED_AT ASC':
+        // Keep NULL addedAt last, same as the in memory sort.
+        return 'CASE WHEN addedAt IS NULL THEN 1 ELSE 0 END, addedAt ASC';
+      case 'GENRE ASC':
+        return 'genre COLLATE NOCASE ASC';
+      case 'GENRE DESC':
+        return 'genre COLLATE NOCASE DESC';
+      default:
+        return 'title COLLATE NOCASE ASC';
+    }
+  }
+
+  /// Paged song query with search, sort, and excluded folder filtering.
+  /// No schema change. [orderBy] is strictly whitelisted, unknown values
+  /// fall back to title ASC. Each excluded folder becomes a
+  /// filePath NOT LIKE 'prefix/%' clause so the whole subtree is skipped.
+  Future<List<Song>> querySongsPage({
+    required int limit,
+    required int offset,
+    String? query,
+    String? orderBy,
+    Set<String>? excludedFolders,
+  }) async {
+    final database = await db;
+    final safeLimit = limit < 1 ? 50 : limit;
+    final safeOffset = offset < 0 ? 0 : offset;
+    final where = <String>[];
+    final args = <Object?>[];
+    final trimmed = (query ?? '').trim();
+    if (trimmed.isNotEmpty) {
+      final pattern = '%${_escapeLike(trimmed)}%';
+      where.add(
+          "(title LIKE ? ESCAPE '\\' OR artist LIKE ? ESCAPE '\\' OR album LIKE ? ESCAPE '\\')");
+      args.addAll([pattern, pattern, pattern]);
+    }
+    final excluded = (excludedFolders ?? const <String>{})
+        .map((e) => e.replaceAll('\\', '/'))
+        .map((e) => e.endsWith('/') ? e.substring(0, e.length - 1) : e)
+        .where((e) => e.isNotEmpty)
+        .toList();
+    for (final folder in excluded) {
+      final pattern = '${_escapeLike(folder)}/%';
+      where.add("filePath NOT LIKE ? ESCAPE '\\'");
+      args.add(pattern);
+    }
+    final orderClause = _sanitizeSongsOrderBy(orderBy);
+    final sql = StringBuffer('SELECT * FROM songs');
+    if (where.isNotEmpty) {
+      sql.write(' WHERE ');
+      sql.write(where.join(' AND '));
+    }
+    sql.write(' ORDER BY $orderClause LIMIT ? OFFSET ?');
+    args.addAll([safeLimit, safeOffset]);
+    final rows = await database.rawQuery(sql.toString(), args);
+    return rows.map((r) => Song.fromMap(r)).toList();
+  }
+
   /// Consecutive days with at least one listening entry, ending today
   /// or yesterday. Returns 0 when there is no recent activity.
   /// No schema change: reads distinct calendar days from listening_entries.

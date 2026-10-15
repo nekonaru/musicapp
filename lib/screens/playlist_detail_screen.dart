@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:offline_music_player/l10n/gen/app_localizations.dart';
@@ -6,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/song.dart';
 import '../providers/playlist_provider.dart';
 import '../services/player_service.dart';
+import '../services/playlist_art_service.dart';
 import '../utils/format.dart';
 import '../utils/song_options.dart';
 import '../widgets/az_scrollbar.dart';
@@ -62,6 +64,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       final songs = await context.read<PlaylistProvider>().songsIn(widget.playlistId);
       if (!mounted) return;
       setState(() => _songs = songs);
+      _scheduleArtRefresh();
     } catch (e) {
       if (!mounted) return;
       final l = AppLocalizations.of(context)!;
@@ -74,6 +77,21 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     }
   }
 
+  // Fire and forget collage rebuild after content changes.
+  // Never blocks the UI and never throws: failures keep the fallback.
+  void _scheduleArtRefresh() {
+    final songs = List<Song>.of(_songs);
+    final playlistId = widget.playlistId;
+    Future(() async {
+      try {
+        await PlaylistArtService.buildPlaylistArt(playlistId, songs);
+        if (mounted) setState(() {});
+      } catch (_) {
+        // Keep the fallback art on any failure.
+      }
+    });
+  }
+
   Future<void> _onReorder(int oldIndex, int newIndex) async {
     final previousOrder = List<Song>.of(_songs);
     setState(() {
@@ -82,6 +100,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     });
     try {
       await context.read<PlaylistProvider>().reorder(widget.playlistId, _songs.map((s) => s.id).toList());
+      _scheduleArtRefresh();
     } catch (e) {
       if (!mounted) return;
       // DB failed - roll back to the previous order.
@@ -114,6 +133,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     }
     if (!mounted) return;
     setState(() => _songs.removeWhere((s) => s.id == song.id));
+    _scheduleArtRefresh();
   }
 
   List<Song> get _displayed {
@@ -198,6 +218,13 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
             )
           : Column(
               children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: Center(
+                    child: _PlaylistHeaderArt(
+                        playlistId: widget.playlistId),
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                   child: Align(
@@ -405,6 +432,53 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
           Text(label),
         ],
       ),
+    );
+  }
+}
+
+// Large header cover showing the generated collage when cached,
+// otherwise the same icon placeholder the empty state uses.
+// TODO L10N: no user facing strings here, all literals are debug only.
+class _PlaylistHeaderArt extends StatelessWidget {
+  final int playlistId;
+
+  const _PlaylistHeaderArt({required this.playlistId});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final fallback = Container(
+      width: 160,
+      height: 160,
+      decoration: BoxDecoration(
+        color: cs.primaryContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Icon(
+        Icons.queue_music,
+        color: cs.onPrimaryContainer,
+        size: 64,
+      ),
+    );
+    // A fresh future per build keeps the code simple: the parent calls
+    // setState after each content change, so new art is picked up.
+    return FutureBuilder<File?>(
+      future: PlaylistArtService.existingArt(playlistId),
+      builder: (context, snapshot) {
+        final file = snapshot.data;
+        if (file == null) return fallback;
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Image.file(
+            file,
+            width: 160,
+            height: 160,
+            fit: BoxFit.cover,
+            cacheWidth: 320,
+            errorBuilder: (_, __, ___) => fallback,
+          ),
+        );
+      },
     );
   }
 }

@@ -2281,6 +2281,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'cached'**
   String get dashCached;
+
+  /// Yearly recap section title
+  ///
+  /// In en, this message translates to:
+  /// **'Yearly Recap'**
+  String get recapTitle;
+
+  /// Top artists this year label
+  ///
+  /// In en, this message translates to:
+  /// **'Top artists this year'**
+  String get recapTopArtists;
 }
 
 class _AppLocalizationsDelegate

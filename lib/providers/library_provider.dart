@@ -176,6 +176,54 @@ class LibraryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// ORDER BY key matching DBHelper.querySongsPage whitelist for [opt].
+  /// Keeps DB paging order consistent with the in memory [_applySort].
+  String orderByForSort(SortOption opt) {
+    switch (opt) {
+      case SortOption.titleAZ:
+        return 'title ASC';
+      case SortOption.titleZA:
+        return 'title DESC';
+      case SortOption.artistAZ:
+        return 'artist ASC';
+      case SortOption.artistZA:
+        return 'artist DESC';
+      case SortOption.albumAZ:
+        return 'album ASC';
+      case SortOption.albumZA:
+        return 'album DESC';
+      case SortOption.dateAddedNewest:
+        return 'addedAt DESC';
+      case SortOption.dateAddedOldest:
+        return 'addedAt ASC';
+      case SortOption.genre:
+        return 'genre ASC';
+    }
+  }
+
+  /// Single DB page using querySongsPage with the current sort and the
+  /// stored excluded folders. Returns null when the paged query fails so
+  /// the caller can fall back to the full in memory list.
+  Future<List<Song>?> fetchSongsPage({
+    required int limit,
+    required int offset,
+    String query = '',
+  }) async {
+    try {
+      final excluded = await DBHelper.instance.getExcludedFolders();
+      final page = await DBHelper.instance.querySongsPage(
+        limit: limit,
+        offset: offset,
+        query: query,
+        orderBy: orderByForSort(sortOption),
+        excludedFolders: excluded,
+      );
+      return page;
+    } catch (_) {
+      return null;
+    }
+  }
+
   void _applySort() {
     switch (sortOption) {
       case SortOption.titleAZ:

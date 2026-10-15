@@ -1116,5 +1116,13 @@
     "dashCached":  "cache",
     "@dashCached":  {
                          "description":  "Badge angka dari cache"
-                     }
+                     },
+    "recapTitle":  "Rekap Tahunan",
+    "@recapTitle":  {
+                         "description":  "Judul section rekap tahunan"
+                     },
+    "recapTopArtists":  "Artis teratas tahun ini",
+    "@recapTopArtists":  {
+                              "description":  "Label artis teratas tahun ini"
+                          }
 }

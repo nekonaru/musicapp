@@ -1116,5 +1116,13 @@
     "dashCached":  "cached",
     "@dashCached":  {
                          "description":  "Badge shown when numbers come from cache"
-                     }
+                     },
+    "recapTitle":  "Yearly Recap",
+    "@recapTitle":  {
+                         "description":  "Yearly recap section title"
+                     },
+    "recapTopArtists":  "Top artists this year",
+    "@recapTopArtists":  {
+                              "description":  "Top artists this year label"
+                          }
 }

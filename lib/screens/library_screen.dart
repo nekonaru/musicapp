@@ -94,6 +94,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
   int _visibleCount = _pageSize;
   SortOption? _lastSortOption;
 
+  // DB paged window via LibraryProvider.fetchSongsPage (querySongsPage).
+  // When the paged query fails, [_paged] stays null and the screen falls
+  // back to the full in memory list with the old prefix rendering.
+  List<Song>? _paged;
+  bool _pagedLoading = false;
+  bool _pagedHasMore = false;
+  SortOption? _pagedSort;
+
   // Playlists are loaded lazily on first use to keep startup cheap.
   bool _playlistsRequested = false;
 
@@ -116,6 +124,45 @@ class _LibraryScreenState extends State<LibraryScreen> {
     await _ensurePlaylistsLoaded();
     if (!mounted) return;
     showSongOptions(context, song);
+  }
+
+  /// First DB page (200 rows) with the current sort. Null means the paged
+  /// query failed and the caller must use the full list fallback.
+  Future<void> _loadFirstPage(LibraryProvider lib) async {
+    if (_pagedLoading) return;
+    _pagedLoading = true;
+    final page = await lib.fetchSongsPage(limit: _pageSize, offset: 0);
+    if (!mounted) return;
+    setState(() {
+      _pagedLoading = false;
+      if (page == null) {
+        _paged = null;
+        _pagedHasMore = false;
+      } else {
+        _paged = page;
+        _pagedHasMore = page.length >= _pageSize;
+      }
+      _pagedSort = lib.sortOption;
+    });
+  }
+
+  /// Next DB page appended to the current window. Keeps the old rows when
+  /// the query fails so scrolling never loses data.
+  Future<void> _loadNextPage(LibraryProvider lib) async {
+    if (_pagedLoading || _paged == null || !_pagedHasMore) return;
+    _pagedLoading = true;
+    final page =
+        await lib.fetchSongsPage(limit: _pageSize, offset: _paged!.length);
+    if (!mounted) return;
+    setState(() {
+      _pagedLoading = false;
+      if (page == null || page.isEmpty) {
+        _pagedHasMore = false;
+      } else {
+        _paged!.addAll(page);
+        _pagedHasMore = page.length >= _pageSize;
+      }
+    });
   }
 
   void _exitMultiSelect() => setState(() {
@@ -199,6 +246,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   onTap: () {
                     lib.setSortOption(opt);
                     Navigator.pop(ctx);
+                    _loadFirstPage(lib);
                   },
                 )),
             const SizedBox(height: 8),
@@ -460,16 +508,34 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ]));
       }
 
-      final songs = lib.filteredSongs('');
+      // Paged DB window first, full list fallback when paging failed.
+      // Kick off the first page once the full list is ready. The post frame
+      // schedule keeps setState out of the build phase.
+      if (_paged == null && !_pagedLoading && _pagedSort == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _loadFirstPage(lib);
+        });
+      }
+      // Sort changed outside the sort menu (prefs restore): reload page.
+      if (_pagedSort != null && _pagedSort != lib.sortOption) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _loadFirstPage(lib);
+        });
+      }
+      final usePaged = _paged != null;
+      final songs = usePaged ? _paged! : lib.filteredSongs('');
       // Reset the rendered prefix when sort changes. Direct assignment here
       // is safe because it runs before the rows below are built.
       if (_lastSortOption != lib.sortOption) {
         _lastSortOption = lib.sortOption;
         _visibleCount = _pageSize;
       }
-      final visibleCount =
-          songs.length < _visibleCount ? songs.length : _visibleCount;
-      final hasMore = visibleCount < songs.length;
+      final visibleCount = usePaged
+          ? songs.length
+          : (songs.length < _visibleCount ? songs.length : _visibleCount);
+      final hasMore = usePaged
+          ? _pagedHasMore
+          : visibleCount < songs.length;
       final showAz = lib.sortOption == SortOption.titleAZ;
       final available = <String>{
         for (final s in songs)
@@ -491,7 +557,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
             child: Stack(
               children: [
                 RefreshIndicator(
-                  onRefresh: () => lib.forceScanDevice(),
+                  onRefresh: () async {
+                    await lib.forceScanDevice();
+                    await _loadFirstPage(lib);
+                  },
                   child: AnimatedBuilder(
                     animation: PlayerService.instance,
                     builder: (context, _) => CustomScrollView(
@@ -532,17 +601,29 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           ),
                         ),
 
-                        // Load more button grows the rendered prefix by one page.
+                        // Load more button fetches the next DB page, or grows
+                        // the rendered prefix in full list fallback mode.
                         if (hasMore)
                           SliverToBoxAdapter(
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                               child: OutlinedButton(
-                                onPressed: () => setState(() {
-                                  _visibleCount = visibleCount + _pageSize;
-                                }),
-                                child: Text(
-                                    AppLocalizations.of(context)!.loadMore(
+                                onPressed: _pagedLoading
+                                    ? null
+                                    : () {
+                                        if (usePaged) {
+                                          _loadNextPage(lib);
+                                        } else {
+                                          setState(() {
+                                            _visibleCount =
+                                                visibleCount + _pageSize;
+                                          });
+                                        }
+                                      },
+                                child: Text(usePaged
+                                    ? AppLocalizations.of(context)!.loadMore(
+                                        visibleCount, lib.totalCount)
+                                    : AppLocalizations.of(context)!.loadMore(
                                         visibleCount, songs.length)),
                               ),
                             ),

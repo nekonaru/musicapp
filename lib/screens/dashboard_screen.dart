@@ -1,7 +1,7 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/db_helper.dart';
@@ -24,6 +24,9 @@ class DashboardScreenState extends State<DashboardScreen> {
   int _totalSongs = 0;
   int _totalListeningMs = 0;
   int _thisMonthMs = 0;
+  int _yearMs = 0;
+  List<MapEntry<int, int>> _yearTopSongs = [];
+  List<MapEntry<String, int>> _yearTopArtists = [];
   int _streak = 0;
   String? _topGenreMonth;
   bool _fromCache = false;
@@ -105,6 +108,9 @@ class DashboardScreenState extends State<DashboardScreen> {
       final useCache = cached != null;
 
       // Detail queries always run fresh so lists never go stale.
+      final nowForYear = DateTime.now();
+      final yearStart =
+          DateTime(nowForYear.year, 1, 1).toIso8601String();
       final futures = <Future>[
         DBHelper.instance.getDailyListeningLast7Days(),
         DBHelper.instance.getTopSongIds(limit: 5),
@@ -112,6 +118,9 @@ class DashboardScreenState extends State<DashboardScreen> {
         DBHelper.instance.getGenreDistribution(),
         DBHelper.instance.getAllSongs(),
         DBHelper.instance.getNeverPlayedSongs(),
+        DBHelper.instance.getTopSongIdsSince(yearStart, limit: 5),
+        DBHelper.instance.getTopArtistsSince(yearStart, limit: 3),
+        DBHelper.instance.getListeningMsSince(yearStart),
       ];
       // Summary queries only run on a cache miss or forced refresh.
       if (!useCache) {
@@ -124,13 +133,15 @@ class DashboardScreenState extends State<DashboardScreen> {
       }
 
       final results = await Future.wait(futures);
-
       final daily = results[0] as Map<DateTime, int>;
       final topSongs = results[1] as List<MapEntry<int, int>>;
       final topArtists = results[2] as List<MapEntry<String, int>>;
       final genreDist = results[3] as Map<String, int>;
       final allSongs = results[4] as List<Song>;
       final neverPlayed = results[5] as List<Song>;
+      final yearTopSongs = results[6] as List<MapEntry<int, int>>;
+      final yearTopArtists = results[7] as List<MapEntry<String, int>>;
+      final yearMs = results[8] as int;
 
       final int totalMs;
       final int monthMs;
@@ -143,10 +154,10 @@ class DashboardScreenState extends State<DashboardScreen> {
         final rawGenre = cached['topGenre'];
         topGenre = rawGenre is String && rawGenre.isNotEmpty ? rawGenre : null;
       } else {
-        totalMs = results[6] as int;
-        monthMs = results[7] as int;
-        streak = results[8] as int;
-        topGenre = results[9] as String?;
+        totalMs = results[9] as int;
+        monthMs = results[10] as int;
+        streak = results[11] as int;
+        topGenre = results[12] as String?;
         await _writeAggregateCache(
           totalSongs: allSongs.length,
           totalMs: totalMs,
@@ -166,6 +177,9 @@ class DashboardScreenState extends State<DashboardScreen> {
         _totalSongs = allSongs.length;
         _totalListeningMs = totalMs;
         _thisMonthMs = monthMs;
+        _yearMs = yearMs;
+        _yearTopSongs = yearTopSongs;
+        _yearTopArtists = yearTopArtists;
         _streak = streak;
         _topGenreMonth = topGenre;
         _neverPlayed = neverPlayed;
@@ -416,6 +430,91 @@ class DashboardScreenState extends State<DashboardScreen> {
             ),
           if (_topArtists.isNotEmpty) const SizedBox(height: 14),
 
+          // Yearly recap: top songs/artists plus total hours this year.
+          if (_yearMs > 0 ||
+              _yearTopSongs.isNotEmpty ||
+              _yearTopArtists.isNotEmpty)
+            _SectionCard(
+              icon: Icons.celebration_outlined,
+              title: l.recapTitle,
+              trailing: Text(
+                  l.dashboardHoursValue(
+                      (_yearMs / 3600000).toStringAsFixed(1)),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (int i = 0;
+                      i < _yearTopSongs.length && i < 5;
+                      i++) ...[
+                    _RankTile(
+                      rank: i + 1,
+                      title: _songLookup[_yearTopSongs[i].key]?.title ??
+                          l.dashboardUnknownSong(_yearTopSongs[i].key),
+                      subtitle:
+                          _songLookup[_yearTopSongs[i].key]?.artist,
+                      trailing:
+                          l.dashboardPlayCount(_yearTopSongs[i].value),
+                      maxValue: _yearTopSongs.first.value,
+                      value: _yearTopSongs[i].value,
+                      onTap: () async {
+                        final song =
+                            _songLookup[_yearTopSongs[i].key];
+                        if (song != null) {
+                          try {
+                            await PlayerService.instance
+                                .setQueueAndPlay([song], 0);
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context)
+                                  .showSnackBar(
+                                SnackBar(
+                                    behavior:
+                                        SnackBarBehavior.floating,
+                                    duration:
+                                        const Duration(seconds: 5),
+                                    content: Text(l.dashboardPlayFailed(
+                                        e.toString()))),
+                              );
+                            }
+                          }
+                        }
+                      },
+                    ),
+                    if (i < _yearTopSongs.length - 1 &&
+                        i < 4)
+                      const Divider(height: 1),
+                  ],
+                  if (_yearTopArtists.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(l.recapTopArtists,
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 4),
+                    for (int i = 0;
+                        i < _yearTopArtists.length && i < 3;
+                        i++) ...[
+                      _RankTile(
+                        rank: i + 1,
+                        title: _yearTopArtists[i].key,
+                        trailing: l
+                            .dashboardPlayCount(_yearTopArtists[i].value),
+                        maxValue: _yearTopArtists.first.value,
+                        value: _yearTopArtists[i].value,
+                      ),
+                      if (i < _yearTopArtists.length - 1 && i < 2)
+                        const Divider(height: 1),
+                    ],
+                  ],
+                ],
+              ),
+            ),
+          if (_yearMs > 0 ||
+              _yearTopSongs.isNotEmpty ||
+              _yearTopArtists.isNotEmpty)
+            const SizedBox(height: 14),
+
           // Genre distribution
           if (_genreDist.isNotEmpty)
             _SectionCard(
@@ -483,8 +582,69 @@ class DashboardScreenState extends State<DashboardScreen> {
     final entries = _genreDist.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final max = entries.isEmpty ? 1 : entries.first.value;
+    final topGenres = entries.take(6).toList();
+    final cs = Theme.of(context).colorScheme;
     return Column(
-      children: entries.take(6).map((e) {
+      children: [
+        RepaintBoundary(
+          child: SizedBox(
+            height: 128,
+            child: Row(
+              children: [
+                CustomPaint(
+                  size: const Size(116, 116),
+                  painter: _GenreDonutPainter(
+                    values:
+                        topGenres.map((e) => e.value.toDouble()).toList(),
+                    colors: List.generate(topGenres.length,
+                        (i) => _chartColor(cs, i)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (int i = 0; i < topGenres.length; i++)
+                        Padding(
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 10,
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  color: _chartColor(cs, i),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(topGenres[i].key,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style:
+                                        const TextStyle(fontSize: 12)),
+                              ),
+                              const SizedBox(width: 6),
+                              Text('${topGenres[i].value}',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[500])),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...topGenres.map((e) {
         final ratio = (e.value / max).clamp(0.04, 1.0);
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 5),
@@ -499,15 +659,18 @@ class DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: LinearProgressIndicator(
-                    value: ratio,
-                    minHeight: 6,
-                    backgroundColor:
-                        Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                    valueColor: AlwaysStoppedAnimation(
-                        Theme.of(context).colorScheme.primary),
+                child: SizedBox(
+                  height: 6,
+                  child: CustomPaint(
+                    painter: _HBarPainter(
+                      ratio: ratio,
+                      barColor:
+                          Theme.of(context).colorScheme.primary,
+                      trackColor: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.12),
+                    ),
                   ),
                 ),
               ),
@@ -517,7 +680,8 @@ class DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
         );
-      }).toList(),
+        }).toList(),
+      ],
     );
   }
 
@@ -676,74 +840,60 @@ class DashboardScreenState extends State<DashboardScreen> {
     final l = AppLocalizations.of(context)!;
     final days = _daily.keys.toList()..sort();
     final now = DateTime.now();
-    final maxMs = _daily.values.isEmpty
-        ? 1
-        : _daily.values.reduce((a, b) => a > b ? a : b);
-    final maxHours = (maxMs / 3600000).clamp(0.5, double.infinity);
-    final color = Theme.of(context).colorScheme.primary;
-
-    return BarChart(
-      BarChartData(
-        maxY: maxHours.toDouble() + 0.5,
-        barGroups: [
-          for (int i = 0; i < days.length; i++)
-            BarChartGroupData(x: i, barRods: [
-              BarChartRodData(
-                toY: _daily[days[i]]! / 3600000,
-                width: 20,
-                borderRadius: BorderRadius.circular(6),
-                color: color,
-              )
-            ])
-        ],
-        titlesData: FlTitlesData(
-          leftTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 24,
-              getTitlesWidget: (value, meta) {
-                final idx = value.toInt();
-                if (idx < 0 || idx >= days.length) return const SizedBox();
-                final shortDays = [l.dashboardDaySun, l.dashboardDayMon, l.dashboardDayTue, l.dashboardDayWed, l.dashboardDayThu, l.dashboardDayFri, l.dashboardDaySat];
-                final isToday = _isSameDay(days[idx], now);
-                return Text(
-                  shortDays[days[idx].weekday % 7],
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-                    color: isToday ? color : Colors.grey,
-                  ),
-                );
-              },
+    if (days.isEmpty) {
+      return Center(child: Text(l.dashboardNoWeekActivity));
+    }
+    final values = days.map((d) => (_daily[d] ?? 0) / 3600000).toList();
+    final dayLabels = [
+      l.dashboardDaySun,
+      l.dashboardDayMon,
+      l.dashboardDayTue,
+      l.dashboardDayWed,
+      l.dashboardDayThu,
+      l.dashboardDayFri,
+      l.dashboardDaySat
+    ];
+    final names = days.map((d) => dayLabels[d.weekday % 7]).toList();
+    final cs = Theme.of(context).colorScheme;
+    final todayIndex = days.indexWhere((d) => _isSameDay(d, now));
+    return Column(
+      children: [
+        Expanded(
+          child: RepaintBoundary(
+            child: CustomPaint(
+              size: Size.infinite,
+              painter: _WeekBarsPainter(
+                values: values,
+                barColor: cs.primary,
+                todayBarColor: cs.tertiary,
+                gridColor: cs.outlineVariant.withValues(alpha: 0.4),
+                todayIndex: todayIndex,
+              ),
             ),
           ),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
-        gridData: FlGridData(
-            show: true,
-            drawVerticalLine: false,
-            horizontalInterval: maxHours / 3 < 0.1 ? 0.1 : maxHours / 3,
-            getDrawingHorizontalLine: (value) => FlLine(
-              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
-              strokeWidth: 1,
-            )),
-        borderData: FlBorderData(show: false),
-        barTouchData: BarTouchData(
-          touchTooltipData: BarTouchTooltipData(
-            getTooltipItem: (group, groupIndex, rod, rodIndex) {
-              final h = rod.toY;
-              final mins = (h * 60).round();
-              return BarTooltipItem(
-                mins < 60 ? l.dashboardTooltipMinutes(mins) : l.dashboardTooltipHours(h.toStringAsFixed(1)),
-                TextStyle(color: Theme.of(context).colorScheme.onPrimary),
-              );
-            },
-          ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            for (int i = 0; i < names.length; i++)
+              Expanded(
+                child: Text(
+                  names[i],
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.clip,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: i == todayIndex
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    color: i == todayIndex ? cs.primary : Colors.grey,
+                  ),
+                ),
+              ),
+          ],
         ),
-      ),
+      ],
     );
   }
 }
@@ -957,11 +1107,15 @@ class _RankTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(3),
-                    child: LinearProgressIndicator(
-                      value: ratio.toDouble(),
-                      minHeight: 3,
-                      backgroundColor: color.withValues(alpha: 0.1),
-                      valueColor: AlwaysStoppedAnimation(color),
+                    child: SizedBox(
+                      height: 3,
+                      child: CustomPaint(
+                        painter: _HBarPainter(
+                          ratio: ratio.toDouble(),
+                          barColor: color,
+                          trackColor: color.withValues(alpha: 0.1),
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -972,4 +1126,136 @@ class _RankTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Theme aware palette for the custom painted charts.
+Color _chartColor(ColorScheme cs, int index) {
+  const palette = <Color>[
+    Colors.blue,
+    Colors.purple,
+    Colors.teal,
+    Colors.orange,
+    Colors.pink,
+    Colors.green,
+  ];
+  if (index == 0) return cs.primary;
+  if (index == 1) return cs.secondary;
+  if (index == 2) return cs.tertiary;
+  return palette[index % palette.length];
+}
+
+/// Vertical 7 day bars with grid lines, painted without any chart package.
+class _WeekBarsPainter extends CustomPainter {
+  final List<double> values;
+  final Color barColor;
+  final Color todayBarColor;
+  final Color gridColor;
+  final int todayIndex;
+  const _WeekBarsPainter({
+    required this.values,
+    required this.barColor,
+    required this.todayBarColor,
+    required this.gridColor,
+    required this.todayIndex,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1;
+    for (int g = 1; g <= 3; g++) {
+      final y = size.height - (size.height * g / 4);
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+    if (values.isEmpty) return;
+    final maxV = values.reduce((a, b) => a > b ? a : b);
+    final safeMax = maxV <= 0 ? 1.0 : maxV;
+    const gap = 8.0;
+    final n = values.length;
+    final barW = (size.width - gap * (n - 1)) / n;
+    for (int i = 0; i < n; i++) {
+      final h = (values[i] / safeMax * (size.height - 12)).clamp(4.0, size.height);
+      final x = i * (barW + gap);
+      final rect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(x, size.height - h, barW.clamp(8.0, 48.0), h),
+        const Radius.circular(6),
+      );
+      canvas.drawRRect(
+          rect, Paint()..color = i == todayIndex ? todayBarColor : barColor);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _WeekBarsPainter old) =>
+      old.values != values ||
+      old.todayIndex != todayIndex ||
+      old.barColor != barColor;
+}
+
+/// Horizontal progress bar with rounded ends, theme aware.
+class _HBarPainter extends CustomPainter {
+  final double ratio;
+  final Color barColor;
+  final Color trackColor;
+  const _HBarPainter({
+    required this.ratio,
+    required this.barColor,
+    required this.trackColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = ratio.clamp(0.0, 1.0);
+    final track = RRect.fromRectAndRadius(
+        Offset.zero & size, Radius.circular(size.height / 2));
+    canvas.drawRRect(track, Paint()..color = trackColor);
+    if (r <= 0) return;
+    final fill = RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, size.width * r, size.height),
+        Radius.circular(size.height / 2));
+    canvas.drawRRect(fill, Paint()..color = barColor);
+  }
+
+  @override
+  bool shouldRepaint(covariant _HBarPainter old) =>
+      old.ratio != ratio ||
+      old.barColor != barColor ||
+      old.trackColor != trackColor;
+}
+
+/// Simple donut chart for the top genres, painted without any package.
+class _GenreDonutPainter extends CustomPainter {
+  final List<double> values;
+  final List<Color> colors;
+  const _GenreDonutPainter({required this.values, required this.colors});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final total = values.fold<double>(0, (a, b) => a + b);
+    final center = size.center(Offset.zero);
+    final radius = math.min(size.width, size.height) / 2;
+    final paint = Paint()..style = PaintingStyle.stroke..strokeWidth = 22;
+    if (total <= 0) {
+      paint.color = const Color(0xFFE0E0E0);
+      canvas.drawCircle(center, radius - 11, paint);
+      return;
+    }
+    var start = -math.pi / 2;
+    for (int i = 0; i < values.length; i++) {
+      final sweep = values[i] / total * math.pi * 2;
+      paint.color = colors[i % colors.length];
+      canvas.drawArc(
+          Rect.fromCircle(center: center, radius: radius - 11),
+          start,
+          sweep < 0.02 && values[i] > 0 ? 0.02 : sweep,
+          false,
+          paint);
+      start += sweep;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _GenreDonutPainter old) =>
+      old.values != values || old.colors != colors;
 }

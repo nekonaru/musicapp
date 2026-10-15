@@ -1257,4 +1257,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dashCached => 'cached';
+
+  @override
+  String get recapTitle => 'Yearly Recap';
+
+  @override
+  String get recapTopArtists => 'Top artists this year';
 }

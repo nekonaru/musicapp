@@ -1258,4 +1258,10 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get dashCached => 'cache';
+
+  @override
+  String get recapTitle => 'Rekap Tahunan';
+
+  @override
+  String get recapTopArtists => 'Artis teratas tahun ini';
 }
