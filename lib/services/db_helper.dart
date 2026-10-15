@@ -19,7 +19,7 @@ class DBHelper {
     final path = p.join(dbPath, 'music_app.db');
     return openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE songs(
@@ -78,6 +78,15 @@ class DBHelper {
             'CREATE INDEX idx_listening_song_ts ON listening_entries(songId, timestamp)');
         await db.execute(
             'CREATE INDEX idx_playlist_songs_pid_pos ON playlist_songs(playlistId, position)');
+        // Disk cache for iTunes search responses so reinstalls do not
+        // refetch songs that were already looked up (hits and misses).
+        await db.execute('''
+          CREATE TABLE metadata_cache(
+            query TEXT PRIMARY KEY,
+            response TEXT,
+            fetchedAt TEXT
+          )
+        ''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -119,6 +128,20 @@ class DBHelper {
             await db.execute(
                 'CREATE INDEX IF NOT EXISTS idx_playlist_songs_pid_pos ON playlist_songs(playlistId, position)');
           } catch (_) {}
+        }
+        if (oldVersion < 5) {
+          // Disk cache for iTunes responses (hits and miss markers).
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS metadata_cache(
+                query TEXT PRIMARY KEY,
+                response TEXT,
+                fetchedAt TEXT
+              )
+            ''');
+          } catch (_) {
+            // Table may already exist, ignore
+          }
         }
       },
     );
@@ -478,5 +501,39 @@ class DBHelper {
         'SELECT COALESCE(SUM(listenedMs), 0) as total FROM listening_entries WHERE timestamp >= ?',
         [start]);
     return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  // ---------- iTunes metadata disk cache ----------
+  /// Raw cached iTunes response for [query], or null when absent.
+  /// The returned map holds 'response' and 'fetchedAt' strings.
+  /// TTL checks are done by the caller so hit and miss markers can
+  /// use different lifetimes.
+  Future<Map<String, String>?> getMetadataCache(String query) async {
+    final database = await db;
+    final rows = await database.query('metadata_cache',
+        columns: ['response', 'fetchedAt'],
+        where: 'query = ?',
+        whereArgs: [query],
+        limit: 1);
+    if (rows.isEmpty) return null;
+    final row = rows.first;
+    return {
+      'response': (row['response'] ?? '').toString(),
+      'fetchedAt': (row['fetchedAt'] ?? '').toString(),
+    };
+  }
+
+  /// Insert or replace the cached iTunes response for [query].
+  Future<void> putMetadataCache(String query, String response) async {
+    final database = await db;
+    await database.insert(
+      'metadata_cache',
+      {
+        'query': query,
+        'response': response,
+        'fetchedAt': DateTime.now().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 }

@@ -1,3 +1,46 @@
+import 'dart:convert';
+import 'dart:io';
+
+/// Prefix marking a lyrics DB value as gzip + base64 compressed.
+const String _lyricsGzipPrefix = 'gz:';
+
+/// Encodes lyrics for DB storage using gzip + base64 with a 'gz:' marker.
+///
+/// Null stays null and empty stays empty so those cheap cases
+/// never pay the compression cost.
+String? encodeLyricsForDb(String? lyrics) {
+  // Keep null and empty untouched for cheap storage and simple checks.
+  if (lyrics == null || lyrics.isEmpty) {
+    return lyrics;
+  }
+  final List<int> gzipped = gzip.encode(utf8.encode(lyrics));
+  return '$_lyricsGzipPrefix${base64Encode(gzipped)}';
+}
+
+/// Decodes a lyrics DB value, accepting both new and legacy formats.
+///
+/// Plaintext rows written before compression pass through unchanged.
+/// Values with the 'gz:' marker are decoded, and a corrupt payload
+/// returns the original string instead of throwing.
+dynamic decodeLyricsFromDb(dynamic value) {
+  // Legacy plaintext (or null) passes through unchanged.
+  if (value == null) {
+    return null;
+  }
+  if (value is! String || !value.startsWith(_lyricsGzipPrefix)) {
+    return value;
+  }
+  try {
+    final String payload = value.substring(_lyricsGzipPrefix.length);
+    final List<int> gzipped = base64Decode(payload);
+    final List<int> raw = gzip.decode(gzipped);
+    return utf8.decode(raw);
+  } catch (_) {
+    // Corrupt data must never break song loading, keep the raw string.
+    return value;
+  }
+}
+
 class Song {
   final int id;
   final String filePath;
@@ -41,7 +84,7 @@ class Song {
         'region': region,
         'albumArtPath': albumArtPath,
         'albumArtUrl': albumArtUrl,
-        'lyrics': lyrics,
+        'lyrics': encodeLyricsForDb(lyrics),
         'durationMs': durationMs,
         'isFavorite': isFavorite ? 1 : 0,
         'addedAt': addedAt?.toIso8601String(),
@@ -75,7 +118,7 @@ class Song {
         region: map['region'] as String?,
         albumArtPath: map['albumArtPath'] as String?,
         albumArtUrl: map['albumArtUrl'] as String?,
-        lyrics: map['lyrics'] as String?,
+        lyrics: decodeLyricsFromDb(map['lyrics']) as String?,
         durationMs: (map['durationMs'] as num?)?.toInt() ?? 0,
         isFavorite: (map['isFavorite'] ?? 0) == 1,
         addedAt: parsedAddedAt,

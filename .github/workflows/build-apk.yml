@@ -197,11 +197,20 @@ jobs:
           fi
           cat "$APP_GRADLE"
 
+      - name: Enable shrinkResources in release build
+        run: |
+          APP_GRADLE="android/app/build.gradle.kts"
+          if ! grep -q "shrinkResources" "$APP_GRADLE"; then
+            sed -i '/signingConfig = signingConfigs.getByName("debug")/a\            shrinkResources = true' "$APP_GRADLE"
+          fi
+          cat "$APP_GRADLE"
+
       - name: Build APK
         run: flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols
 
       - name: Verify split APK outputs exist
         run: |
+          rm -f build/app/outputs/flutter-apk/*x86_64*.apk
           DEST="build/app/outputs/flutter-apk"
           echo "=== APK outputs in $DEST ==="
           ls -la "$DEST"

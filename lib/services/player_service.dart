@@ -49,6 +49,22 @@ class PlayerService extends ChangeNotifier {
   bool _crossfadeCancelled = false;
   bool _disposed = false;
 
+  /// Subscribe to the active player position stream for crossfade triggers.
+  /// Cancels any previous subscription first so only one stays active.
+  Future<void> _subscribePosition() async {
+    if (_disposed) return;
+    await _positionSub?.cancel();
+    _positionSub = null;
+    if (_disposed) return;
+    _positionSub = _activePlayer.positionStream.listen(_maybeStartCrossfade);
+  }
+
+  /// Stop listening to position updates to save battery while paused.
+  Future<void> _unsubscribePosition() async {
+    await _positionSub?.cancel();
+    _positionSub = null;
+  }
+
   /// The player that is CURRENTLY audible (switches each time a crossfade finishes)
   AudioPlayer get _activePlayer {
     final crossfade = _crossfadePlayer;
@@ -113,7 +129,7 @@ class PlayerService extends ChangeNotifier {
 
   Future<void> init() async {
     await _playerStateSub?.cancel();
-    await _positionSub?.cancel();
+    await _unsubscribePosition();
     _playerStateSub = _player.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed && !_usingCrossfadePlayer) {
         _logListening();
@@ -133,7 +149,9 @@ class PlayerService extends ChangeNotifier {
         }
       });
     }
-    _positionSub = _activePlayer.positionStream.listen(_maybeStartCrossfade);
+    // Subscribe only while playing so crossfade triggers keep working
+    // without draining battery while paused.
+    await _subscribePosition();
   }
 
   void _maybeStartCrossfade(Duration position) {
@@ -201,9 +219,7 @@ class PlayerService extends ChangeNotifier {
       _crossfadeTriggeredForCurrent = false;
       await DBHelper.instance.markPlayed(nextSong.id);
 
-      await _positionSub?.cancel();
-      if (_disposed) return;
-      _positionSub = _activePlayer.positionStream.listen(_maybeStartCrossfade);
+      await _subscribePosition();
 
       notifyListeners();
     } catch (e) {
@@ -275,9 +291,7 @@ class PlayerService extends ChangeNotifier {
     lastError = null;
     // Re-attach the position listener to the now-active player, so
     // crossfade keeps triggering for the following songs too (not just once).
-    await _positionSub?.cancel();
-    if (_disposed) return;
-    _positionSub = player.positionStream.listen(_maybeStartCrossfade);
+    await _subscribePosition();
     notifyListeners();
   }
 
@@ -285,9 +299,13 @@ class PlayerService extends ChangeNotifier {
     if (player.playing) {
       _logListening();
       await player.pause();
+      // Stop position updates while paused to save battery.
+      await _unsubscribePosition();
     } else {
       _playStartedAt = DateTime.now();
       await player.play();
+      // Resume position updates for crossfade triggers.
+      await _subscribePosition();
     }
     notifyListeners();
   }
@@ -524,6 +542,8 @@ class PlayerService extends ChangeNotifier {
         // Pause BOTH players so playback really stops even mid-crossfade
         await _player.pause();
         await _crossfadePlayer?.pause();
+        // No crossfade trigger needed while paused, save battery.
+        await _unsubscribePosition();
       }
       notifyListeners();
     });
@@ -569,6 +589,8 @@ class PlayerService extends ChangeNotifier {
         _crossfadePlayer?.pause().catchError((e) {
           debugPrint('Gagal pause saat sleep-timer: $e');
         });
+        // Stop position updates while paused to save battery.
+        _unsubscribePosition();
         notifyListeners();
         return;
       }
@@ -583,6 +605,8 @@ class PlayerService extends ChangeNotifier {
       _crossfadePlayer?.pause().catchError((e) {
         debugPrint('Gagal pause saat sleep-timer: $e');
       });
+      // Stop position updates while paused to save battery.
+      _unsubscribePosition();
       notifyListeners();
       return;
     }
@@ -630,7 +654,8 @@ class PlayerService extends ChangeNotifier {
     _crossfadeCancelled = true;
     _logListening();
     _sleepTimer?.cancel();
-    _positionSub?.cancel();
+    // Fire and forget: dispose is sync, the cancel future still runs.
+    _unsubscribePosition();
     _playerStateSub?.cancel();
     _crossfadeStateSub?.cancel();
     // ChangeNotifier.dispose() is sync void - never turn it into a Future.

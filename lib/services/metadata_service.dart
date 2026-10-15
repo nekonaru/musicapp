@@ -21,6 +21,14 @@ class MetadataService {
 
   static const _rateLimitBackoff = Duration(seconds: 30);
 
+  /// Disk cache lifetimes for iTunes responses.
+  static const _cacheHitTtl = Duration(days: 30);
+  static const _cacheMissTtl = Duration(days: 90);
+
+  /// Marker stored when iTunes has no result for a query, so later scans
+  /// skip the network instead of refetching the same unknown song.
+  static const _cacheMissMarker = 'MISS';
+
   /// True while inside the 429 backoff window.
   bool get isRateLimited =>
       _rateLimitUntil != null && DateTime.now().isBefore(_rateLimitUntil!);
@@ -51,6 +59,32 @@ class MetadataService {
       debugPrint('iTunes backoff active, skip enrich ${song.title}');
       return true;
     }
+    // Serve a fresh disk cache entry before touching the network.
+    // A cache hit applies the same fields as a live 200 response, and a
+    // miss marker follows the same path as a live empty result.
+    final cacheKey = _cacheKeyFor(song);
+    final cachedResponse = await _readValidCache(cacheKey);
+    if (cachedResponse != null) {
+      if (cachedResponse != _cacheMissMarker) {
+        // Corrupt cache entries return false and fall through to network.
+        final applied = _applyItunesResponseBody(song, cachedResponse);
+        if (applied) {
+          song.region ??= 'Tidak diketahui';
+          song.genre ??= 'Tidak diketahui';
+          await fetchLyricsOnly(song);
+          song.metadataScanned = true;
+          await DBHelper.instance.upsertSong(song);
+          return false;
+        }
+      } else {
+        song.region ??= 'Tidak diketahui';
+        song.genre ??= 'Tidak diketahui';
+        await fetchLyricsOnly(song);
+        song.metadataScanned = true;
+        await DBHelper.instance.upsertSong(song);
+        return false;
+      }
+    }
     bool rateLimited = false;
     try {
       final url = Uri.https('itunes.apple.com', '/search', {
@@ -74,6 +108,19 @@ class MetadataService {
           song.albumArtUrl = (track['artworkUrl100'] as String?)
               ?.replaceAll('100x100', '600x600');
           song.region = _guessRegion(track['country']?.toString(), song.artist);
+          // Remember successful lookups so reinstalls reuse them.
+          try {
+            await DBHelper.instance.putMetadataCache(cacheKey, res.body);
+          } catch (_) {
+            // Cache write failure must never break enrichment.
+          }
+        } else {
+          // Empty result: remember the miss so later scans skip the network.
+          try {
+            await DBHelper.instance.putMetadataCache(cacheKey, _cacheMissMarker);
+          } catch (_) {
+            // Cache write failure must never break enrichment.
+          }
         }
       } else if (res.statusCode == 429) {
         // iTunes rate limit during a bulk scan: start a single 30 second
@@ -82,6 +129,15 @@ class MetadataService {
         rateLimited = true;
         _rateLimitUntil = DateTime.now().add(_rateLimitBackoff);
         debugPrint('iTunes rate-limit (429), skip enrich ${song.title}');
+      } else {
+        // Definite HTTP miss (for example 404): remember it so later
+        // scans skip the network. Network exceptions below are not
+        // cached, so offline songs are retried instead of poisoned.
+        try {
+          await DBHelper.instance.putMetadataCache(cacheKey, _cacheMissMarker);
+        } catch (_) {
+          // Cache write failure must never break enrichment.
+        }
       }
     } catch (_) {
       // Fetch failed (offline/network error) - keep whatever metadata is there
@@ -154,6 +210,54 @@ class MetadataService {
       // Lyrics not found, keep null - the user can fill them in via the edit feature
     }
     return false;
+  }
+
+  /// Cache key for a song: "artist|title", lowercase and trimmed.
+  String _cacheKeyFor(Song song) {
+    return '${song.artist.trim().toLowerCase()}|${song.title.trim().toLowerCase()}';
+  }
+
+  /// Fresh cached iTunes body for [cacheKey], or null when absent/expired.
+  /// Hits live 30 days, miss markers live 90 days. Cache read problems
+  /// return null so enrichment falls back to the network.
+  Future<String?> _readValidCache(String cacheKey) async {
+    try {
+      final cached = await DBHelper.instance.getMetadataCache(cacheKey);
+      if (cached == null) return null;
+      final response = cached['response'] ?? '';
+      final fetchedAt = DateTime.tryParse(cached['fetchedAt'] ?? '');
+      if (fetchedAt == null) return null;
+      final ttl =
+          response == _cacheMissMarker ? _cacheMissTtl : _cacheHitTtl;
+      if (DateTime.now().difference(fetchedAt) > ttl) return null;
+      return response;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Apply a cached iTunes JSON body to [song] using the same field
+  /// mapping as a live 200 response. Returns false when the body is
+  /// corrupt so the caller can fall back to the network.
+  bool _applyItunesResponseBody(Song song, String body) {
+    try {
+      final data = jsonDecode(body);
+      if (data['resultCount'] == null || data['resultCount'] <= 0) {
+        return false;
+      }
+      final track = data['results'][0];
+      song.title = _sanitizeField(track['trackName'], song.title);
+      song.artist = _sanitizeField(track['artistName'], song.artist);
+      song.album = _sanitizeField(track['collectionName'], song.album);
+      final genre = track['primaryGenreName']?.toString();
+      song.genre = genre != null ? _sanitizeField(genre, genre) : song.genre;
+      song.albumArtUrl =
+          (track['artworkUrl100'] as String?)?.replaceAll('100x100', '600x600');
+      song.region = _guessRegion(track['country']?.toString(), song.artist);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Limit metadata field length (keep giant HTML out of the DB) + trim.

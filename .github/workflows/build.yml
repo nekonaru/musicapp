@@ -158,11 +158,20 @@ jobs:
           fi
           cat "$APP_GRADLE"
 
+      - name: Enable shrinkResources in release build
+        run: |
+          APP_GRADLE="android/app/build.gradle.kts"
+          if ! grep -q "shrinkResources" "$APP_GRADLE"; then
+            sed -i '/signingConfig = signingConfigs.getByName("debug")/a\            shrinkResources = true' "$APP_GRADLE"
+          fi
+          cat "$APP_GRADLE"
+
       - name: Build APK
         run: flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols
 
       - name: Verify split APK outputs exist
         run: |
+          rm -f build/app/outputs/flutter-apk/*x86_64*.apk
           DEST="build/app/outputs/flutter-apk"
           echo "=== APK outputs in $DEST ==="
           ls -la "$DEST"
@@ -200,24 +209,20 @@ jobs:
           body: |
             # English
 
-            **Swara v1.8.1 - Lighter downloads and faster startup**
+            **Swara v1.8.2 - Slimmer install and kinder battery**
 
             ## ✨ New features
 
-            - Per-architecture APKs: download the small build matching your phone instead of one universal APK.
-            - Long lists (All Songs, Search) render in pages of 200 with a Load more button.
-            - First unit tests: 46 tests covering filename parsing and formatting helpers.
+            - Only phone architectures are published now (arm64 + armv7), no more emulator-only build in the downloads.
+            - First widget test among 67 total tests.
 
             ## ⚡ Optimizations
 
-            - Much smaller downloads via split-per-ABI, obfuscation, trimmed resources, and narrowed R8 keep rules.
-            - Song list appears right after the first frame; heavy metadata fetching is deferred and backs off on rate limits.
-            - Second audio player is now created lazily only while crossfade is enabled.
-            - Notification sync skips redundant work every second; play indicator animation stops when paused.
-
-            ## 🐛 Bug fixes
-
-            - CI build step no longer swallows real failures.
+            - Metadata responses are cached on disk (30 days, misses 90 days) so reinstalls skip re-fetching everything.
+            - Lyrics stored gzip-compressed in the database.
+            - Position stream sleeps while paused; notification sync does less redundant work.
+            - Dropped a heavy image-caching dependency in favor of built-in image widgets.
+            - Release builds shrink unused resources.
 
             ## 📦 Install / Update
 
@@ -231,24 +236,20 @@ jobs:
 
             # Bahasa Indonesia
 
-            **Swara v1.8.1 - Download lebih ringan dan startup lebih cepat**
+            **Swara v1.8.2 - Install lebih ramping dan baterai lebih hemat**
 
             ## ✨ Fitur baru
 
-            - APK per arsitektur: download build kecil sesuai HP, bukan satu APK universal.
-            - List panjang (Semua Lagu, Search) dirender per halaman 200 dengan tombol Muat lagi.
-            - Unit test pertama: 46 test untuk parsing nama file dan helper formatting.
+            - Kini hanya arsitektur HP yang dipublish (arm64 + armv7), tidak ada lagi build khusus emulator di download.
+            - Widget test pertama dari total 67 test.
 
             ## ⚡ Pengoptimalan
 
-            - Download jauh lebih kecil via split-per-ABI, obfuscation, resource dipangkas, dan R8 keep rules dipersempit.
-            - Daftar lagu muncul tepat setelah frame pertama; fetch metadata berat ditunda dan backoff saat rate limit.
-            - Player audio kedua kini dibuat lazy hanya saat crossfade aktif.
-            - Sync notifikasi melewati kerja redundan tiap detik; animasi indikator berhenti saat pause.
-
-            ## 🐛 Perbaikan bug
-
-            - Step build CI tidak lagi menelan failure asli.
+            - Respons metadata di-cache di disk (30 hari, miss 90 hari) sehingga install ulang tidak fetch ulang semuanya.
+            - Lirik disimpan terkompresi gzip di database.
+            - Position stream tidur saat pause; sync notifikasi lebih sedikit kerja redundan.
+            - Buang dependency image-caching yang berat, ganti widget image bawaan.
+            - Build rilis menyusutkan unused resources.
 
             ## 📦 Instalasi / Update
 

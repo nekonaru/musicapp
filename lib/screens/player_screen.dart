@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
@@ -336,14 +335,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
                       child: song.albumArtUrl != null
-                          ? CachedNetworkImage(
-                              imageUrl: song.albumArtUrl!,
+                          // Remote artwork without extra cache dependency.
+                          ? Image.network(
+                              song.albumArtUrl!,
                               width: 260, height: 260, fit: BoxFit.cover,
-                              placeholder: (context, url) => Container(
-                                width: 260, height: 260, color: Colors.grey[300],
-                                child: const Center(child: CircularProgressIndicator()),
-                              ),
-                              errorWidget: (context, url, error) => Container(
+                              loadingBuilder: (context, child, progress) {
+                                if (progress == null) return child;
+                                return Container(
+                                  width: 260,
+                                  height: 260,
+                                  color: Colors.grey[300],
+                                  child: const Center(
+                                      child: CircularProgressIndicator()),
+                                );
+                              },
+                              errorBuilder: (context, url, error) => Container(
                                 width: 260, height: 260, color: Colors.grey[300],
                                 child: const Icon(Icons.music_note, size: 80),
                               ),

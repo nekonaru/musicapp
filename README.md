@@ -30,6 +30,7 @@
 | 🔀 **Shuffle and repeat** | Shuffle, repeat off / all / one, plus sleep timer by duration or song count |
 | ⏱️ **Mini player** | Always visible on every page; playback speed control from 0.5x to 2x |
 | 📝 **Play queue** | Add songs to play next or at the end, reorder and remove |
+| 👆 **Multi-select** | Long-press to select many songs, then favorite or add to playlist in bulk |
 | 🌐 **Automatic metadata** | Titles, artists, album art, and genres via the iTunes Search API |
 | 🎤 **Automatic lyrics** | Fetched via lyrics.ovh, editable manually, Google search fallback |
 | ✏️ **Manual editing** | Fix metadata and lyrics per song when auto-fetch gets it wrong |

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../services/player_service.dart';
 import '../screens/player_screen.dart';
 import '../utils/page_transitions.dart';
@@ -38,10 +37,11 @@ class MiniPlayer extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(6),
                   child: song.albumArtUrl != null
-                      ? CachedNetworkImage(
-                          imageUrl: song.albumArtUrl!,
+                      // Remote artwork without extra cache dependency.
+                      ? Image.network(
+                          song.albumArtUrl!,
                           width: 44, height: 44, fit: BoxFit.cover,
-                          errorWidget: (context, url, error) => Container(
+                          errorBuilder: (context, url, error) => Container(
                             width: 44, height: 44, color: Colors.grey[400],
                             child: const Icon(Icons.music_note, size: 20),
                           ),

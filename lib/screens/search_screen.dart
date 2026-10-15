@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import '../models/song.dart';
 import '../providers/library_provider.dart';
@@ -158,14 +157,23 @@ class _SearchScreenState extends State<SearchScreen> {
                 color: Theme.of(context).colorScheme.primary,
               ),
             )
-          : CircleAvatar(
-              backgroundImage: song.albumArtUrl != null
-                  ? CachedNetworkImageProvider(song.albumArtUrl!)
-                  : null,
-              child: song.albumArtUrl == null
-                  ? const Icon(Icons.music_note, size: 20)
-                  : null,
-            ),
+          : song.albumArtUrl != null
+              // Remote artwork without extra cache dependency.
+              ? ClipOval(
+                  child: Image.network(
+                    song.albumArtUrl!,
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, url, error) =>
+                        const CircleAvatar(
+                      child: Icon(Icons.music_note, size: 20),
+                    ),
+                  ),
+                )
+              : const CircleAvatar(
+                  child: Icon(Icons.music_note, size: 20),
+                ),
       title: Text(song.title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,

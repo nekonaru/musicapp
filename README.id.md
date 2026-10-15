@@ -30,6 +30,7 @@
 | 🔀 **Acak dan ulangi** | Shuffle, ulangi mati / semua / satu lagu, plus sleep timer durasi atau jumlah lagu |
 | ⏱️ **Mini player** | Selalu terlihat di semua halaman; kontrol kecepatan 0.5x sampai 2x |
 | 📝 **Antrean putar** | Tambah lagu untuk diputar berikutnya atau di akhir, reorder dan hapus |
+| 👆 **Multi-select** | Long-press untuk pilih banyak lagu, lalu favoritkan atau tambah ke playlist sekaligus |
 | 🌐 **Metadata otomatis** | Judul, artis, cover album, dan genre via iTunes Search API |
 | 🎤 **Lirik otomatis** | Diambil via lyrics.ovh, bisa diedit manual, fallback cari di Google |
 | ✏️ **Edit manual** | Perbaiki metadata dan lirik per lagu kalau hasil otomatis kurang pas |

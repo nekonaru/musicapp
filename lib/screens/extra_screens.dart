@@ -2,7 +2,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import '../models/song.dart';
 import '../providers/library_provider.dart';
@@ -52,14 +51,23 @@ Widget buildSongTile(
                   color: cs.primary,
                 ),
               )
-            : CircleAvatar(
-                backgroundImage: song.albumArtUrl != null
-                    ? CachedNetworkImageProvider(song.albumArtUrl!)
-                    : null,
-                child: song.albumArtUrl == null
-                    ? const Icon(Icons.music_note, size: 20)
-                    : null,
-              )),
+            : song.albumArtUrl != null
+                // Remote artwork without extra cache dependency.
+                ? ClipOval(
+                    child: Image.network(
+                      song.albumArtUrl!,
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, url, error) =>
+                          const CircleAvatar(
+                        child: Icon(Icons.music_note, size: 20),
+                      ),
+                    ),
+                  )
+                : const CircleAvatar(
+                    child: Icon(Icons.music_note, size: 20),
+                  )),
     title: Text(
       song.title,
       maxLines: 1,
@@ -1494,14 +1502,23 @@ class _RecentlyAddedScreenState extends State<RecentlyAddedScreen> {
                 (context, i) {
                   final song = _songs[i];
                   return buildSongTile(context, song, _songs, i,
-                      leading: CircleAvatar(
-                        backgroundImage: song.albumArtUrl != null
-                            ? CachedNetworkImageProvider(song.albumArtUrl!)
-                            : null,
-                        child: song.albumArtUrl == null
-                            ? const Icon(Icons.music_note, size: 20)
-                            : null,
-                      ));
+                      leading: song.albumArtUrl != null
+                          // Remote artwork without extra cache dependency.
+                          ? ClipOval(
+                              child: Image.network(
+                                song.albumArtUrl!,
+                                width: 40,
+                                height: 40,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, url, error) =>
+                                    const CircleAvatar(
+                                  child: Icon(Icons.music_note, size: 20),
+                                ),
+                              ),
+                            )
+                          : const CircleAvatar(
+                              child: Icon(Icons.music_note, size: 20),
+                            ));
                 },
                 childCount: _songs.length,
               ),
@@ -1583,14 +1600,26 @@ class _MostPlayedScreenState extends State<MostPlayedScreen> {
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        CircleAvatar(
-                          backgroundImage: _songs[i].albumArtUrl != null
-                              ? CachedNetworkImageProvider(_songs[i].albumArtUrl!)
-                              : null,
-                          child: _songs[i].albumArtUrl == null
-                              ? const Icon(Icons.music_note, size: 18)
-                              : null,
-                        ),
+                        _songs[i].albumArtUrl != null
+                            // Remote artwork without extra cache dependency.
+                            ? ClipOval(
+                                child: Image.network(
+                                  _songs[i].albumArtUrl!,
+                                  width: 40,
+                                  height: 40,
+                                  fit: BoxFit.cover,
+                                  errorBuilder:
+                                      (context, url, error) =>
+                                          const CircleAvatar(
+                                    child: Icon(
+                                        Icons.music_note, size: 18),
+                                  ),
+                                ),
+                              )
+                            : const CircleAvatar(
+                                child:
+                                    Icon(Icons.music_note, size: 18),
+                              ),
                         if (i < 3)
                           Positioned(
                             bottom: 0, right: 0,
