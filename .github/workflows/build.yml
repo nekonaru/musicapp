@@ -196,21 +196,22 @@ jobs:
           body: |
             # English
 
-            **Swara v1.10.0 - Yearly recap and playlist covers**
+            **Swara v2.0.0 - A new major release**
 
-            ## ✨ New features
+            Everything since v1.6 in one milestone: an English-first bilingual app, smart playlists, synced lyrics, backup and restore, yearly recap, and a much lighter, faster build.
 
-            - Yearly recap on the dashboard (top songs, artists, and hours of the current year).
-            - Auto-generated playlist covers (collage of member album art).
-            - Custom charts replace a heavy chart dependency.
+            ## ✨ Highlights
 
-            ## ⚡ Optimizations
+            - English UI by default with Bahasa Indonesia in Settings (390+ localized strings).
+            - Smart auto-playlists: Daily Mix and Unplayed.
+            - Synced (LRC) lyrics with follow-along highlighting.
+            - Sleep timer with gentle fade-out; backup/restore via JSON; first-launch onboarding.
+            - Yearly recap, listening streaks, top genre of the month.
+            - M3U import, song sharing, playlist cover collages.
 
-            - Song queries are paged in SQL (no more loading the whole library for the first paint).
+            ## ⚡ Under the hood
 
-            ## 🐛 Bug fixes
-
-            - Bottom sheets (sort, song options, speed picker) no longer get cut off: capped height with scrolling on small screens.
+            - Per-architecture APKs, SQL-paged lists, lazy players, deferred metadata fetching with caching, gzip lyrics, and zero `flutter analyze` issues with 75 passing tests.
 
             ## 📦 Install / Update
 
@@ -224,21 +225,22 @@ jobs:
 
             # Bahasa Indonesia
 
-            **Swara v1.10.0 - Rekap tahunan dan cover playlist**
+            **Swara v2.0.0 - Rilis mayor baru**
 
-            ## ✨ Fitur baru
+            Semua sejak v1.6 dalam satu tonggak: aplikasi bilingual English-first, smart playlist, lirik sinkron, backup dan restore, rekap tahunan, plus build yang jauh lebih ringan dan cepat.
 
-            - Rekap tahunan di dashboard (lagu, artis, dan jam teratas tahun berjalan).
-            - Cover playlist otomatis (kolase cover album anggota).
-            - Chart kustom menggantikan dependency chart yang berat.
+            ## ✨ Sorotan
 
-            ## ⚡ Pengoptimalan
+            - UI English default dengan Bahasa Indonesia di Pengaturan (390+ string terlokalisasi).
+            - Smart playlist otomatis: Daily Mix dan Unplayed.
+            - Lirik sinkron (LRC) dengan highlight mengikuti lagu.
+            - Sleep timer fade-out lembut; backup/restore via JSON; onboarding pertama dibuka.
+            - Rekap tahunan, streak, genre teratas bulan ini.
+            - Import M3U, berbagi lagu, kolase cover playlist.
 
-            - Query lagu per halaman di SQL (tidak lagi memuat seluruh library untuk paint pertama).
+            ## ⚡ Di balik layar
 
-            ## 🐛 Perbaikan bug
-
-            - Bottom sheet (sort, opsi lagu, pilih kecepatan) tidak lagi kepotong: tinggi dibatasi + bisa scroll di layar kecil.
+            - APK per arsitektur, list paging SQL, player lazy, fetch metadata ditunda + cache, lirik gzip, dan nol masalah `flutter analyze` dengan 75 test lolos.
 
             ## 📦 Instalasi / Update
 
