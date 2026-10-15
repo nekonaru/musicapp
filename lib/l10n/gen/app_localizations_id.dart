@@ -1264,4 +1264,93 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get recapTopArtists => 'Artis teratas tahun ini';
+
+  @override
+  String get bulkCreatePlaylistFirst => 'Buat playlist dulu';
+
+  @override
+  String bulkActionFailed(String error) {
+    return 'Aksi gagal: $error';
+  }
+
+  @override
+  String bulkFavoriteFailed(String error) {
+    return 'Gagal menambah favorit: $error';
+  }
+
+  @override
+  String bulkUnfavoriteFailed(String error) {
+    return 'Gagal memperbarui favorit: $error';
+  }
+
+  @override
+  String get bulkRemoveFavorite => 'Hapus dari favorit';
+
+  @override
+  String get albumSortTitleAZ => 'Judul A-Z';
+
+  @override
+  String get albumSortTitleZA => 'Judul Z-A';
+
+  @override
+  String get albumSortCountDesc => 'Lagu terbanyak';
+
+  @override
+  String get albumSortCountAsc => 'Lagu tersedikit';
+
+  @override
+  String get queueSaveTooltip => 'Simpan antrean sebagai playlist';
+
+  @override
+  String get queueSaveHint => 'Nama playlist';
+
+  @override
+  String queueSaved(int added, int total, String name) {
+    return 'Menyimpan $added dari $total lagu ke \"$name\"';
+  }
+
+  @override
+  String queueSaveFailed(String error) {
+    return 'Gagal menyimpan playlist: $error';
+  }
+
+  @override
+  String get bedtimeMode => 'Waktu tidur';
+
+  @override
+  String bedtimeCountdownHours(int h, int m) {
+    return '$h jam $m mnt';
+  }
+
+  @override
+  String bedtimeCountdownMinutes(int m, int s) {
+    return '$m mnt $s dtk';
+  }
+
+  @override
+  String bedtimeCountdownSeconds(int s) {
+    return '$s dtk';
+  }
+
+  @override
+  String bedtimeStopsIn(String countdown) {
+    return 'Musik berhenti dalam $countdown';
+  }
+
+  @override
+  String get bedtimeAppOpenNote => 'Hanya berlaku selama aplikasi terbuka';
+
+  @override
+  String get bedtimePickFuture => 'Pilih jam tidur yang akan datang';
+
+  @override
+  String get recapShareTooltip => 'Bagikan rekap tahunan sebagai gambar';
+
+  @override
+  String get recapShareText => 'Rekap musik tahunanku';
+
+  @override
+  String recapShareFailed(String error) {
+    return 'Gagal membagikan gambar rekap: $error';
+  }
 }

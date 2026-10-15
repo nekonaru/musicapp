@@ -1124,5 +1124,159 @@
     "recapTopArtists":  "Top artists this year",
     "@recapTopArtists":  {
                               "description":  "Top artists this year label"
-                          }
+                          },
+    "bulkCreatePlaylistFirst":  "Create a playlist first",
+    "@bulkCreatePlaylistFirst":  {
+                                      "description":  "Hint when no playlist exists for bulk add"
+                                  },
+    "bulkActionFailed":  "Action failed: {error}",
+    "@bulkActionFailed":  {
+                               "description":  "Bulk action failure message",
+                               "placeholders":  {
+                                                    "error":  {
+                                                                  "type":  "String"
+                                                              }
+                                                }
+                           },
+    "bulkFavoriteFailed":  "Failed to add favorites: {error}",
+    "@bulkFavoriteFailed":  {
+                                 "description":  "Bulk favorite failure message",
+                                 "placeholders":  {
+                                                      "error":  {
+                                                                    "type":  "String"
+                                                                }
+                                                  }
+                             },
+    "bulkUnfavoriteFailed":  "Failed to update favorites: {error}",
+    "@bulkUnfavoriteFailed":  {
+                                   "description":  "Bulk unfavorite failure message",
+                                   "placeholders":  {
+                                                        "error":  {
+                                                                      "type":  "String"
+                                                                  }
+                                                    }
+                               },
+    "bulkRemoveFavorite":  "Remove from favorites",
+    "@bulkRemoveFavorite":  {
+                                 "description":  "Remove from favorites tooltip"
+                             },
+    "albumSortTitleAZ":  "Title A-Z",
+    "@albumSortTitleAZ":  {
+                               "description":  "Album sort title A-Z"
+                           },
+    "albumSortTitleZA":  "Title Z-A",
+    "@albumSortTitleZA":  {
+                               "description":  "Album sort title Z-A"
+                           },
+    "albumSortCountDesc":  "Most songs",
+    "@albumSortCountDesc":  {
+                                 "description":  "Album sort most songs"
+                             },
+    "albumSortCountAsc":  "Fewest songs",
+    "@albumSortCountAsc":  {
+                                "description":  "Album sort fewest songs"
+                            },
+    "queueSaveTooltip":  "Save queue as playlist",
+    "@queueSaveTooltip":  {
+                               "description":  "Save queue tooltip and dialog title"
+                           },
+    "queueSaveHint":  "Playlist name",
+    "@queueSaveHint":  {
+                            "description":  "Playlist name field hint"
+                        },
+    "queueSaved":  "Saved {added} of {total} songs to \"{name}\"",
+    "@queueSaved":  {
+                         "description":  "Queue saved summary",
+                         "placeholders":  {
+                                              "added":  {
+                                                            "type":  "int"
+                                                        },
+                                              "total":  {
+                                                            "type":  "int"
+                                                        },
+                                              "name":  {
+                                                           "type":  "String"
+                                                       }
+                                          }
+                     },
+    "queueSaveFailed":  "Failed to save playlist: {error}",
+    "@queueSaveFailed":  {
+                              "description":  "Queue save failure message",
+                              "placeholders":  {
+                                                   "error":  {
+                                                                 "type":  "String"
+                                                             }
+                                               }
+                          },
+    "bedtimeMode":  "Bedtime",
+    "@bedtimeMode":  {
+                          "description":  "Bedtime timer mode"
+                      },
+    "bedtimeCountdownHours":  "{h}h {m}m",
+    "@bedtimeCountdownHours":  {
+                                    "description":  "Bedtime countdown hours minutes",
+                                    "placeholders":  {
+                                                         "h":  {
+                                                                   "type":  "int"
+                                                               },
+                                                         "m":  {
+                                                                   "type":  "int"
+                                                               }
+                                                     }
+                                },
+    "bedtimeCountdownMinutes":  "{m}m {s}s",
+    "@bedtimeCountdownMinutes":  {
+                                      "description":  "Bedtime countdown minutes seconds",
+                                      "placeholders":  {
+                                                           "m":  {
+                                                                     "type":  "int"
+                                                                 },
+                                                           "s":  {
+                                                                     "type":  "int"
+                                                                 }
+                                                       }
+                                  },
+    "bedtimeCountdownSeconds":  "{s}s",
+    "@bedtimeCountdownSeconds":  {
+                                      "description":  "Bedtime countdown seconds",
+                                      "placeholders":  {
+                                                           "s":  {
+                                                                     "type":  "int"
+                                                                 }
+                                                       }
+                                  },
+    "bedtimeStopsIn":  "Music stops in {countdown}",
+    "@bedtimeStopsIn":  {
+                             "description":  "Bedtime stops-in label",
+                             "placeholders":  {
+                                                  "countdown":  {
+                                                                    "type":  "String"
+                                                                }
+                                              }
+                         },
+    "bedtimeAppOpenNote":  "Only works while the app stays open",
+    "@bedtimeAppOpenNote":  {
+                                 "description":  "Bedtime limitation note"
+                             },
+    "bedtimePickFuture":  "Pick a bedtime in the future",
+    "@bedtimePickFuture":  {
+                                "description":  "Bedtime must be in future"
+                            },
+    "recapShareTooltip":  "Share yearly recap as image",
+    "@recapShareTooltip":  {
+                                "description":  "Share recap tooltip"
+                            },
+    "recapShareText":  "My yearly music recap",
+    "@recapShareText":  {
+                             "description":  "Recap share text"
+                         },
+    "recapShareFailed":  "Failed to share recap image: {error}",
+    "@recapShareFailed":  {
+                               "description":  "Recap share failure",
+                               "placeholders":  {
+                                                    "error":  {
+                                                                  "type":  "String"
+                                                              }
+                                                }
+                           }
 }

@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import '../services/player_service.dart';
 
-enum _TimerMode { waktu, lagu }
+enum _TimerMode { waktu, lagu, bedtime }
 
 class SleepTimerSheet extends StatefulWidget {
   const SleepTimerSheet({super.key});
@@ -25,6 +26,16 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
   _TimerMode _mode = _TimerMode.waktu;
   bool _finishSong = false;
   Timer? _ticker;
+  Timer? _bedtimeTicker;
+
+  // Bedtime mode state. Persisted as "HH:MM" under the 'bedtime' key.
+  // NOTE (limitation): the countdown is converted once into a plain
+  // in-app sleep timer via setSleepTimer(), so it only runs while the
+  // app process stays alive. If the app is killed, the timer does not
+  // fire. No background task is scheduled here by design (keep it
+  // simple, no over-engineering).
+  static const String _bedtimePrefsKey = 'bedtime';
+  TimeOfDay _bedtime = const TimeOfDay(hour: 22, minute: 0);
 
   late final FixedExtentScrollController _hourCtrl;
   late final FixedExtentScrollController _minCtrl;
@@ -47,11 +58,19 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
         if (mounted) setState(() {});
       });
     }
+    _loadBedtime();
+    // Refresh the bedtime countdown text while the sheet is open.
+    _bedtimeTicker = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted && _mode == _TimerMode.bedtime && !_isTimerActive) {
+        setState(() {});
+      }
+    });
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
+    _bedtimeTicker?.cancel();
     _hourCtrl.dispose();
     _minCtrl.dispose();
     _songCtrl.dispose();
@@ -65,8 +84,96 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
         ps.isSleepFadeOutActive;
   }
 
+  // Load the saved bedtime ("HH:MM") or keep the 22:00 default.
+  Future<void> _loadBedtime() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_bedtimePrefsKey);
+      if (raw == null) return;
+      final parts = raw.split(':');
+      if (parts.length != 2) return;
+      final h = int.tryParse(parts[0]);
+      final m = int.tryParse(parts[1]);
+      if (h == null || m == null || h < 0 || h > 23 || m < 0 || m > 59) {
+        return;
+      }
+      if (!mounted) return;
+      setState(() => _bedtime = TimeOfDay(hour: h, minute: m));
+    } catch (_) {
+      // Keep the default bedtime when prefs are unavailable.
+    }
+  }
+
+  Future<void> _saveBedtime(TimeOfDay t) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw =
+          '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+      await prefs.setString(_bedtimePrefsKey, raw);
+    } catch (_) {
+      // Persisting bedtime is best effort only.
+    }
+  }
+
+  // Duration until the next bedtime: today when still ahead, else tomorrow.
+  Duration _durationUntilBedtime() {
+    final now = DateTime.now();
+    var target = DateTime(now.year, now.month, now.day, _bedtime.hour, _bedtime.minute);
+    if (!target.isAfter(now)) {
+      target = target.add(const Duration(days: 1));
+    }
+    return target.difference(now);
+  }
+
+  // Short countdown label, localized units.
+  String _fmtBedtimeCountdown(
+      AppLocalizations l10n, Duration d) {
+    final h = d.inHours;
+    final m = d.inMinutes % 60;
+    final s = d.inSeconds % 60;
+    if (h > 0) return l10n.bedtimeCountdownHours(h, m);
+    if (m > 0) return l10n.bedtimeCountdownMinutes(m, s);
+    return l10n.bedtimeCountdownSeconds(s);
+  }
+
+  String _fmtBedtime(TimeOfDay t) {
+    final h = t.hour.toString().padLeft(2, '0');
+    final m = t.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
+  Future<void> _pickBedtime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _bedtime,
+    );
+    if (picked == null) return;
+    await _saveBedtime(picked);
+    if (!mounted) return;
+    setState(() => _bedtime = picked);
+  }
+
+  void _startBedtime() {
+    final duration = _durationUntilBedtime();
+    if (duration <= Duration.zero) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                AppLocalizations.of(context)!.bedtimePickFuture)),
+      );
+      return;
+    }
+    PlayerService.instance
+        .setSleepTimer(duration, finishCurrentSong: _finishSong);
+    Navigator.pop(context);
+  }
+
   void _start() {
     final ps = PlayerService.instance;
+    if (_mode == _TimerMode.bedtime) {
+      _startBedtime();
+      return;
+    }
     if (_mode == _TimerMode.waktu) {
       final hours   = _hourCtrl.selectedItem;
       final minutes = _minuteOptions[_minCtrl.selectedItem];
@@ -275,7 +382,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Mode toggle: Time | Songs
+        // Mode toggle: Time | Songs | Bedtime
         Container(
           height: 44,
           decoration: BoxDecoration(
@@ -296,6 +403,12 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                 onTap: () => setState(() => _mode = _TimerMode.lagu),
                 color: cs.primary,
               ),
+              _ModeButton(
+                label: AppLocalizations.of(context)!.bedtimeMode,
+                selected: _mode == _TimerMode.bedtime,
+                onTap: () => setState(() => _mode = _TimerMode.bedtime),
+                color: cs.primary,
+              ),
             ],
           ),
         ),
@@ -306,12 +419,14 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
           height: 160,
           child: _mode == _TimerMode.waktu
               ? _buildTimePicker(cs)
-              : _buildSongPicker(cs),
+              : _mode == _TimerMode.lagu
+                  ? _buildSongPicker(cs)
+                  : _buildBedtimePicker(cs),
         ),
         const SizedBox(height: 12),
 
-        // Finish-song checkbox - time mode only
-        if (_mode == _TimerMode.waktu)
+        // Finish-song checkbox - time and bedtime modes only
+        if (_mode == _TimerMode.waktu || _mode == _TimerMode.bedtime)
           InkWell(
             onTap: () => setState(() => _finishSong = !_finishSong),
             borderRadius: BorderRadius.circular(8),
@@ -414,6 +529,49 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
               ),
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  // Bedtime mode: pick a clock time, show the countdown to its next
+  // occurrence, and start a plain in-app timer for that duration.
+  Widget _buildBedtimePicker(ColorScheme cs) {
+    final l10n = AppLocalizations.of(context)!;
+    final countdown =
+        _fmtBedtimeCountdown(l10n, _durationUntilBedtime());
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        OutlinedButton.icon(
+          onPressed: _pickBedtime,
+          icon: const Icon(Icons.bedtime_outlined),
+          label: Text(
+            '${l10n.bedtimeMode} ${_fmtBedtime(_bedtime)}',
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          l10n.bedtimeStopsIn(countdown),
+          style: TextStyle(
+            fontSize: 14,
+            color: cs.onSurface.withValues(alpha: 0.7),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          l10n.bedtimeAppOpenNote,
+          style: TextStyle(
+            fontSize: 12,
+            color: cs.onSurface.withValues(alpha: 0.5),
+          ),
         ),
       ],
     );

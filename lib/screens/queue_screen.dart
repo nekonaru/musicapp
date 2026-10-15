@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:offline_music_player/l10n/gen/app_localizations.dart';
+import '../providers/playlist_provider.dart';
 import '../services/player_service.dart';
 
 class QueueScreen extends StatefulWidget {
@@ -45,6 +47,87 @@ class _QueueScreenState extends State<QueueScreen> {
     });
   }
 
+  // Default name for the "save queue as playlist" dialog, e.g. "Queue 2026-10-16".
+  String _defaultQueuePlaylistName() {
+    final now = DateTime.now();
+    final mm = now.month.toString().padLeft(2, '0');
+    final dd = now.day.toString().padLeft(2, '0');
+    return 'Queue ${now.year}-$mm-$dd';
+  }
+
+  // Save the current queue (in playback order) as a new playlist.
+  // Uses only the existing PlaylistProvider API. Shows success or
+  // failure feedback via snackbar.
+  Future<void> _saveQueueAsPlaylist() async {
+    final queue = _player.queue;
+    if (queue.isEmpty) return;
+
+    final l10n = AppLocalizations.of(context)!;
+    final controller =
+        TextEditingController(text: _defaultQueuePlaylistName());
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.queueSaveTooltip),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: l10n.queueSaveHint,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text(l10n.save),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name == null || name.isEmpty) return;
+
+    try {
+      final prov = context.read<PlaylistProvider>();
+      await prov.create(name);
+      if (!mounted) return;
+      final found = prov.playlists.firstWhere(
+        (p) => (p['name'] as String) == name,
+      );
+      final playlistId = found['id'] as int;
+      // Add every queued song in order. Per-song failures (for example
+      // duplicates) are skipped so the rest of the queue still saves.
+      var added = 0;
+      for (final song in queue) {
+        try {
+          await prov.addSong(playlistId, song.id);
+          added++;
+        } catch (_) {
+          // Skip this song and continue with the rest.
+        }
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!
+              .queueSaved(added, queue.length, name)),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!
+              .queueSaveFailed(e.toString())),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -57,6 +140,14 @@ class _QueueScreenState extends State<QueueScreen> {
         return Scaffold(
           appBar: AppBar(
             title: Text(AppLocalizations.of(context)!.queueTitle),
+            actions: [
+              IconButton(
+                tooltip:
+                    AppLocalizations.of(context)!.queueSaveTooltip,
+                icon: const Icon(Icons.playlist_add),
+                onPressed: queue.isEmpty ? null : _saveQueueAsPlaylist,
+              ),
+            ],
           ),
           body: queue.isEmpty
               ? Center(

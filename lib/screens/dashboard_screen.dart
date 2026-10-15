@@ -1,8 +1,13 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:offline_music_player/l10n/gen/app_localizations.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/db_helper.dart';
 import '../models/song.dart';
@@ -33,6 +38,9 @@ class DashboardScreenState extends State<DashboardScreen> {
   List<Song> _neverPlayed = [];
   bool _loading = true;
   String? _error;
+
+  // Key for capturing the Yearly Recap card as an image.
+  final GlobalKey _recapKey = GlobalKey();
 
   // Aggregate cache for the dashboard summary numbers, with a 10 minute TTL.
   static const _aggregateCacheKey = 'dashboard_aggregate_cache_v1';
@@ -198,6 +206,36 @@ class DashboardScreenState extends State<DashboardScreen> {
 
   bool _isSameDay(DateTime a, DateTime b) =>
       a.day == b.day && a.month == b.month && a.year == b.year;
+
+  // Capture the Yearly Recap card and share it as a PNG image.
+  Future<void> _shareRecapAsImage() async {
+    try {
+      final object = _recapKey.currentContext?.findRenderObject();
+      if (object == null || object is! RenderRepaintBoundary) return;
+      final image = await object.toImage(pixelRatio: 3);
+      final byteData =
+          await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return;
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/yearly_recap.png');
+      await file.writeAsBytes(
+          byteData.buffer.asUint8List(
+              byteData.offsetInBytes, byteData.lengthInBytes),
+          flush: true);
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(file.path)], text: l10n.recapShareText),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(AppLocalizations.of(context)!
+                .recapShareFailed(e.toString()))),
+      );
+    }
+  }
 
   bool get _hasAnyData =>
       _daily.values.any((ms) => ms > 0) || _topSongIds.isNotEmpty;
@@ -430,17 +468,33 @@ class DashboardScreenState extends State<DashboardScreen> {
             ),
           if (_topArtists.isNotEmpty) const SizedBox(height: 14),
 
-          // Yearly recap: top songs/artists plus total hours this year.
+          // Yearly recap: top songs and artists plus total hours this year.
+          // Wrapped in RepaintBoundary so it can be shared as an image.
           if (_yearMs > 0 ||
               _yearTopSongs.isNotEmpty ||
               _yearTopArtists.isNotEmpty)
-            _SectionCard(
-              icon: Icons.celebration_outlined,
-              title: l.recapTitle,
-              trailing: Text(
-                  l.dashboardHoursValue(
-                      (_yearMs / 3600000).toStringAsFixed(1)),
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+            RepaintBoundary(
+              key: _recapKey,
+              child: _SectionCard(
+                icon: Icons.celebration_outlined,
+                title: l.recapTitle,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                        l.dashboardHoursValue(
+                            (_yearMs / 3600000).toStringAsFixed(1)),
+                        style:
+                            TextStyle(fontSize: 12, color: Colors.grey[500])),
+                    // Share button captures the card above as a PNG image.
+                    IconButton(
+                      onPressed: _shareRecapAsImage,
+                      icon: const Icon(Icons.share_outlined, size: 18),
+                      tooltip: l.recapShareTooltip,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -508,6 +562,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                     ],
                   ],
                 ],
+              ),
               ),
             ),
           if (_yearMs > 0 ||

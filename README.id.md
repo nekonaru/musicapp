@@ -42,7 +42,9 @@
 | 😴 **Sleep timer lembut** | Volume memudar, bukan berhenti mendadak |
 | 💾 **Backup dan restore** | Export dan import playlist, favorit, dan riwayat sebagai JSON |
 | 🖼️ **Cover playlist** | Kolase otomatis dari cover album anggota |
-| 🏆 **Rekap tahunan** | Lagu, artis, dan jam teratas tahun berjalan |
+| 🏆 **Rekap tahunan** | Lagu, artis, dan jam teratas tahun berjalan, bisa dibagikan sebagai gambar |
+| 📋 **Simpan antrean** | Simpan antrean putar sebagai playlist sekali ketuk |
+| 🌙 **Jadwal tidur** | Sleep timer jam tetap setiap malam |
 | 📥 **Import M3U** | Import playlist dari file .m3u, dicocokkan ke library |
 | 📤 **Bagikan lagu** | Bagikan info lagu plus file audio |
 | 🔥 **Streak mendengarkan** | Streak harian dan genre teratas bulan ini di dashboard |

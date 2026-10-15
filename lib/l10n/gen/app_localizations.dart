@@ -2293,6 +2293,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Top artists this year'**
   String get recapTopArtists;
+
+  /// Hint when no playlist exists for bulk add
+  ///
+  /// In en, this message translates to:
+  /// **'Create a playlist first'**
+  String get bulkCreatePlaylistFirst;
+
+  /// Bulk action failure message
+  ///
+  /// In en, this message translates to:
+  /// **'Action failed: {error}'**
+  String bulkActionFailed(String error);
+
+  /// Bulk favorite failure message
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to add favorites: {error}'**
+  String bulkFavoriteFailed(String error);
+
+  /// Bulk unfavorite failure message
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to update favorites: {error}'**
+  String bulkUnfavoriteFailed(String error);
+
+  /// Remove from favorites tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from favorites'**
+  String get bulkRemoveFavorite;
+
+  /// Album sort title A-Z
+  ///
+  /// In en, this message translates to:
+  /// **'Title A-Z'**
+  String get albumSortTitleAZ;
+
+  /// Album sort title Z-A
+  ///
+  /// In en, this message translates to:
+  /// **'Title Z-A'**
+  String get albumSortTitleZA;
+
+  /// Album sort most songs
+  ///
+  /// In en, this message translates to:
+  /// **'Most songs'**
+  String get albumSortCountDesc;
+
+  /// Album sort fewest songs
+  ///
+  /// In en, this message translates to:
+  /// **'Fewest songs'**
+  String get albumSortCountAsc;
+
+  /// Save queue tooltip and dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Save queue as playlist'**
+  String get queueSaveTooltip;
+
+  /// Playlist name field hint
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist name'**
+  String get queueSaveHint;
+
+  /// Queue saved summary
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {added} of {total} songs to \"{name}\"'**
+  String queueSaved(int added, int total, String name);
+
+  /// Queue save failure message
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save playlist: {error}'**
+  String queueSaveFailed(String error);
+
+  /// Bedtime timer mode
+  ///
+  /// In en, this message translates to:
+  /// **'Bedtime'**
+  String get bedtimeMode;
+
+  /// Bedtime countdown hours minutes
+  ///
+  /// In en, this message translates to:
+  /// **'{h}h {m}m'**
+  String bedtimeCountdownHours(int h, int m);
+
+  /// Bedtime countdown minutes seconds
+  ///
+  /// In en, this message translates to:
+  /// **'{m}m {s}s'**
+  String bedtimeCountdownMinutes(int m, int s);
+
+  /// Bedtime countdown seconds
+  ///
+  /// In en, this message translates to:
+  /// **'{s}s'**
+  String bedtimeCountdownSeconds(int s);
+
+  /// Bedtime stops-in label
+  ///
+  /// In en, this message translates to:
+  /// **'Music stops in {countdown}'**
+  String bedtimeStopsIn(String countdown);
+
+  /// Bedtime limitation note
+  ///
+  /// In en, this message translates to:
+  /// **'Only works while the app stays open'**
+  String get bedtimeAppOpenNote;
+
+  /// Bedtime must be in future
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a bedtime in the future'**
+  String get bedtimePickFuture;
+
+  /// Share recap tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Share yearly recap as image'**
+  String get recapShareTooltip;
+
+  /// Recap share text
+  ///
+  /// In en, this message translates to:
+  /// **'My yearly music recap'**
+  String get recapShareText;
+
+  /// Recap share failure
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to share recap image: {error}'**
+  String recapShareFailed(String error);
 }
 
 class _AppLocalizationsDelegate

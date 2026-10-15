@@ -1150,6 +1150,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   static const double _itemHeight = 72;
   static const _kFavSort = 'fav_sort_option';
 
+  // Multi-select state, mirrors library_screen pattern. Session only.
+  bool _multiSelectMode = false;
+  final Set<int> _selectedIds = {};
+
+  // Playlists are loaded lazily on first bulk action to keep startup cheap.
+  bool _playlistsRequested = false;
+
   @override
   void initState() {
     super.initState();
@@ -1174,6 +1181,187 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // Exit multi-select and clear the selection.
+  void _exitMultiSelect() => setState(() {
+        _multiSelectMode = false;
+        _selectedIds.clear();
+      });
+
+  // Toggle one song id. Leaving zero selected exits the mode.
+  void _toggleSelect(int id) => setState(() {
+        if (_selectedIds.contains(id)) {
+          _selectedIds.remove(id);
+          if (_selectedIds.isEmpty) _multiSelectMode = false;
+        } else {
+          _selectedIds.add(id);
+        }
+      });
+
+  // Load playlists once when first needed. Guarded by mounted.
+  Future<void> _ensurePlaylistsLoaded() async {
+    if (_playlistsRequested) return;
+    _playlistsRequested = true;
+    if (!mounted) return;
+    try {
+      await context.read<PlaylistProvider>().load();
+    } catch (_) {
+      // Picker below handles the empty state, no toast needed here.
+    }
+  }
+
+  // Bulk add the selected songs to a chosen playlist.
+  Future<void> _bulkAddToPlaylist(List<Song> songs) async {
+    try {
+      await _ensurePlaylistsLoaded();
+      if (!mounted) return;
+      final provider = context.read<PlaylistProvider>();
+      final playlists = provider.playlists;
+      if (playlists.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                AppLocalizations.of(context)!.bulkCreatePlaylistFirst),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        builder: (ctx) => SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.9,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                        AppLocalizations.of(context)!.libraryChoosePlaylist,
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                  ...playlists.map((p) => ListTile(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 16),
+                        leading: const Icon(Icons.queue_music),
+                        title: Text('${p['name']}'),
+                        onTap: () async {
+                          try {
+                            await Future.wait(songs
+                                .map((s) => provider.addSong(p['id'], s.id)));
+                          } catch (_) {
+                            // Fall through, toast below still confirms attempt.
+                          }
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          if (!mounted) return;
+                          _exitMultiSelect();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                behavior: SnackBarBehavior.floating,
+                                duration: const Duration(seconds: 3),
+                                content: Text(
+                                    AppLocalizations.of(context)!
+                                        .libraryAddedToPlaylist(
+                                            songs.length,
+                                            '${p['name']}')),
+                              ),
+                            );
+                          }
+                        },
+                      )),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          content: Text(AppLocalizations.of(context)!
+              .bulkActionFailed(e.toString())),
+        ),
+      );
+    }
+  }
+
+  // Bulk remove the selected songs from favorites.
+  Future<void> _bulkRemoveFavorites(
+      LibraryProvider lib, List<Song> songs) async {
+    try {
+      await lib.setFavoritesBulk(songs, false);
+      if (!mounted) return;
+      _exitMultiSelect();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          content: Text(AppLocalizations.of(context)!
+              .bulkUnfavoriteFailed(e.toString())),
+        ),
+      );
+    }
+  }
+
+  // Selection action bar, mirrors library_screen multi-select bar.
+  Widget _buildMultiSelectBar(LibraryProvider lib, List<Song> favs) {
+    if (!_multiSelectMode) return const SizedBox.shrink();
+    final selected =
+        favs.where((s) => _selectedIds.contains(s.id)).toList();
+    return Container(
+      color: Theme.of(context).colorScheme.surfaceContainerHigh,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: [
+          Text(
+              AppLocalizations.of(context)!
+                  .librarySelectedCount(_selectedIds.length),
+              style: const TextStyle(fontWeight: FontWeight.bold)),
+          const Spacer(),
+          IconButton(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            icon: const Icon(Icons.playlist_add),
+            tooltip:
+                AppLocalizations.of(context)!.libraryAddToPlaylist,
+            onPressed:
+                selected.isEmpty ? null : () => _bulkAddToPlaylist(selected),
+          ),
+          IconButton(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            icon: const Icon(Icons.heart_broken_outlined),
+            tooltip:
+                AppLocalizations.of(context)!.bulkRemoveFavorite,
+            onPressed: selected.isEmpty
+                ? null
+                : () => _bulkRemoveFavorites(lib, selected),
+          ),
+          IconButton(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            icon: const Icon(Icons.close),
+            tooltip: AppLocalizations.of(context)!.cancel,
+            onPressed: _exitMultiSelect,
+          ),
+        ],
+      ),
+    );
   }
 
   List<Song> _applySortAndFilter(List<Song> favs) {
@@ -1333,6 +1521,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 ],
               ),
             ),
+            // Multi-select action bar, mirrors library_screen pattern.
+            _buildMultiSelectBar(lib, favs),
             Expanded(
               child: Stack(
                 children: [
@@ -1350,22 +1540,136 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                 final song = favs[i];
                                 final current = PlayerService.instance.currentSong;
                                 final isPlaying = current != null && current.id == song.id;
-                                return buildSongTile(
-                                  context, song, favs, i,
-                                  leading: isPlaying
-                                      ? Container(
-                                          width: 40, height: 40,
-                                          alignment: Alignment.center,
-                                          decoration: BoxDecoration(
-                                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-                                            shape: BoxShape.circle,
+                                final isSelected =
+                                    _selectedIds.contains(song.id);
+                                final cs = Theme.of(context).colorScheme;
+                                // Inline tile so long-press can enter
+                                // multi-select and taps can toggle selection.
+                                return InkWell(
+                                  onTap: () async {
+                                    if (_multiSelectMode) {
+                                      _toggleSelect(song.id);
+                                      return;
+                                    }
+                                    try {
+                                      await PlayerService.instance
+                                          .setQueueAndPlay(favs, i);
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            behavior:
+                                                SnackBarBehavior.floating,
+                                            duration: const Duration(
+                                                seconds: 5),
+                                            content: Text(
+                                                AppLocalizations.of(
+                                                        context)!
+                                                    .libraryPlayFailed(
+                                                        '$e')),
                                           ),
-                                          child: PlayingIndicator(
-                                            isPlaying: PlayerService.instance.player.playing,
-                                            color: Theme.of(context).colorScheme.primary,
+                                        );
+                                      }
+                                    }
+                                  },
+                                  onLongPress: () => setState(() {
+                                    _multiSelectMode = true;
+                                    _selectedIds.add(song.id);
+                                  }),
+                                  child: Container(
+                                    color: isSelected
+                                        ? cs.primaryContainer
+                                            .withValues(alpha: 0.5)
+                                        : isPlaying
+                                            ? cs.primaryContainer
+                                                .withValues(alpha: 0.25)
+                                            : null,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16),
+                                    height: _itemHeight,
+                                    child: Row(
+                                      children: [
+                                        if (_multiSelectMode)
+                                          Checkbox(
+                                            value: isSelected,
+                                            onChanged: (_) =>
+                                                _toggleSelect(song.id),
+                                          )
+                                        else if (isPlaying)
+                                          Container(
+                                            width: 40,
+                                            height: 40,
+                                            alignment: Alignment.center,
+                                            decoration: BoxDecoration(
+                                              color: cs.primary.withValues(
+                                                  alpha: 0.15),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: PlayingIndicator(
+                                              isPlaying: PlayerService
+                                                  .instance.player.playing,
+                                              color: cs.primary,
+                                            ),
+                                          )
+                                        else
+                                          const Icon(Icons.favorite,
+                                              color: Colors.red, size: 20),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                song.title,
+                                                maxLines: 1,
+                                                overflow:
+                                                    TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontWeight: isPlaying
+                                                      ? FontWeight.bold
+                                                      : FontWeight.normal,
+                                                  color: isPlaying
+                                                      ? cs.primary
+                                                      : null,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                song.artist,
+                                                maxLines: 1,
+                                                overflow:
+                                                    TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                    fontSize: 12),
+                                              ),
+                                            ],
                                           ),
-                                        )
-                                      : const Icon(Icons.favorite, color: Colors.red, size: 20),
+                                        ),
+                                        Text(
+                                            formatDuration(
+                                                song.durationMs),
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey[500])),
+                                        if (!_multiSelectMode)
+                                          IconButton(
+                                            constraints:
+                                                const BoxConstraints(
+                                                    minWidth: 48,
+                                                    minHeight: 48),
+                                            icon: const Icon(
+                                                Icons.more_vert),
+                                            onPressed: () =>
+                                                showSongOptions(
+                                                    context, song),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
                                 );
                               },
                               childCount: favs.length,
@@ -1375,7 +1679,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       ),
                     ),
                   ),
-                  if (showAzBar)
+                  if (showAzBar && !_multiSelectMode)
                     Positioned(
                       right: 0, top: 0, bottom: 0,
                       child: AzScrollbar(

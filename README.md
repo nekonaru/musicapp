@@ -42,7 +42,9 @@
 | 😴 **Gentle sleep timer** | Volume fades out instead of stopping abruptly |
 | 💾 **Backup and restore** | Export and import playlists, favorites, and history as JSON |
 | 🖼️ **Playlist covers** | Auto-generated collages from member album art |
-| 🏆 **Yearly recap** | Top songs, artists, and hours of the current year |
+| 🏆 **Yearly recap** | Top songs, artists, and hours of the current year, shareable as an image |
+| 📋 **Save queue** | Save the play queue as a playlist in one tap |
+| 🌙 **Bedtime schedule** | Sleep timer for a fixed clock time every night |
 | 📥 **M3U import** | Import playlists from .m3u files, matched against your library |
 | 📤 **Share songs** | Share the currently playing info plus audio file |
 | 🔥 **Listening streaks** | Day streak and top genre of the month on the dashboard |

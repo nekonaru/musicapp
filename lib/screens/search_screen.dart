@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import '../models/song.dart';
 import '../providers/library_provider.dart';
+import '../providers/playlist_provider.dart';
 import '../services/player_service.dart';
 import '../services/art_cache_service.dart';
 import '../utils/format.dart';
@@ -32,6 +33,14 @@ class _SearchScreenState extends State<SearchScreen> {
   static const int _pageSize = 200;
   int _visibleCount = _pageSize;
 
+  // Multi-select state for song results, mirrors library_screen pattern.
+  // Session only, cleared when the query or filter changes.
+  bool _multiSelectMode = false;
+  final Set<int> _selectedIds = {};
+
+  // Playlists are loaded lazily on first bulk action to keep startup cheap.
+  bool _playlistsRequested = false;
+
   void _onQueryChanged(String v) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 300), () {
@@ -39,6 +48,9 @@ class _SearchScreenState extends State<SearchScreen> {
       setState(() {
         _query = v;
         _visibleCount = _pageSize;
+        // New query invalidates the old selection.
+        _multiSelectMode = false;
+        _selectedIds.clear();
       });
     });
   }
@@ -48,6 +60,187 @@ class _SearchScreenState extends State<SearchScreen> {
     _debounce?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  // Exit multi-select and clear the selection.
+  void _exitMultiSelect() => setState(() {
+        _multiSelectMode = false;
+        _selectedIds.clear();
+      });
+
+  // Toggle one song id. Leaving zero selected exits the mode.
+  void _toggleSelect(int id) => setState(() {
+        if (_selectedIds.contains(id)) {
+          _selectedIds.remove(id);
+          if (_selectedIds.isEmpty) _multiSelectMode = false;
+        } else {
+          _selectedIds.add(id);
+        }
+      });
+
+  // Load playlists once when first needed. Guarded by mounted.
+  Future<void> _ensurePlaylistsLoaded() async {
+    if (_playlistsRequested) return;
+    _playlistsRequested = true;
+    if (!mounted) return;
+    try {
+      await context.read<PlaylistProvider>().load();
+    } catch (e) {
+      if (!mounted) return;
+      // Keep silent here, the picker below will show the empty state.
+    }
+  }
+
+  // Bulk add the selected songs to a chosen playlist.
+  Future<void> _bulkAddToPlaylist(List<Song> songs) async {
+    try {
+      await _ensurePlaylistsLoaded();
+      if (!mounted) return;
+      final provider = context.read<PlaylistProvider>();
+      final playlists = provider.playlists;
+      if (playlists.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                AppLocalizations.of(context)!.bulkCreatePlaylistFirst),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        builder: (ctx) => SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.9,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                        AppLocalizations.of(context)!.libraryChoosePlaylist,
+                        style:
+                            const TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                  ...playlists.map((p) => ListTile(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 16),
+                        leading: const Icon(Icons.queue_music),
+                        title: Text('${p['name']}'),
+                        onTap: () async {
+                          try {
+                            await Future.wait(songs
+                                .map((s) => provider.addSong(p['id'], s.id)));
+                          } catch (e) {
+                            // Fall through to close the sheet, toast below.
+                          }
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          if (!mounted) return;
+                          _exitMultiSelect();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                behavior: SnackBarBehavior.floating,
+                                duration: const Duration(seconds: 3),
+                                content: Text(
+                                    AppLocalizations.of(context)!
+                                        .libraryAddedToPlaylist(
+                                            songs.length,
+                                            '${p['name']}')),
+                              ),
+                            );
+                          }
+                        },
+                      )),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          content: Text(AppLocalizations.of(context)!
+              .bulkActionFailed(e.toString())),
+        ),
+      );
+    }
+  }
+
+  // Bulk mark the selected songs as favorites.
+  Future<void> _bulkAddToFavorites(List<Song> songs) async {
+    try {
+      await context.read<LibraryProvider>().setFavoritesBulk(songs, true);
+      if (!mounted) return;
+      _exitMultiSelect();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          content: Text(AppLocalizations.of(context)!
+              .bulkFavoriteFailed(e.toString())),
+        ),
+      );
+    }
+  }
+
+  // Selection action bar shown under the filter chips in multi-select mode.
+  Widget _buildMultiSelectBar(List<Song> results) {
+    if (!_multiSelectMode) return const SizedBox.shrink();
+    final selected =
+        results.where((s) => _selectedIds.contains(s.id)).toList();
+    return Container(
+      color: Theme.of(context).colorScheme.surfaceContainerHigh,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: [
+          Text(
+              AppLocalizations.of(context)!
+                  .librarySelectedCount(_selectedIds.length),
+              style: const TextStyle(fontWeight: FontWeight.bold)),
+          const Spacer(),
+          IconButton(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            icon: const Icon(Icons.playlist_add),
+            tooltip:
+                AppLocalizations.of(context)!.libraryAddToPlaylist,
+            onPressed:
+                selected.isEmpty ? null : () => _bulkAddToPlaylist(selected),
+          ),
+          IconButton(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            icon: const Icon(Icons.favorite_border),
+            tooltip:
+                AppLocalizations.of(context)!.libraryAddToFavorites,
+            onPressed:
+                selected.isEmpty ? null : () => _bulkAddToFavorites(selected),
+          ),
+          IconButton(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            icon: const Icon(Icons.close),
+            tooltip: AppLocalizations.of(context)!.cancel,
+            onPressed: _exitMultiSelect,
+          ),
+        ],
+      ),
+    );
   }
 
   List<Song> _getResults(List<Song> songs) {
@@ -132,6 +325,9 @@ class _SearchScreenState extends State<SearchScreen> {
             onSelected: (_) => setState(() {
               _filter = filter;
               _visibleCount = _pageSize;
+              // Switching filter invalidates the old selection.
+              _multiSelectMode = false;
+              _selectedIds.clear();
             }),
             showCheckmark: false,
           );
@@ -143,9 +339,21 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget _buildSongTile(Song song, List<Song> queue, int index) {
     final current = PlayerService.instance.currentSong;
     final isPlaying = current != null && current.id == song.id;
+    final isSelected = _selectedIds.contains(song.id);
+    final cs = Theme.of(context).colorScheme;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-      leading: isPlaying
+      tileColor: isSelected
+          ? cs.primaryContainer.withValues(alpha: 0.5)
+          : isPlaying
+              ? cs.primaryContainer.withValues(alpha: 0.25)
+              : null,
+      leading: _multiSelectMode
+          ? Checkbox(
+              value: isSelected,
+              onChanged: (_) => _toggleSelect(song.id),
+            )
+          : isPlaying
           ? Container(
               width: 40,
               height: 40,
@@ -189,15 +397,21 @@ class _SearchScreenState extends State<SearchScreen> {
         children: [
           Text(formatDuration(song.durationMs),
               style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-          IconButton(
-            constraints:
-                const BoxConstraints(minWidth: 48, minHeight: 48),
-            icon: const Icon(Icons.more_vert),
-            onPressed: () => showSongOptions(context, song),
-          ),
+          if (!_multiSelectMode)
+            IconButton(
+              constraints:
+                  const BoxConstraints(minWidth: 48, minHeight: 48),
+              icon: const Icon(Icons.more_vert),
+              onPressed: () => showSongOptions(context, song),
+            ),
         ],
       ),
       onTap: () async {
+        // In multi-select mode a tap toggles the checkbox, no playback.
+        if (_multiSelectMode) {
+          _toggleSelect(song.id);
+          return;
+        }
         try {
           await PlayerService.instance.setQueueAndPlay(queue, index);
         } catch (e) {
@@ -211,6 +425,15 @@ class _SearchScreenState extends State<SearchScreen> {
             );
           }
         }
+      },
+      // Long-press enters multi-select, mirrors library_screen pattern.
+      // Only the flat song list uses this; grouped views keep normal taps.
+      onLongPress: () {
+        if (_filter != _SearchFilter.lagu) return;
+        setState(() {
+          _multiSelectMode = true;
+          _selectedIds.add(song.id);
+        });
       },
     );
   }
@@ -375,38 +598,56 @@ class _SearchScreenState extends State<SearchScreen> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
-        title: TextField(
-          controller: _controller,
-          autofocus: true,
-          style: const TextStyle(fontSize: 16),
-          decoration: InputDecoration(
-            hintText: l.searchHint,
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-            suffixIcon: _query.isNotEmpty
-                ? IconButton(
-                    constraints:
-                        const BoxConstraints(minWidth: 48, minHeight: 48),
-                    icon: const Icon(Icons.close),
-                    onPressed: () {
-                      _debounce?.cancel();
-                      _controller.clear();
-                      setState(() {
-                        _query = '';
-                        _visibleCount = _pageSize;
-                      });
-                    },
-                  )
-                : null,
-          ),
-          onChanged: _onQueryChanged,
-        ),
+        // In multi-select mode the AppBar shows the count + cancel action.
+        title: _multiSelectMode
+            ? Text(AppLocalizations.of(context)!
+                .librarySelectedCount(_selectedIds.length))
+            : TextField(
+                controller: _controller,
+                autofocus: true,
+                style: const TextStyle(fontSize: 16),
+                decoration: InputDecoration(
+                  hintText: l.searchHint,
+                  border: InputBorder.none,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 4),
+                  suffixIcon: _query.isNotEmpty
+                      ? IconButton(
+                          constraints: const BoxConstraints(
+                              minWidth: 48, minHeight: 48),
+                          icon: const Icon(Icons.close),
+                          onPressed: () {
+                            _debounce?.cancel();
+                            _controller.clear();
+                            setState(() {
+                              _query = '';
+                              _visibleCount = _pageSize;
+                              _multiSelectMode = false;
+                              _selectedIds.clear();
+                            });
+                          },
+                        )
+                      : null,
+                ),
+                onChanged: _onQueryChanged,
+              ),
+        actions: [
+          if (_multiSelectMode)
+            IconButton(
+              constraints:
+                  const BoxConstraints(minWidth: 48, minHeight: 48),
+              icon: const Icon(Icons.close),
+              tooltip: AppLocalizations.of(context)!.cancel,
+              onPressed: _exitMultiSelect,
+            ),
+        ],
       ),
       body: Column(
         children: [
           const SizedBox(height: 8),
           _buildFilterChips(),
           const SizedBox(height: 8),
+          _buildMultiSelectBar(results),
           if (_query.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),

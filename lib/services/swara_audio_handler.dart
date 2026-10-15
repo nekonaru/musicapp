@@ -15,6 +15,9 @@ class SwaraAudioHandler extends BaseAudioHandler {
   // between a cheap position update and a full state sync.
   int? _lastSongId;
   bool? _lastPlaying;
+  // Fingerprint of the last queue pushed to the MediaSession.
+  // Used to avoid re-sending a large queue on every tick.
+  String? _lastQueueFingerprint;
 
   // Notification icon names. The off icons are plain glyphs while the on
   // icons carry a solid marker, so the active state stays clear in the
@@ -111,18 +114,47 @@ class SwaraAudioHandler extends BaseAudioHandler {
   void _syncState() {
     final ps = PlayerService.instance;
     final song = ps.currentSong;
-    mediaItem.add(
-      song == null
-          ? null
-          : MediaItem(
-              id: song.filePath,
-              title: song.title,
-              artist: song.artist,
-              album: song.album,
-              duration: Duration(milliseconds: song.durationMs),
-              artUri: _safeArtUri(song.albumArtPath),
-            ),
-    );
+    // Build MediaSession queue in playback order with one stable id
+    // per queue entry so repeated songs stay distinct.
+    final q = ps.queue;
+    final items = <MediaItem>[
+      for (var i = 0; i < q.length; i++)
+        MediaItem(
+          id: 'queue_${i}_${q[i].filePath}',
+          title: q[i].title,
+          artist: q[i].artist,
+          album: q[i].album,
+          duration: Duration(milliseconds: q[i].durationMs),
+          artUri: _safeArtUri(q[i].albumArtPath),
+        ),
+    ];
+    // Push the queue only when its fingerprint changed, so the 1 second
+    // ticker and unrelated state syncs do not resend a huge list.
+    final fingerprint = '${q.length}|${q.map((s) => s.id).join(',')}';
+    if (fingerprint != _lastQueueFingerprint) {
+      _lastQueueFingerprint = fingerprint;
+      queue.add(items);
+      try {
+        queueTitle.add('Swara Queue');
+      } catch (_) {
+        // queueTitle is optional on some audio_service versions.
+      }
+    }
+    final currentIndex = ps.currentIndex;
+    final currentItem =
+        (currentIndex >= 0 && currentIndex < items.length)
+            ? items[currentIndex]
+            : (song == null
+                ? null
+                : MediaItem(
+                    id: song.filePath,
+                    title: song.title,
+                    artist: song.artist,
+                    album: song.album,
+                    duration: Duration(milliseconds: song.durationMs),
+                    artUri: _safeArtUri(song.albumArtPath),
+                  ));
+    mediaItem.add(currentItem);
 
     final playing = ps.player.playing;
     // Pick each icon from the live PlayerService state, so the notification
@@ -149,6 +181,10 @@ class SwaraAudioHandler extends BaseAudioHandler {
         playing: playing,
         updatePosition: ps.player.position,
         speed: ps.player.speed,
+        queueIndex:
+            (currentIndex >= 0 && currentIndex < items.length)
+                ? currentIndex
+                : null,
       ),
     );
     _lastSongId = song?.id;
@@ -187,6 +223,18 @@ class SwaraAudioHandler extends BaseAudioHandler {
 
   @override
   Future<void> skipToPrevious() => PlayerService.instance.smartPrevious();
+
+  @override
+  Future<void> skipToQueueItem(int? index) async {
+    // The platform addresses queue entries by position, which matches
+    // our playback order, so the index maps directly to posInOrder.
+    try {
+      if (index == null) return;
+      await PlayerService.instance.playAtQueueIndex(index);
+    } catch (e) {
+      debugPrint('skipToQueueItem failed: $e');
+    }
+  }
 
   @override
   Future<void> seek(Duration position) =>

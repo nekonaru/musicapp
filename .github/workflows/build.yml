@@ -196,22 +196,15 @@ jobs:
           body: |
             # English
 
-            **Swara v2.0.0 - A new major release**
+            **Swara v2.1.0 - Shareable recap and smarter queue**
 
-            Everything since v1.6 in one milestone: an English-first bilingual app, smart playlists, synced lyrics, backup and restore, yearly recap, and a much lighter, faster build.
+            ## ✨ New features
 
-            ## ✨ Highlights
-
-            - English UI by default with Bahasa Indonesia in Settings (390+ localized strings).
-            - Smart auto-playlists: Daily Mix and Unplayed.
-            - Synced (LRC) lyrics with follow-along highlighting.
-            - Sleep timer with gentle fade-out; backup/restore via JSON; first-launch onboarding.
-            - Yearly recap, listening streaks, top genre of the month.
-            - M3U import, song sharing, playlist cover collages.
-
-            ## ⚡ Under the hood
-
-            - Per-architecture APKs, SQL-paged lists, lazy players, deferred metadata fetching with caching, gzip lyrics, and zero `flutter analyze` issues with 75 passing tests.
+            - Share the yearly recap card as an image.
+            - Save the play queue as a playlist in one tap.
+            - Bedtime schedule: sleep timer for a fixed clock time every night.
+            - Multi-select extended to search results and favorites; album sorting.
+            - Notification and lockscreen now use the real playback queue with proper next/previous.
 
             ## 📦 Install / Update
 
@@ -225,22 +218,15 @@ jobs:
 
             # Bahasa Indonesia
 
-            **Swara v2.0.0 - Rilis mayor baru**
+            **Swara v2.1.0 - Rekap bisa dibagikan dan antrean lebih pintar**
 
-            Semua sejak v1.6 dalam satu tonggak: aplikasi bilingual English-first, smart playlist, lirik sinkron, backup dan restore, rekap tahunan, plus build yang jauh lebih ringan dan cepat.
+            ## ✨ Fitur baru
 
-            ## ✨ Sorotan
-
-            - UI English default dengan Bahasa Indonesia di Pengaturan (390+ string terlokalisasi).
-            - Smart playlist otomatis: Daily Mix dan Unplayed.
-            - Lirik sinkron (LRC) dengan highlight mengikuti lagu.
-            - Sleep timer fade-out lembut; backup/restore via JSON; onboarding pertama dibuka.
-            - Rekap tahunan, streak, genre teratas bulan ini.
-            - Import M3U, berbagi lagu, kolase cover playlist.
-
-            ## ⚡ Di balik layar
-
-            - APK per arsitektur, list paging SQL, player lazy, fetch metadata ditunda + cache, lirik gzip, dan nol masalah `flutter analyze` dengan 75 test lolos.
+            - Bagikan kartu rekap tahunan sebagai gambar.
+            - Simpan antrean putar sebagai playlist sekali ketuk.
+            - Jadwal tidur: sleep timer jam tetap setiap malam.
+            - Multi-select diperluas ke hasil pencarian dan favorit; sortir album.
+            - Notifikasi dan lockscreen kini memakai antrean asli dengan next/previous yang benar.
 
             ## 📦 Instalasi / Update
 

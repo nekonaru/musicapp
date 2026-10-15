@@ -1263,4 +1263,93 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recapTopArtists => 'Top artists this year';
+
+  @override
+  String get bulkCreatePlaylistFirst => 'Create a playlist first';
+
+  @override
+  String bulkActionFailed(String error) {
+    return 'Action failed: $error';
+  }
+
+  @override
+  String bulkFavoriteFailed(String error) {
+    return 'Failed to add favorites: $error';
+  }
+
+  @override
+  String bulkUnfavoriteFailed(String error) {
+    return 'Failed to update favorites: $error';
+  }
+
+  @override
+  String get bulkRemoveFavorite => 'Remove from favorites';
+
+  @override
+  String get albumSortTitleAZ => 'Title A-Z';
+
+  @override
+  String get albumSortTitleZA => 'Title Z-A';
+
+  @override
+  String get albumSortCountDesc => 'Most songs';
+
+  @override
+  String get albumSortCountAsc => 'Fewest songs';
+
+  @override
+  String get queueSaveTooltip => 'Save queue as playlist';
+
+  @override
+  String get queueSaveHint => 'Playlist name';
+
+  @override
+  String queueSaved(int added, int total, String name) {
+    return 'Saved $added of $total songs to \"$name\"';
+  }
+
+  @override
+  String queueSaveFailed(String error) {
+    return 'Failed to save playlist: $error';
+  }
+
+  @override
+  String get bedtimeMode => 'Bedtime';
+
+  @override
+  String bedtimeCountdownHours(int h, int m) {
+    return '${h}h ${m}m';
+  }
+
+  @override
+  String bedtimeCountdownMinutes(int m, int s) {
+    return '${m}m ${s}s';
+  }
+
+  @override
+  String bedtimeCountdownSeconds(int s) {
+    return '${s}s';
+  }
+
+  @override
+  String bedtimeStopsIn(String countdown) {
+    return 'Music stops in $countdown';
+  }
+
+  @override
+  String get bedtimeAppOpenNote => 'Only works while the app stays open';
+
+  @override
+  String get bedtimePickFuture => 'Pick a bedtime in the future';
+
+  @override
+  String get recapShareTooltip => 'Share yearly recap as image';
+
+  @override
+  String get recapShareText => 'My yearly music recap';
+
+  @override
+  String recapShareFailed(String error) {
+    return 'Failed to share recap image: $error';
+  }
 }

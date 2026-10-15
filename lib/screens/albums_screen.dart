@@ -8,8 +8,112 @@ import '../services/art_cache_service.dart';
 import '../widgets/mini_player.dart';
 import 'extra_screens.dart';
 
-class AlbumsScreen extends StatelessWidget {
+// Sort mode for the album grid. Session only, no persistence needed.
+enum _AlbumSortOption { titleAZ, titleZA, countDesc, countAsc }
+
+class AlbumsScreen extends StatefulWidget {
   const AlbumsScreen({super.key});
+
+  @override
+  State<AlbumsScreen> createState() => _AlbumsScreenState();
+}
+
+class _AlbumsScreenState extends State<AlbumsScreen> {
+  _AlbumSortOption _sortOption = _AlbumSortOption.titleAZ;
+
+  // Short label shown inside the sort chip.
+  String _sortChipLabel(AppLocalizations l) {
+    switch (_sortOption) {
+      case _AlbumSortOption.titleAZ:
+        return l.albumSortTitleAZ;
+      case _AlbumSortOption.titleZA:
+        return l.albumSortTitleZA;
+      case _AlbumSortOption.countDesc:
+        return l.albumSortCountDesc;
+      case _AlbumSortOption.countAsc:
+        return l.albumSortCountAsc;
+    }
+  }
+
+  // Full label shown inside the sort sheet rows.
+  String _sortSheetLabel(AppLocalizations l, _AlbumSortOption opt) {
+    switch (opt) {
+      case _AlbumSortOption.titleAZ:
+        return l.albumSortTitleAZ;
+      case _AlbumSortOption.titleZA:
+        return l.albumSortTitleZA;
+      case _AlbumSortOption.countDesc:
+        return l.albumSortCountDesc;
+      case _AlbumSortOption.countAsc:
+        return l.albumSortCountAsc;
+    }
+  }
+
+  // Order album keys by the current session sort option.
+  List<String> _sortedAlbums(
+      List<String> keys, Map<String, List<Song>> grouped) {
+    final sorted = List<String>.of(keys);
+    switch (_sortOption) {
+      case _AlbumSortOption.titleAZ:
+        sorted.sort(
+            (a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        break;
+      case _AlbumSortOption.titleZA:
+        sorted.sort(
+            (a, b) => b.toLowerCase().compareTo(a.toLowerCase()));
+        break;
+      case _AlbumSortOption.countDesc:
+        sorted.sort((a, b) =>
+            (grouped[b]?.length ?? 0).compareTo(grouped[a]?.length ?? 0));
+        break;
+      case _AlbumSortOption.countAsc:
+        sorted.sort((a, b) =>
+            (grouped[a]?.length ?? 0).compareTo(grouped[b]?.length ?? 0));
+        break;
+    }
+    return sorted;
+  }
+
+  // Simple bottom sheet with the four sort choices.
+  void _showSortMenu() {
+    final l = AppLocalizations.of(context)!;
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Text(l.librarySortBy,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 15)),
+            ),
+            ..._AlbumSortOption.values.map((opt) => ListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16),
+                  dense: true,
+                  leading: _sortOption == opt
+                      ? Icon(Icons.check,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.primary)
+                      : const SizedBox(width: 18),
+                  title: Text(_sortSheetLabel(l, opt)),
+                  onTap: () {
+                    setState(() => _sortOption = opt);
+                    Navigator.pop(ctx);
+                  },
+                )),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,16 +137,47 @@ class AlbumsScreen extends StatelessWidget {
       for (final s in lib.songs) {
         grouped.putIfAbsent(s.album, () => []).add(s);
       }
-      final albums = grouped.keys.toList()..sort();
+      final albums = _sortedAlbums(grouped.keys.toList(), grouped);
+      final cs = Theme.of(context).colorScheme;
 
       return Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(l.albumsCount(albums.length),
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(l.albumsCount(albums.length),
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.grey[500])),
+                ),
+                GestureDetector(
+                  onTap: _showSortMenu,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: cs.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.sort, size: 14),
+                        const SizedBox(width: 4),
+                        Text(
+                          _sortChipLabel(l),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: cs.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const Divider(height: 1),

@@ -1124,5 +1124,159 @@
     "recapTopArtists":  "Artis teratas tahun ini",
     "@recapTopArtists":  {
                               "description":  "Label artis teratas tahun ini"
-                          }
+                          },
+    "bulkCreatePlaylistFirst":  "Buat playlist dulu",
+    "@bulkCreatePlaylistFirst":  {
+                                      "description":  "Hint bila belum ada playlist untuk bulk add"
+                                  },
+    "bulkActionFailed":  "Aksi gagal: {error}",
+    "@bulkActionFailed":  {
+                               "description":  "Pesan gagal aksi massal",
+                               "placeholders":  {
+                                                    "error":  {
+                                                                  "type":  "String"
+                                                              }
+                                                }
+                           },
+    "bulkFavoriteFailed":  "Gagal menambah favorit: {error}",
+    "@bulkFavoriteFailed":  {
+                                 "description":  "Pesan gagal favorit massal",
+                                 "placeholders":  {
+                                                      "error":  {
+                                                                    "type":  "String"
+                                                                }
+                                                  }
+                             },
+    "bulkUnfavoriteFailed":  "Gagal memperbarui favorit: {error}",
+    "@bulkUnfavoriteFailed":  {
+                                   "description":  "Pesan gagal hapus favorit massal",
+                                   "placeholders":  {
+                                                        "error":  {
+                                                                      "type":  "String"
+                                                                  }
+                                                    }
+                               },
+    "bulkRemoveFavorite":  "Hapus dari favorit",
+    "@bulkRemoveFavorite":  {
+                                 "description":  "Tooltip hapus dari favorit"
+                             },
+    "albumSortTitleAZ":  "Judul A-Z",
+    "@albumSortTitleAZ":  {
+                               "description":  "Sortir album judul A-Z"
+                           },
+    "albumSortTitleZA":  "Judul Z-A",
+    "@albumSortTitleZA":  {
+                               "description":  "Sortir album judul Z-A"
+                           },
+    "albumSortCountDesc":  "Lagu terbanyak",
+    "@albumSortCountDesc":  {
+                                 "description":  "Sortir album lagu terbanyak"
+                             },
+    "albumSortCountAsc":  "Lagu tersedikit",
+    "@albumSortCountAsc":  {
+                                "description":  "Sortir album lagu tersedikit"
+                            },
+    "queueSaveTooltip":  "Simpan antrean sebagai playlist",
+    "@queueSaveTooltip":  {
+                               "description":  "Tooltip dan judul dialog simpan antrean"
+                           },
+    "queueSaveHint":  "Nama playlist",
+    "@queueSaveHint":  {
+                            "description":  "Hint nama playlist"
+                        },
+    "queueSaved":  "Menyimpan {added} dari {total} lagu ke \"{name}\"",
+    "@queueSaved":  {
+                         "description":  "Ringkasan antrean tersimpan",
+                         "placeholders":  {
+                                              "added":  {
+                                                            "type":  "int"
+                                                        },
+                                              "total":  {
+                                                            "type":  "int"
+                                                        },
+                                              "name":  {
+                                                           "type":  "String"
+                                                       }
+                                          }
+                     },
+    "queueSaveFailed":  "Gagal menyimpan playlist: {error}",
+    "@queueSaveFailed":  {
+                              "description":  "Pesan gagal simpan antrean",
+                              "placeholders":  {
+                                                   "error":  {
+                                                                 "type":  "String"
+                                                             }
+                                               }
+                          },
+    "bedtimeMode":  "Waktu tidur",
+    "@bedtimeMode":  {
+                          "description":  "Mode timer waktu tidur"
+                      },
+    "bedtimeCountdownHours":  "{h} jam {m} mnt",
+    "@bedtimeCountdownHours":  {
+                                    "description":  "Countdown bedtime jam menit",
+                                    "placeholders":  {
+                                                         "h":  {
+                                                                   "type":  "int"
+                                                               },
+                                                         "m":  {
+                                                                   "type":  "int"
+                                                               }
+                                                     }
+                                },
+    "bedtimeCountdownMinutes":  "{m} mnt {s} dtk",
+    "@bedtimeCountdownMinutes":  {
+                                      "description":  "Countdown bedtime menit detik",
+                                      "placeholders":  {
+                                                           "m":  {
+                                                                     "type":  "int"
+                                                                 },
+                                                           "s":  {
+                                                                     "type":  "int"
+                                                                 }
+                                                       }
+                                  },
+    "bedtimeCountdownSeconds":  "{s} dtk",
+    "@bedtimeCountdownSeconds":  {
+                                      "description":  "Countdown bedtime detik",
+                                      "placeholders":  {
+                                                           "s":  {
+                                                                     "type":  "int"
+                                                                 }
+                                                       }
+                                  },
+    "bedtimeStopsIn":  "Musik berhenti dalam {countdown}",
+    "@bedtimeStopsIn":  {
+                             "description":  "Label berhenti dalam",
+                             "placeholders":  {
+                                                  "countdown":  {
+                                                                    "type":  "String"
+                                                                }
+                                              }
+                         },
+    "bedtimeAppOpenNote":  "Hanya berlaku selama aplikasi terbuka",
+    "@bedtimeAppOpenNote":  {
+                                 "description":  "Catatan keterbatasan bedtime"
+                             },
+    "bedtimePickFuture":  "Pilih jam tidur yang akan datang",
+    "@bedtimePickFuture":  {
+                                "description":  "Bedtime harus di masa depan"
+                            },
+    "recapShareTooltip":  "Bagikan rekap tahunan sebagai gambar",
+    "@recapShareTooltip":  {
+                                "description":  "Tooltip bagikan rekap"
+                            },
+    "recapShareText":  "Rekap musik tahunanku",
+    "@recapShareText":  {
+                             "description":  "Teks bagikan rekap"
+                         },
+    "recapShareFailed":  "Gagal membagikan gambar rekap: {error}",
+    "@recapShareFailed":  {
+                               "description":  "Pesan gagal bagikan rekap",
+                               "placeholders":  {
+                                                    "error":  {
+                                                                  "type":  "String"
+                                                              }
+                                                }
+                           }
 }
