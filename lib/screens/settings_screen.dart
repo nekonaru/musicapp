@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../providers/language_provider.dart';
+import '../providers/playlist_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/library_provider.dart';
+import '../services/backup_service.dart';
 import '../services/player_service.dart';
 
 const List<String> kEqualizerPresets = [
@@ -44,6 +47,225 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // Guard against rapid successive taps on preferences:
   // the save future is awaited and input is disabled while saving.
   bool _savingPrefs = false;
+
+  // State for the Data section (backup export/import + art cache).
+  bool _busyData = false;
+  bool _loadingArt = false;
+  ArtCacheUsage? _artUsage;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshArtCache();
+  }
+
+  // Short snackbar helper with a mounted guard.
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  // Human readable byte count for the art cache row.
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  Future<void> _refreshArtCache() async {
+    if (_loadingArt) return;
+    setState(() => _loadingArt = true);
+    try {
+      final usage = await BackupService.artCacheUsage();
+      if (!mounted) return;
+      setState(() => _artUsage = usage);
+    } catch (e) {
+      _showSnack(AppLocalizations.of(context)!.dataMeasureFailed(e.toString()));
+    } finally {
+      if (mounted) setState(() => _loadingArt = false);
+    }
+  }
+
+  // Export the library to JSON and show size + copy button in a dialog.
+  Future<void> _exportData() async {
+    if (_busyData) return;
+    setState(() => _busyData = true);
+    try {
+      final json = await BackupService.exportLibrary();
+      if (!mounted) return;
+      setState(() => _busyData = false);
+      final l10n = AppLocalizations.of(context)!;
+      await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l10n.dataExportTitle),
+          content: Text(l10n.dataExportReady(json.length, _formatBytes(json.length))),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(l10n.close),
+            ),
+            FilledButton(
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: json));
+                if (!mounted) return;
+                Navigator.pop(ctx);
+                _showSnack(l10n.dataCopied);
+              },
+              child: Text(l10n.dataCopy),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busyData = false);
+      _showSnack(AppLocalizations.of(context)!
+          .dataExportFailed(e.toString()));
+    }
+  }
+
+  // Ask for pasted JSON, offer a paste-from-clipboard button, then import.
+  Future<void> _importData() async {
+    final controller = TextEditingController();
+    final l10n = AppLocalizations.of(context)!;
+    final pasted = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.dataImportTitle),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(l10n.dataImportPrompt),
+              const SizedBox(height: 8),
+              TextField(
+                controller: controller,
+                maxLines: 6,
+                decoration: InputDecoration(
+                  hintText: l10n.dataImportHint,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () async {
+              final data = await Clipboard.getData(Clipboard.kTextPlain);
+              controller.text = data?.text ?? '';
+            },
+            child: Text(l10n.dataPaste),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text(l10n.dataImportAction),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (!mounted) return;
+    if (pasted == null || pasted.isEmpty) return;
+
+    // Confirm before writing anything to the DB.
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.dataConfirmImportTitle),
+        content: Text(l10n.dataConfirmImportMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.dataImportAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _busyData = true);
+    try {
+      final result = await BackupService.importLibrary(pasted);
+      if (!mounted) return;
+      // Refresh library views so restored favorites show up at once.
+      try {
+        await context.read<LibraryProvider>().loadFromDb();
+      } catch (_) {
+        // Non fatal: import already succeeded.
+      }
+      try {
+        await context.read<PlaylistProvider>().load();
+      } catch (_) {
+        // Non fatal: playlist screen reloads on open.
+      }
+      if (!mounted) return;
+      setState(() => _busyData = false);
+      _showSnack(AppLocalizations.of(context)!.dataImportDone(
+          result.playlistsCreated,
+          result.playlistMembersAdded,
+          result.favoritesRestored,
+          result.listeningEntriesRestored));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busyData = false);
+      _showSnack(
+          AppLocalizations.of(context)!.dataImportFailed(e.toString()));
+    }
+  }
+
+  // Confirm then delete cached art files and clear DB references.
+  Future<void> _clearArtCache() async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.dataClearConfirmTitle),
+        content: Text(l10n
+            .dataClearConfirmMessage(_artUsage?.files ?? 0)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.dataClear),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _busyData = true);
+    try {
+      final deleted = await BackupService.clearArtCache();
+      try {
+        await context.read<LibraryProvider>().loadFromDb();
+      } catch (_) {
+        // Non fatal: list refresh only.
+      }
+      await _refreshArtCache();
+      if (!mounted) return;
+      setState(() => _busyData = false);
+      _showSnack(AppLocalizations.of(context)!.dataArtCleared(deleted));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busyData = false);
+      _showSnack(
+          AppLocalizations.of(context)!.dataClearFailed(e.toString()));
+    }
+  }
 
   Future<void> _savePrefs(Future<void> Function() save) async {
     if (_savingPrefs) return;
@@ -299,6 +521,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     : lib.bulkScanProgress / lib.bulkScanTotal,
               ),
             ),
+          const Divider(),
+
+          // -- DATA (backup + cache) --
+          _SectionHeader(AppLocalizations.of(context)!.dataSection),
+          ListTile(
+            leading: _busyData
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.upload_outlined),
+            title: Text(AppLocalizations.of(context)!.dataExport),
+            subtitle:
+                Text(AppLocalizations.of(context)!.dataExportSubtitle),
+            onTap: _busyData ? null : _exportData,
+          ),
+          ListTile(
+            leading: _busyData
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.download_outlined),
+            title: Text(AppLocalizations.of(context)!.dataImport),
+            subtitle:
+                Text(AppLocalizations.of(context)!.dataImportSubtitle),
+            onTap: _busyData ? null : _importData,
+          ),
+          ListTile(
+            leading: _loadingArt
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.image_outlined),
+            title: Text(AppLocalizations.of(context)!.dataArtCache),
+            subtitle: Text(_artUsage == null
+                ? AppLocalizations.of(context)!.dataArtCacheMeasuring
+                : AppLocalizations.of(context)!.dataArtCacheUsage(
+                    _formatBytes(_artUsage!.bytes), _artUsage!.files)),
+            trailing: TextButton(
+              onPressed:
+                  (_busyData || _loadingArt) ? null : () => _refreshArtCache(),
+              child: Text(AppLocalizations.of(context)!.dataRefresh),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete_outline),
+            title: Text(AppLocalizations.of(context)!.dataClearArtCache),
+            subtitle: Text(
+                AppLocalizations.of(context)!.dataClearArtCacheSubtitle),
+            onTap: (_busyData || _loadingArt) ? null : _clearArtCache,
+          ),
           const Divider(),
 
           // -- ABOUT --

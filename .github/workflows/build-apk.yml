@@ -68,6 +68,9 @@ jobs:
           cp android_res_extra/ic_stat_swara.xml android/app/src/main/res/drawable/ic_stat_swara.xml
           cp android_res_extra/ic_notif_shuffle.xml android/app/src/main/res/drawable/ic_notif_shuffle.xml
           cp android_res_extra/ic_notif_repeat.xml android/app/src/main/res/drawable/ic_notif_repeat.xml
+          cp android_res_extra/ic_notif_shuffle_on.xml android/app/src/main/res/drawable/ic_notif_shuffle_on.xml
+          cp android_res_extra/ic_notif_repeat_on.xml android/app/src/main/res/drawable/ic_notif_repeat_on.xml
+          cp android_res_extra/ic_notif_repeat_one.xml android/app/src/main/res/drawable/ic_notif_repeat_one.xml
           echo "=== drawable folder contents after copy ==="
           ls -la android/app/src/main/res/drawable/
 
@@ -80,7 +83,7 @@ jobs:
           mkdir -p android/app/src/main/res/raw
           cat > android/app/src/main/res/raw/keep.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
-          <resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@drawable/ic_stat_swara,@drawable/ic_notif_shuffle,@drawable/ic_notif_repeat" />
+          <resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@drawable/ic_stat_swara,@drawable/ic_notif_shuffle,@drawable/ic_notif_repeat,@drawable/ic_notif_shuffle_on,@drawable/ic_notif_repeat_on,@drawable/ic_notif_repeat_one" />
           EOF
           cat android/app/src/main/res/raw/keep.xml
 

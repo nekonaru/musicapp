@@ -799,5 +799,262 @@
                                                           "type":  "int"
                                                       }
                                         }
-                   }
+                   },
+    "sleepFadingOut":  "Fading out...",
+    "@sleepFadingOut":  {
+                             "description":  "Sleep timer state while volume fades out"
+                         },
+    "sleepStoppingPlayback":  "Stopping playback",
+    "@sleepStoppingPlayback":  {
+                                    "description":  "Subtitle while sleep fade out runs"
+                                },
+    "autoPlaylistError":  "Failed to update auto playlists: {error}",
+    "@autoPlaylistError":  {
+                                "description":  "Error when auto playlist sync fails",
+                                "placeholders":  {
+                                                     "error":  {
+                                                                   "type":  "String"
+                                                               }
+                                                 }
+                            },
+    "autoBadge":  "Auto",
+    "@autoBadge":  {
+                        "description":  "Badge marking an auto-generated playlist"
+                    },
+    "reshuffleDailyMix":  "Reshuffle Daily Mix",
+    "@reshuffleDailyMix":  {
+                                "description":  "Tooltip for reshuffling the Daily Mix playlist"
+                            },
+    "reshuffle":  "Reshuffle",
+    "@reshuffle":  {
+                        "description":  "Menu label to reshuffle the Daily Mix"
+                    },
+    "onboardSkip":  "Skip",
+    "@onboardSkip":  {
+                          "description":  "Skip onboarding button"
+                      },
+    "onboardNext":  "Next",
+    "@onboardNext":  {
+                          "description":  "Onboarding next button"
+                      },
+    "onboardGetStarted":  "Get Started",
+    "@onboardGetStarted":  {
+                                "description":  "Onboarding finish button"
+                            },
+    "onboardTitle1":  "Welcome to Swara",
+    "@onboardTitle1":  {
+                            "description":  "Onboarding page 1 title"
+                        },
+    "onboardDesc1":  "Your offline music player. Grant audio access so Swara can list the songs already on your device.",
+    "@onboardDesc1":  {
+                           "description":  "Onboarding page 1 description"
+                       },
+    "onboardTitle2":  "Automatic metadata and lyrics",
+    "@onboardTitle2":  {
+                            "description":  "Onboarding page 2 title"
+                        },
+    "onboardDesc2":  "Swara fills in missing album art, artist info, and lyrics automatically so your library always looks complete.",
+    "@onboardDesc2":  {
+                           "description":  "Onboarding page 2 description"
+                       },
+    "onboardTitle3":  "Ready to listen",
+    "@onboardTitle3":  {
+                            "description":  "Onboarding page 3 title"
+                        },
+    "onboardDesc3":  "Browse songs, build playlists, and check your listening stats on the dashboard. Tap Get Started to begin.",
+    "@onboardDesc3":  {
+                           "description":  "Onboarding page 3 description"
+                       },
+    "dataSection":  "Data",
+    "@dataSection":  {
+                          "description":  "Settings section for backup and cache"
+                      },
+    "dataExport":  "Export backup",
+    "@dataExport":  {
+                         "description":  "Export backup row title"
+                     },
+    "dataExportSubtitle":  "Copy playlists, favorites, and history as JSON",
+    "@dataExportSubtitle":  {
+                                 "description":  "Export backup row subtitle"
+                             },
+    "dataImport":  "Import backup",
+    "@dataImport":  {
+                         "description":  "Import backup row title"
+                     },
+    "dataImportSubtitle":  "Restore from pasted backup JSON",
+    "@dataImportSubtitle":  {
+                                 "description":  "Import backup row subtitle"
+                             },
+    "dataArtCache":  "Album art cache",
+    "@dataArtCache":  {
+                           "description":  "Art cache row title"
+                       },
+    "dataArtCacheMeasuring":  "Measuring cache...",
+    "@dataArtCacheMeasuring":  {
+                                    "description":  "Art cache subtitle while measuring"
+                                },
+    "dataArtCacheUsage":  "{bytes} in {files} files",
+    "@dataArtCacheUsage":  {
+                                "description":  "Art cache size subtitle",
+                                "placeholders":  {
+                                                     "bytes":  {
+                                                                   "type":  "String"
+                                                               },
+                                                     "files":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "dataRefresh":  "Refresh",
+    "@dataRefresh":  {
+                          "description":  "Refresh art cache measurement"
+                      },
+    "dataClearArtCache":  "Clear art cache",
+    "@dataClearArtCache":  {
+                                "description":  "Clear art cache row title"
+                            },
+    "dataClearArtCacheSubtitle":  "Delete cover files and clear references",
+    "@dataClearArtCacheSubtitle":  {
+                                        "description":  "Clear art cache row subtitle"
+                                    },
+    "dataExportTitle":  "Export backup",
+    "@dataExportTitle":  {
+                              "description":  "Export dialog title"
+                          },
+    "dataExportReady":  "Backup ready: {chars} characters, {size}. Copy it to the clipboard for safekeeping.",
+    "@dataExportReady":  {
+                              "description":  "Export dialog message",
+                              "placeholders":  {
+                                                   "chars":  {
+                                                                 "type":  "int"
+                                                             },
+                                                   "size":  {
+                                                                "type":  "String"
+                                                            }
+                                               }
+                          },
+    "dataCopy":  "Copy",
+    "@dataCopy":  {
+                       "description":  "Copy backup to clipboard"
+                   },
+    "dataCopied":  "Backup copied to clipboard",
+    "@dataCopied":  {
+                         "description":  "Backup copied confirmation"
+                     },
+    "dataExportFailed":  "Export failed: {error}",
+    "@dataExportFailed":  {
+                               "description":  "Export failure message",
+                               "placeholders":  {
+                                                    "error":  {
+                                                                  "type":  "String"
+                                                              }
+                                                }
+                           },
+    "dataImportTitle":  "Import backup",
+    "@dataImportTitle":  {
+                              "description":  "Import dialog title"
+                          },
+    "dataImportPrompt":  "Paste a backup JSON string, or load it from the clipboard.",
+    "@dataImportPrompt":  {
+                               "description":  "Import dialog prompt"
+                           },
+    "dataImportHint":  "Paste backup JSON here",
+    "@dataImportHint":  {
+                             "description":  "Import text field hint"
+                         },
+    "dataPaste":  "Paste",
+    "@dataPaste":  {
+                        "description":  "Paste from clipboard"
+                    },
+    "dataImportAction":  "Import",
+    "@dataImportAction":  {
+                               "description":  "Import confirm button"
+                           },
+    "dataConfirmImportTitle":  "Confirm import",
+    "@dataConfirmImportTitle":  {
+                                     "description":  "Import confirmation title"
+                                 },
+    "dataConfirmImportMessage":  "Import will add missing playlists, favorites, and history entries. Continue?",
+    "@dataConfirmImportMessage":  {
+                                       "description":  "Import confirmation message"
+                                   },
+    "dataImportDone":  "Import done: {playlists} playlists, {members} members, {favorites} favorites, {entries} history entries",
+    "@dataImportDone":  {
+                             "description":  "Import success summary",
+                             "placeholders":  {
+                                                  "playlists":  {
+                                                                    "type":  "int"
+                                                                },
+                                                  "members":  {
+                                                                  "type":  "int"
+                                                              },
+                                                  "favorites":  {
+                                                                    "type":  "int"
+                                                                },
+                                                  "entries":  {
+                                                                  "type":  "int"
+                                                              }
+                                              }
+                         },
+    "dataImportFailed":  "Import failed: {error}",
+    "@dataImportFailed":  {
+                               "description":  "Import failure message",
+                               "placeholders":  {
+                                                    "error":  {
+                                                                  "type":  "String"
+                                                              }
+                                                }
+                           },
+    "dataClearConfirmTitle":  "Clear art cache?",
+    "@dataClearConfirmTitle":  {
+                                    "description":  "Clear cache confirmation title"
+                                },
+    "dataClearConfirmMessage":  "This deletes {files} cached cover files and removes their references. Continue?",
+    "@dataClearConfirmMessage":  {
+                                      "description":  "Clear cache confirmation message",
+                                      "placeholders":  {
+                                                           "files":  {
+                                                                         "type":  "int"
+                                                                     }
+                                                       }
+                                  },
+    "dataClear":  "Clear",
+    "@dataClear":  {
+                        "description":  "Clear cache confirm button"
+                    },
+    "dataArtCleared":  "Art cache cleared: {deleted} files deleted",
+    "@dataArtCleared":  {
+                             "description":  "Art cache cleared message",
+                             "placeholders":  {
+                                                  "deleted":  {
+                                                                  "type":  "int"
+                                                              }
+                                              }
+                         },
+    "dataClearFailed":  "Clear art cache failed: {error}",
+    "@dataClearFailed":  {
+                              "description":  "Clear cache failure message",
+                              "placeholders":  {
+                                                   "error":  {
+                                                                 "type":  "String"
+                                                             }
+                                               }
+                          },
+    "dataMeasureFailed":  "Failed to measure art cache: {error}",
+    "@dataMeasureFailed":  {
+                                "description":  "Cache measurement failure",
+                                "placeholders":  {
+                                                     "error":  {
+                                                                   "type":  "String"
+                                                               }
+                                                 }
+                            },
+    "lyricsSynced":  "Synced",
+    "@lyricsSynced":  {
+                           "description":  "Synced lyrics toggle label"
+                       },
+    "lyricsPlain":  "Plain",
+    "@lyricsPlain":  {
+                          "description":  "Plain lyrics toggle label"
+                      }
 }

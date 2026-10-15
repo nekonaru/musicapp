@@ -37,6 +37,15 @@ class PlayerService extends ChangeNotifier {
   int? sleepSongsRemaining;
   bool _finishCurrentSongOnSleep = false;
   bool _pendingSleepStop = false;
+  // Sleep fade out state. When a time based timer expires in direct stop
+  // mode, volume fades to 0 over [sleepFadeDuration] instead of pausing
+  // at once. Generation guards against overlapping fades.
+  bool _sleepFadeActive = false;
+  int _sleepFadeGeneration = 0;
+  static const Duration sleepFadeDuration = Duration(seconds: 30);
+  // File path currently preloaded in the idle player (crossfade off only).
+  // Best effort cache, never played directly from here.
+  String? _preloadedFilePath;
   String? lastError;
 
   DateTime? _playStartedAt;
@@ -104,6 +113,7 @@ class PlayerService extends ChangeNotifier {
   /// that case is released on the next track change instead.
   void _releaseCrossfadePlayer() {
     if (_usingCrossfadePlayer) return;
+    _preloadedFilePath = null;
     _crossfadeStateSub?.cancel();
     _crossfadeStateSub = null;
     final standby = _crossfadePlayer;
@@ -243,6 +253,7 @@ class PlayerService extends ChangeNotifier {
   /// its source).
   Future<void> setQueueAndPlay(List<Song> songs, int startIndex) async {
     _logListening();
+    if (_sleepFadeActive) _cancelSleepFadeOut();
     _crossfadeCancelled = true;
     _crossfadeTriggeredForCurrent = false;
     _usingCrossfadePlayer = false;
@@ -292,16 +303,24 @@ class PlayerService extends ChangeNotifier {
     // Re-attach the position listener to the now-active player, so
     // crossfade keeps triggering for the following songs too (not just once).
     await _subscribePosition();
+    // Warm the idle player with the next file when crossfade is off.
+    _preloadNextSong();
     notifyListeners();
   }
 
   Future<void> togglePlayPause() async {
     if (player.playing) {
+      // A manual pause during a sleep fade stops the fade so the volume
+      // does not keep dropping in the background.
+      if (_sleepFadeActive) _cancelSleepFadeOut();
       _logListening();
       await player.pause();
       // Stop position updates while paused to save battery.
       await _unsubscribePosition();
     } else {
+      // A manual play during a sleep fade cancels the fade and restores
+      // full volume before resuming.
+      if (_sleepFadeActive) _cancelSleepFadeOut();
       _playStartedAt = DateTime.now();
       await player.play();
       // Resume position updates for crossfade triggers.
@@ -314,6 +333,7 @@ class PlayerService extends ChangeNotifier {
   /// the shuffled order is fixed once up front - next never reshuffles.
   Future<void> next() async {
     _logListening();
+    if (_sleepFadeActive) _cancelSleepFadeOut();
     _crossfadeCancelled = true;
     await _crossfadePlayer?.pause();
     _usingCrossfadePlayer = false;
@@ -333,6 +353,7 @@ class PlayerService extends ChangeNotifier {
   /// back in _playOrder instead of picking a new random song.
   Future<void> previous() async {
     _logListening();
+    if (_sleepFadeActive) _cancelSleepFadeOut();
     _crossfadeCancelled = true;
     await _crossfadePlayer?.pause();
     _usingCrossfadePlayer = false;
@@ -369,6 +390,7 @@ class PlayerService extends ChangeNotifier {
   Future<void> playAtQueueIndex(int posInOrder) async {
     if (posInOrder < 0 || posInOrder >= _playOrder.length) return;
     _logListening();
+    if (_sleepFadeActive) _cancelSleepFadeOut();
     _crossfadeCancelled = true;
     await _crossfadePlayer?.pause();
     _usingCrossfadePlayer = false;
@@ -385,6 +407,8 @@ class PlayerService extends ChangeNotifier {
     }
     _queue.add(song);
     _playOrder.insert(_posInOrder + 1, _queue.length - 1);
+    // The next song changed, so any cached preload is stale.
+    _preloadedFilePath = null;
     notifyListeners();
   }
 
@@ -411,6 +435,8 @@ class PlayerService extends ChangeNotifier {
     // Compact _queue: drop entries no longer referenced by any _playOrder slot
     // so _queue does not keep growing for the whole session without an app restart.
     _compactQueue();
+    // Order changed, so any cached preload is stale.
+    _preloadedFilePath = null;
     notifyListeners();
   }
 
@@ -458,6 +484,8 @@ class PlayerService extends ChangeNotifier {
     } else if (oldIndex > _posInOrder && newIndex <= _posInOrder) {
       _posInOrder++;
     }
+    // Order changed, so any cached preload is stale.
+    _preloadedFilePath = null;
     notifyListeners();
   }
 
@@ -503,6 +531,8 @@ class PlayerService extends ChangeNotifier {
       _playOrder = List.generate(_queue.length, (i) => i);
       _posInOrder = currentQueueIndex;
     }
+    // Order changed, so any cached preload is stale.
+    _preloadedFilePath = null;
     notifyListeners();
   }
 
@@ -514,13 +544,19 @@ class PlayerService extends ChangeNotifier {
   void setCrossfadeEnabled(bool value) {
     crossfadeEnabled = value;
     if (!value) {
-      // Cancel any fade in flight and release the standby player so it
-      // holds no audio resources while crossfade stays off. When the
+      // Cancel any fade in flight and drop any stale crossfade state.
+      // A fresh gap preload is prepared below, so the idle player keeps
+      // at most one cached file while crossfade stays off. When the
       // standby player is currently audible, the release is deferred to
       // the next track change inside _releaseCrossfadePlayer.
       _crossfadeCancelled = true;
       _crossfadeTriggeredForCurrent = false;
       _releaseCrossfadePlayer();
+      // Refresh the gap preload for the new mode.
+      _preloadNextSong();
+    } else {
+      // Preload cache is only used when crossfade is off.
+      _preloadedFilePath = null;
     }
     notifyListeners();
   }
@@ -530,6 +566,7 @@ class PlayerService extends ChangeNotifier {
   /// wait until the currently playing song ends before stopping.
   void setSleepTimer(Duration duration, {bool finishCurrentSong = false}) {
     _sleepTimer?.cancel();
+    _cancelSleepFadeOut();
     sleepSongsRemaining = null; // time mode and song-count mode are mutually exclusive
     sleepTimerEndTime = DateTime.now().add(duration);
     _finishCurrentSongOnSleep = finishCurrentSong;
@@ -538,12 +575,8 @@ class PlayerService extends ChangeNotifier {
       if (_finishCurrentSongOnSleep) {
         _pendingSleepStop = true; // handled in _onTrackFinished()
       } else {
-        _logListening();
-        // Pause BOTH players so playback really stops even mid-crossfade
-        await _player.pause();
-        await _crossfadePlayer?.pause();
-        // No crossfade trigger needed while paused, save battery.
-        await _unsubscribePosition();
+        await _startSleepFadeOut();
+        return;
       }
       notifyListeners();
     });
@@ -554,6 +587,7 @@ class PlayerService extends ChangeNotifier {
   /// (counted from the currently playing song, inclusive).
   void setSleepTimerBySongs(int songCount) {
     _sleepTimer?.cancel();
+    _cancelSleepFadeOut();
     sleepTimerEndTime = null; // time mode and song-count mode are mutually exclusive
     sleepSongsRemaining = songCount;
     notifyListeners();
@@ -565,12 +599,130 @@ class PlayerService extends ChangeNotifier {
     return remaining.isNegative ? Duration.zero : remaining;
   }
 
+  /// True while the 30 second sleep fade out is running.
+  bool get isSleepFadeOutActive => _sleepFadeActive;
+
+  /// Cancel an in flight sleep fade and restore full volume.
+  /// Used when the user cancels the timer or resumes playback mid fade.
+  void _cancelSleepFadeOut() {
+    if (!_sleepFadeActive) return;
+    _sleepFadeGeneration++;
+    _sleepFadeActive = false;
+    // Restore full volume fire and forget so a resume starts loud.
+    // Errors are only logged because this runs from sync UI handlers.
+    _player.setVolume(1).catchError((Object e) {
+      debugPrint('Sleep fade cancel failed: $e');
+    });
+    _crossfadePlayer?.setVolume(1).catchError((Object e) {
+      debugPrint('Sleep fade cancel failed: $e');
+    });
+  }
+
+  /// Fade the audible output to 0 over [sleepFadeDuration] then pause.
+  /// Cancels silently when the generation changes (user cancel or play).
+  Future<void> _startSleepFadeOut() async {
+    if (_disposed) return;
+    final isPlaying =
+        _player.playing || (_crossfadePlayer?.playing ?? false);
+    if (!isPlaying) {
+      _logListening();
+      await _unsubscribePosition();
+      notifyListeners();
+      return;
+    }
+    _sleepFadeActive = true;
+    final generation = ++_sleepFadeGeneration;
+    notifyListeners();
+    const steps = 30;
+    final stepDuration = sleepFadeDuration ~/ steps;
+    for (int i = 1; i <= steps; i++) {
+      await Future.delayed(stepDuration);
+      if (_disposed) return;
+      if (!_sleepFadeActive || generation != _sleepFadeGeneration) return;
+      final v = (1 - i / steps).clamp(0.0, 1.0);
+      try {
+        await _player.setVolume(v);
+      } catch (e) {
+        debugPrint('Sleep fade failed: $e');
+      }
+      if (!_sleepFadeActive || generation != _sleepFadeGeneration) return;
+      try {
+        await _crossfadePlayer?.setVolume(v);
+      } catch (e) {
+        debugPrint('Sleep fade failed: $e');
+      }
+    }
+    if (_disposed) return;
+    if (!_sleepFadeActive || generation != _sleepFadeGeneration) return;
+    _sleepFadeActive = false;
+    _logListening();
+    // Pause both players so playback really stops even mid crossfade.
+    try {
+      await _player.pause();
+    } catch (e) {
+      debugPrint('Sleep fade pause failed: $e');
+    }
+    try {
+      await _crossfadePlayer?.pause();
+    } catch (e) {
+      debugPrint('Sleep fade pause failed: $e');
+    }
+    // Reset volume for the next manual play.
+    try {
+      await _player.setVolume(1);
+    } catch (e) {
+      debugPrint('Sleep fade reset failed: $e');
+    }
+    try {
+      await _crossfadePlayer?.setVolume(1);
+    } catch (e) {
+      debugPrint('Sleep fade reset failed: $e');
+    }
+    // No crossfade trigger needed while paused, save battery.
+    await _unsubscribePosition();
+    notifyListeners();
+  }
+
+  /// Prepare the next song file in the idle player when crossfade is off.
+  /// Loads the file only (never plays). Errors are ignored silently
+  /// apart from a debug log so preload never breaks playback.
+  void _preloadNextSong() {
+    if (crossfadeEnabled) return;
+    if (_disposed) return;
+    if (_playOrder.isEmpty) return;
+    final nextPos = _computeNextPosition();
+    if (nextPos == null) return;
+    if (nextPos == _posInOrder) return; // repeat-one, already loaded
+    final nextSong = _queue[_playOrder[nextPos]];
+    if (_preloadedFilePath == nextSong.filePath) return;
+    final AudioPlayer idle;
+    if (_usingCrossfadePlayer) {
+      idle = _player;
+    } else {
+      try {
+        idle = _ensureCrossfadePlayer();
+      } catch (e) {
+        debugPrint('Preload next failed: $e');
+        return;
+      }
+    }
+    final path = nextSong.filePath;
+    idle.setFilePath(path).then((_) {
+      if (_disposed) return;
+      if (crossfadeEnabled) return;
+      _preloadedFilePath = path;
+    }).catchError((Object e) {
+      debugPrint('Preload next failed: $e');
+    });
+  }
+
   void cancelSleepTimer() {
     _sleepTimer?.cancel();
     _sleepTimer = null;
     sleepTimerEndTime = null;
     sleepSongsRemaining = null;
     _pendingSleepStop = false;
+    _cancelSleepFadeOut();
     notifyListeners();
   }
 
@@ -652,6 +804,9 @@ class PlayerService extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _crossfadeCancelled = true;
+    _sleepFadeGeneration++;
+    _sleepFadeActive = false;
+    _preloadedFilePath = null;
     _logListening();
     _sleepTimer?.cancel();
     // Fire and forget: dispose is sync, the cancel future still runs.

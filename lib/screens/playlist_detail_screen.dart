@@ -66,7 +66,10 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       if (!mounted) return;
       final l = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.playlistLoadFailed(e.toString()))),
+        SnackBar(
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
+            content: Text(l.playlistLoadFailed(e.toString()))),
       );
     }
   }
@@ -85,7 +88,10 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       setState(() => _songs = previousOrder);
       final l = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.playlistReorderFailed(e.toString()))),
+        SnackBar(
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
+            content: Text(l.playlistReorderFailed(e.toString()))),
       );
     }
   }
@@ -99,7 +105,10 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       setState(() {});
       final l = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.playlistRemoveFailed(e.toString()))),
+        SnackBar(
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
+            content: Text(l.playlistRemoveFailed(e.toString()))),
       );
       return;
     }
@@ -176,7 +185,17 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
         ],
       ),
       body: _songs.isEmpty
-          ? Center(child: Text(l.playlistEmpty))
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.queue_music_outlined,
+                      size: 64, color: Colors.grey[300]),
+                  const SizedBox(height: 16),
+                  Text(l.playlistEmpty, textAlign: TextAlign.center),
+                ],
+              ),
+            )
           : Column(
               children: [
                 Padding(
@@ -191,7 +210,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                 ),
                 // Search
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
                   child: TextField(
                     controller: _searchController,
                     onChanged: (v) => setState(() => _query = v),
@@ -202,6 +221,8 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
                       suffixIcon: _query.isNotEmpty
                           ? IconButton(
+                              constraints: const BoxConstraints(
+                                  minWidth: 48, minHeight: 48),
                               icon: const Icon(Icons.close),
                               onPressed: () {
                                 _searchController.clear();
@@ -252,7 +273,18 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                   ),
                 Expanded(
                   child: displayed.isEmpty
-                      ? Center(child: Text(l.playlistNoResults))
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.search_off,
+                                  size: 56, color: Colors.grey[300]),
+                              const SizedBox(height: 16),
+                              Text(l.playlistNoResults,
+                                  textAlign: TextAlign.center),
+                            ],
+                          ),
+                        )
                       : Stack(
                           children: [
                             AnimatedBuilder(
@@ -304,6 +336,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
         child: const Icon(Icons.delete, color: Colors.white),
       ),
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
         tileColor: isCurrentlyPlaying
             ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3)
             : null,
@@ -330,6 +363,8 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
             Text(formatDuration(song.durationMs),
                 style: TextStyle(fontSize: 12, color: Colors.grey[500])),
             IconButton(
+              constraints:
+                  const BoxConstraints(minWidth: 48, minHeight: 48),
               icon: const Icon(Icons.more_vert),
               onPressed: () async {
                 await showSongOptions(context, song,

@@ -104,7 +104,7 @@ class DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const _DashboardSkeleton();
     }
 
     if (_error != null) {
@@ -257,6 +257,8 @@ class DashboardScreenState extends State<DashboardScreen> {
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: const Duration(seconds: 5),
                                     content: Text(l.dashboardPlayFailed(e.toString()))),
                               );
                             }
@@ -310,12 +312,17 @@ class DashboardScreenState extends State<DashboardScreen> {
               icon: Icons.not_interested_outlined,
               title: l.dashboardNeverPlayedTitle,
               trailing: GestureDetector(
+                behavior: HitTestBehavior.opaque,
                 onTap: () => _showNeverPlayed(),
-                child: Text(l.dashboardSongCount(_neverPlayed.length),
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w600)),
+                child: Container(
+                  alignment: Alignment.centerRight,
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: Text(l.dashboardSongCount(_neverPlayed.length),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w600)),
+                ),
               ),
               child: Padding(
                 padding: const EdgeInsets.only(top: 4),
@@ -457,6 +464,7 @@ class DashboardScreenState extends State<DashboardScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => DraggableScrollableSheet(
@@ -484,7 +492,11 @@ class DashboardScreenState extends State<DashboardScreen> {
                       } catch (e) {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(l.dashboardPlayFailed(e.toString()))),
+                            SnackBar(
+                                behavior: SnackBarBehavior.floating,
+                                duration: const Duration(seconds: 5),
+                                content: Text(
+                                    l.dashboardPlayFailed(e.toString()))),
                           );
                         }
                       }
@@ -504,6 +516,8 @@ class DashboardScreenState extends State<DashboardScreen> {
                   final s = _neverPlayed[i];
                   return ListTile(
                     dense: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 16),
                     title: Text(s.title,
                         maxLines: 1, overflow: TextOverflow.ellipsis),
                     subtitle: Text(s.artist,
@@ -518,7 +532,11 @@ class DashboardScreenState extends State<DashboardScreen> {
                       } catch (e) {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(l.dashboardPlayFailed(e.toString()))),
+                            SnackBar(
+                                behavior: SnackBarBehavior.floating,
+                                duration: const Duration(seconds: 5),
+                                content: Text(
+                                    l.dashboardPlayFailed(e.toString()))),
                           );
                         }
                       }
@@ -605,6 +623,65 @@ class DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// First load skeleton: grey pulsing boxes, no new dependency.
+// ─────────────────────────────────────────────────────────────
+
+/// Single grey bar that fades in once on first load.
+class _SkeletonBar extends StatelessWidget {
+  final double height;
+  const _SkeletonBar({required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.35, end: 0.7),
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.easeInOut,
+      builder: (context, v, _) => Opacity(
+        opacity: v,
+        child: Container(
+          height: height,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Simple skeleton for the dashboard first load.
+class _DashboardSkeleton extends StatelessWidget {
+  const _DashboardSkeleton();
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      children: const [
+        Row(
+          children: [
+            Expanded(child: _SkeletonBar(height: 92)),
+            SizedBox(width: 10),
+            Expanded(child: _SkeletonBar(height: 92)),
+            SizedBox(width: 10),
+            Expanded(child: _SkeletonBar(height: 92)),
+          ],
+        ),
+        SizedBox(height: 16),
+        _SkeletonBar(height: 190),
+        SizedBox(height: 14),
+        _SkeletonBar(height: 150),
+        SizedBox(height: 14),
+        _SkeletonBar(height: 120),
+      ],
     );
   }
 }

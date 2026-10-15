@@ -59,7 +59,18 @@ class _QueueScreenState extends State<QueueScreen> {
             title: Text(AppLocalizations.of(context)!.queueTitle),
           ),
           body: queue.isEmpty
-              ? Center(child: Text(AppLocalizations.of(context)!.queueEmpty))
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.queue_music_outlined,
+                          size: 64, color: Colors.grey[300]),
+                      const SizedBox(height: 16),
+                      Text(AppLocalizations.of(context)!.queueEmpty,
+                          textAlign: TextAlign.center),
+                    ],
+                  ),
+                )
               : Column(
                   children: [
                     Padding(
@@ -102,6 +113,9 @@ class _QueueScreenState extends State<QueueScreen> {
                                     ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4)
                                     : null,
                                 child: ListTile(
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(
+                                          horizontal: 16),
                                   leading: isPlaying
                                       ? Icon(Icons.equalizer, color: Theme.of(context).colorScheme.primary)
                                       : Text('${i + 1}', style: TextStyle(color: Colors.grey[500])),
@@ -113,6 +127,10 @@ class _QueueScreenState extends State<QueueScreen> {
                                     children: [
                                       if (!isPlaying)
                                         IconButton(
+                                          constraints:
+                                              const BoxConstraints(
+                                                  minWidth: 48,
+                                                  minHeight: 48),
                                           icon: const Icon(Icons.close, size: 20),
                                           onPressed: () => _player.removeQueueSlot(slotId),
                                         ),

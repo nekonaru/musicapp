@@ -195,6 +195,13 @@ class MetadataService {
         song.title == 'Unknown Title') {
       return false;
     }
+    // Best effort synced lyrics fetch (lrclib). Runs regardless of the
+    // plain lyric outcome below and never changes its return value.
+    try {
+      await ensureSyncedLyrics(song);
+    } catch (_) {
+      // Synced fetch must never break the plain lyric fetch.
+    }
     final lyricsKey = _lyricsCacheKeyFor(song);
     // Serve a fresh cache entry before touching the network.
     final cachedLyrics = await _readValidCache(lyricsKey);
@@ -256,6 +263,54 @@ class MetadataService {
   /// Cache key for a song: "artist|title", lowercase and trimmed.
   String _cacheKeyFor(Song song) {
     return '${song.artist.trim().toLowerCase()}|${song.title.trim().toLowerCase()}';
+  }
+
+  /// Return stored synced (LRC) lyrics for [song], fetching them from
+  /// lrclib.net when none is stored yet. Never throws and never touches
+  /// the plain lyrics field, so plain lyric behavior stays unchanged.
+  /// Returns the LRC text, or null when unavailable.
+  Future<String?> ensureSyncedLyrics(Song song) async {
+    try {
+      final stored = await DBHelper.instance.getSyncedLyrics(song.id);
+      if (stored != null && stored.trim().isNotEmpty) return stored;
+    } catch (_) {
+      // A DB read failure falls through to the network attempt below.
+    }
+    // Same guard as the plain lyric fetch: unknown fields always miss.
+    if (song.artist.isEmpty ||
+        song.title.isEmpty ||
+        song.artist == 'Unknown Artist' ||
+        song.title == 'Unknown Title') {
+      return null;
+    }
+    try {
+      final params = {
+        'artist_name': song.artist,
+        'track_name': song.title,
+      };
+      final album = song.album.trim();
+      if (album.isNotEmpty && album != 'Unknown Album') {
+        params['album_name'] = album;
+      }
+      final url = Uri.https('lrclib.net', '/api/get', params);
+      final res = await _client
+          .get(url, headers: {'User-Agent': 'Swara/1.0'})
+          .timeout(const Duration(seconds: 8));
+      if (res.statusCode != 200) return null;
+      final data = jsonDecode(res.body);
+      final lrc = data is Map ? data['syncedLyrics']?.toString().trim() : null;
+      if (lrc == null || lrc.isEmpty) return null;
+      // Cap at 100KB so the DB does not bloat on anomalous responses.
+      final capped = lrc.length > 100 * 1024 ? lrc.substring(0, 100 * 1024) : lrc;
+      try {
+        await DBHelper.instance.setSyncedLyrics(song.id, capped);
+      } catch (_) {
+        // Cache write failure must never break the fetch.
+      }
+      return capped;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Lyrics cache key: "lyrics|artist|title", lowercase and trimmed, so

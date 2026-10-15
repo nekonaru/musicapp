@@ -1052,4 +1052,176 @@ class AppLocalizationsEn extends AppLocalizations {
   String loadMore(int shown, int total) {
     return 'Load more ($shown of $total)';
   }
+
+  @override
+  String get sleepFadingOut => 'Fading out...';
+
+  @override
+  String get sleepStoppingPlayback => 'Stopping playback';
+
+  @override
+  String autoPlaylistError(String error) {
+    return 'Failed to update auto playlists: $error';
+  }
+
+  @override
+  String get autoBadge => 'Auto';
+
+  @override
+  String get reshuffleDailyMix => 'Reshuffle Daily Mix';
+
+  @override
+  String get reshuffle => 'Reshuffle';
+
+  @override
+  String get onboardSkip => 'Skip';
+
+  @override
+  String get onboardNext => 'Next';
+
+  @override
+  String get onboardGetStarted => 'Get Started';
+
+  @override
+  String get onboardTitle1 => 'Welcome to Swara';
+
+  @override
+  String get onboardDesc1 =>
+      'Your offline music player. Grant audio access so Swara can list the songs already on your device.';
+
+  @override
+  String get onboardTitle2 => 'Automatic metadata and lyrics';
+
+  @override
+  String get onboardDesc2 =>
+      'Swara fills in missing album art, artist info, and lyrics automatically so your library always looks complete.';
+
+  @override
+  String get onboardTitle3 => 'Ready to listen';
+
+  @override
+  String get onboardDesc3 =>
+      'Browse songs, build playlists, and check your listening stats on the dashboard. Tap Get Started to begin.';
+
+  @override
+  String get dataSection => 'Data';
+
+  @override
+  String get dataExport => 'Export backup';
+
+  @override
+  String get dataExportSubtitle =>
+      'Copy playlists, favorites, and history as JSON';
+
+  @override
+  String get dataImport => 'Import backup';
+
+  @override
+  String get dataImportSubtitle => 'Restore from pasted backup JSON';
+
+  @override
+  String get dataArtCache => 'Album art cache';
+
+  @override
+  String get dataArtCacheMeasuring => 'Measuring cache...';
+
+  @override
+  String dataArtCacheUsage(String bytes, int files) {
+    return '$bytes in $files files';
+  }
+
+  @override
+  String get dataRefresh => 'Refresh';
+
+  @override
+  String get dataClearArtCache => 'Clear art cache';
+
+  @override
+  String get dataClearArtCacheSubtitle =>
+      'Delete cover files and clear references';
+
+  @override
+  String get dataExportTitle => 'Export backup';
+
+  @override
+  String dataExportReady(int chars, String size) {
+    return 'Backup ready: $chars characters, $size. Copy it to the clipboard for safekeeping.';
+  }
+
+  @override
+  String get dataCopy => 'Copy';
+
+  @override
+  String get dataCopied => 'Backup copied to clipboard';
+
+  @override
+  String dataExportFailed(String error) {
+    return 'Export failed: $error';
+  }
+
+  @override
+  String get dataImportTitle => 'Import backup';
+
+  @override
+  String get dataImportPrompt =>
+      'Paste a backup JSON string, or load it from the clipboard.';
+
+  @override
+  String get dataImportHint => 'Paste backup JSON here';
+
+  @override
+  String get dataPaste => 'Paste';
+
+  @override
+  String get dataImportAction => 'Import';
+
+  @override
+  String get dataConfirmImportTitle => 'Confirm import';
+
+  @override
+  String get dataConfirmImportMessage =>
+      'Import will add missing playlists, favorites, and history entries. Continue?';
+
+  @override
+  String dataImportDone(
+      int playlists, int members, int favorites, int entries) {
+    return 'Import done: $playlists playlists, $members members, $favorites favorites, $entries history entries';
+  }
+
+  @override
+  String dataImportFailed(String error) {
+    return 'Import failed: $error';
+  }
+
+  @override
+  String get dataClearConfirmTitle => 'Clear art cache?';
+
+  @override
+  String dataClearConfirmMessage(int files) {
+    return 'This deletes $files cached cover files and removes their references. Continue?';
+  }
+
+  @override
+  String get dataClear => 'Clear';
+
+  @override
+  String dataArtCleared(int deleted) {
+    return 'Art cache cleared: $deleted files deleted';
+  }
+
+  @override
+  String dataClearFailed(String error) {
+    return 'Clear art cache failed: $error';
+  }
+
+  @override
+  String dataMeasureFailed(String error) {
+    return 'Failed to measure art cache: $error';
+  }
+
+  @override
+  String get lyricsSynced => 'Synced';
+
+  @override
+  String get lyricsPlain => 'Plain';
 }

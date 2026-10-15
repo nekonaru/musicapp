@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/language_provider.dart';
 import 'providers/library_provider.dart';
 import 'providers/playlist_provider.dart';
@@ -10,6 +11,7 @@ import 'providers/theme_provider.dart';
 import 'services/player_service.dart';
 import 'services/swara_audio_handler.dart';
 import 'screens/home_screen.dart';
+import 'screens/onboarding_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -92,9 +94,46 @@ class MusicApp extends StatelessWidget {
             brightness: Brightness.dark,
             useMaterial3: true,
           ),
-          home: const HomeScreen(),
+          home: const StartupGate(),
         ),
       ),
+    );
+  }
+}
+
+// Chooses the first screen based on the persisted onboarding flag.
+// Shows onboarding when 'onboarding_done' is not true, else HomeScreen.
+// PlayerService and theme init above are untouched.
+class StartupGate extends StatelessWidget {
+  const StartupGate({super.key});
+
+  Future<bool> _onboardingDone() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(kOnboardingDoneKey) ?? false;
+    } catch (e) {
+      // On storage failure, fall back to home so the app stays usable.
+      debugPrint('Failed to read onboarding flag: $e');
+      return true;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: _onboardingDone(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          // Minimal splash while the flag loads.
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.data == true) {
+          return const HomeScreen();
+        }
+        return const OnboardingScreen();
+      },
     );
   }
 }

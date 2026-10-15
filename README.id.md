@@ -37,6 +37,10 @@
 | 📁 **Browse folder** | Jelajahi per folder asal, sembunyikan folder dari library |
 | 🔤 **Navigasi A-Z** | Scrollbar huruf mengikuti jari untuk lompat cepat |
 | 💿 **Playlist dan favorit** | Playlist kustom, favorit, baru diputar |
+| 🤖 **Smart playlist otomatis** | Daily Mix (25 lagu segar tiap hari) dan Unplayed, dirawat otomatis |
+| 🎼 **Lirik sinkron** | Lirik per baris mengikuti lagu, dengan fallback tampilan biasa |
+| 😴 **Sleep timer lembut** | Volume memudar, bukan berhenti mendadak |
+| 💾 **Backup dan restore** | Export dan import playlist, favorit, dan riwayat sebagai JSON |
 | 🔍 **Pencarian** | Cari real-time berdasarkan judul, artis, album, folder, atau genre |
 | 📊 **Dashboard** | Grafik 7 hari terakhir, lagu dan artis teratas, distribusi genre dan region |
 | 🌍 **UI English dan Indonesia** | Default English; ganti ke Bahasa Indonesia di Pengaturan |

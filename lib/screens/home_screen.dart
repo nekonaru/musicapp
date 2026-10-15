@@ -140,6 +140,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
             content: Text(AppLocalizations.of(context)!
                 .homeLoadLibraryFailed('$e'))),
       );
@@ -156,6 +158,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
             content: Text(AppLocalizations.of(context)!
                 .homeLoadLibraryFailed('$e'))),
       );
@@ -187,9 +191,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _lastBackPress = now;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
+            behavior: SnackBarBehavior.floating,
             content:
                 Text(AppLocalizations.of(context)!.homePressAgainToExit),
-            duration: const Duration(seconds: 2)),
+            duration: const Duration(seconds: 3)),
       );
       return false;
     }
@@ -238,9 +243,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           // Tab settings icon
           IconButton(
+            constraints:
+                const BoxConstraints(minWidth: 48, minHeight: 48),
             icon: const Icon(Icons.tune, size: 20),
             tooltip: AppLocalizations.of(context)!.homeTabSettings,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
             onPressed: _showTabSettings,
           ),
         ],
@@ -252,6 +258,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => _TabSettingsSheet(
@@ -493,6 +500,8 @@ class _TabSettingsSheetState extends State<_TabSettingsSheet> {
                         if (_defs[i].visible && enabledCount <= 1) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
+                                behavior: SnackBarBehavior.floating,
+                                duration: const Duration(seconds: 3),
                                 content: Text(l.homeMinOneTab)),
                           );
                           return;

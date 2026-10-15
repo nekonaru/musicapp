@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import '../models/song.dart';
 import '../services/player_service.dart';
 import '../services/metadata_service.dart';
+import '../services/db_helper.dart';
+import '../utils/lrc.dart';
 import '../providers/library_provider.dart';
 import '../providers/playlist_provider.dart';
 import '../utils/song_options.dart';
@@ -27,6 +29,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
   double _dragOffset = 0;
   Timer? _countdownTicker;
 
+  // Synced (LRC) lyrics state. Lines load once per song from the DB,
+  // then a positionStream listener highlights the active line.
+  final ScrollController _lrcScrollController = ScrollController();
+  final Map<int, GlobalKey> _lrcLineKeys = {};
+  StreamSubscription<Duration>? _lrcPositionSub;
+  List<LrcLine> _lrcLines = [];
+  int _lrcIndex = -1;
+  int? _lrcSongId;
+  bool _lrcLoading = false;
+  bool _syncedMode = true;
+
   @override
   void initState() {
     super.initState();
@@ -39,6 +52,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void dispose() {
     _countdownTicker?.cancel();
+    _stopLrcFollow();
+    _lrcScrollController.dispose();
     super.dispose();
   }
 
@@ -111,6 +126,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     if (!mounted) return;
     setState(() => _isFetchingLyrics = false);
+    // fetchLyricsOnly also refreshes the synced store, so reload the lines.
+    _lrcSongId = null;
+    _lrcLineKeys.clear();
+    await _maybeLoadSyncedLyrics(song);
+    if (!mounted) return;
     final l10n = AppLocalizations.of(context)!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -120,6 +140,108 @@ class _PlayerScreenState extends State<PlayerScreen> {
         margin: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(context).size.height * 0.55),
       ),
     );
+  }
+
+  /// Show or hide the lyrics view, starting or stopping the synced
+  /// line follower so no position updates arrive while it is hidden.
+  void _setShowLyrics(bool value) {
+    if (_showLyrics == value) return;
+    setState(() => _showLyrics = value);
+    if (value) {
+      if (_lrcLines.isNotEmpty && _syncedMode) _startLrcFollow();
+    } else {
+      _stopLrcFollow();
+    }
+  }
+
+  /// Load synced lyrics for [song] once per song from the DB and parse
+  /// them into display lines. Safe to call from build: guarded by song id.
+  Future<void> _maybeLoadSyncedLyrics(Song song) async {
+    if (_lrcSongId == song.id || _lrcLoading) return;
+    _lrcSongId = song.id;
+    _lrcLoading = true;
+    _lrcLines = [];
+    _lrcIndex = -1;
+    _lrcLineKeys.clear();
+    _stopLrcFollow();
+    try {
+      final lrc = await DBHelper.instance.getSyncedLyrics(song.id);
+      if (!mounted) return;
+      final lines =
+          (lrc == null || lrc.isEmpty) ? <LrcLine>[] : parseLrc(lrc);
+      setState(() {
+        _lrcLoading = false;
+        _lrcLines = lines;
+        _lrcIndex = -1;
+        // Default to synced view when lines exist, plain text otherwise.
+        _syncedMode = lines.isNotEmpty;
+      });
+      if (lines.isNotEmpty && _showLyrics && _syncedMode) _startLrcFollow();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _lrcLoading = false);
+    }
+  }
+
+  /// Follow the player position and highlight the active synced line.
+  /// Rebuilds only when the active line index actually changes.
+  void _startLrcFollow() {
+    _stopLrcFollow();
+    if (!_syncedMode || _lrcLines.isEmpty) return;
+    _lrcPositionSub = _player.player.positionStream.listen((pos) {
+      if (!mounted) return;
+      final idx = _lrcIndexFor(pos.inMilliseconds);
+      if (idx == _lrcIndex) return;
+      setState(() => _lrcIndex = idx);
+      _scrollToLrcLine(idx);
+    });
+  }
+
+  void _stopLrcFollow() {
+    _lrcPositionSub?.cancel();
+    _lrcPositionSub = null;
+  }
+
+  /// Switch between the synced and plain lyric views.
+  void _setSyncedMode(bool value) {
+    if (_syncedMode == value) return;
+    setState(() {
+      _syncedMode = value;
+      _lrcIndex = -1;
+    });
+    if (value) {
+      _startLrcFollow();
+    } else {
+      _stopLrcFollow();
+    }
+  }
+
+  /// Index of the last line whose timestamp is at or before [positionMs].
+  int _lrcIndexFor(int positionMs) {
+    var idx = -1;
+    for (var i = 0; i < _lrcLines.length; i++) {
+      if (_lrcLines[i].timeMs <= positionMs) {
+        idx = i;
+      } else {
+        break;
+      }
+    }
+    return idx;
+  }
+
+  /// Bring line [idx] into view after the highlight rebuild settles.
+  void _scrollToLrcLine(int idx) {
+    if (idx < 0) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_lrcScrollController.hasClients) return;
+      final ctx = _lrcLineKeys[idx]?.currentContext;
+      if (ctx == null) return;
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 350),
+        alignment: 0.4,
+      );
+    });
   }
 
   /// Short label for the sleep timer countdown, shown directly in the
@@ -232,6 +354,68 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Widget _buildLyricsView(Song song) {
+    _maybeLoadSyncedLyrics(song);
+    final hasSynced = _lrcLines.isNotEmpty;
+    if (hasSynced && _syncedMode && _lrcPositionSub == null && _showLyrics) {
+      _startLrcFollow();
+    }
+    final Widget body =
+        (hasSynced && _syncedMode) ? _buildSyncedLyricsView() : _buildPlainLyricsView(song);
+    if (!hasSynced) return body;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: SegmentedButton<bool>(
+            segments: [
+              ButtonSegment(
+                  value: true,
+                  label: Text(AppLocalizations.of(context)!.lyricsSynced)),
+              ButtonSegment(
+                  value: false,
+                  label: Text(AppLocalizations.of(context)!.lyricsPlain)),
+            ],
+            selected: {_syncedMode},
+            onSelectionChanged: (s) => _setSyncedMode(s.first),
+          ),
+        ),
+        Expanded(child: body),
+      ],
+    );
+  }
+
+  /// Synced lyrics list with the active line highlighted and kept visible.
+  Widget _buildSyncedLyricsView() {
+    return ListView.builder(
+      key: ValueKey('synced_$_lrcSongId'),
+      controller: _lrcScrollController,
+      padding: const EdgeInsets.all(20),
+      itemCount: _lrcLines.length,
+      itemBuilder: (context, i) {
+        final line = _lrcLines[i];
+        final active = i == _lrcIndex;
+        final key = _lrcLineKeys.putIfAbsent(i, () => GlobalKey());
+        return Container(
+          key: key,
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Text(
+            line.text,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: active ? 18 : 15,
+              height: 1.6,
+              fontWeight: active ? FontWeight.bold : FontWeight.normal,
+              color: active
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.grey[600],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPlainLyricsView(Song song) {
     final hasLyrics = song.lyrics != null && song.lyrics.toString().trim().isNotEmpty;
     return SingleChildScrollView(
       key: ValueKey('lyrics_${song.id}'),
@@ -240,7 +424,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ? Column(
               children: [
                 GestureDetector(
-                  onTap: () => setState(() => _showLyrics = false),
+                  onTap: () => _setShowLyrics(false),
                   child: Column(
                     children: [
                       Text(song.lyrics ?? '', style: const TextStyle(fontSize: 16, height: 1.6)),
@@ -260,7 +444,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           : Column(
               children: [
                 GestureDetector(
-                  onTap: () => setState(() => _showLyrics = false),
+                  onTap: () => _setShowLyrics(false),
                   child: Column(
                     children: [
                       const SizedBox(height: 40),
@@ -309,7 +493,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           GestureDetector(
-            onTap: () => setState(() => _showLyrics = true),
+            onTap: () => _setShowLyrics(true),
             child: StreamBuilder(
               stream: _player.player.playerStateStream,
               builder: (context, snapshot) {

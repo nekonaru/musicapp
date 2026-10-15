@@ -19,7 +19,7 @@ class DBHelper {
     final path = p.join(dbPath, 'music_app.db');
     return openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE songs(
@@ -87,6 +87,14 @@ class DBHelper {
             fetchedAt TEXT
           )
         ''');
+        // Synced (LRC) lyrics fetched from lrclib, keyed by song id.
+        await db.execute('''
+          CREATE TABLE synced_lyrics(
+            songId INTEGER PRIMARY KEY,
+            lrc TEXT,
+            fetchedAt TEXT
+          )
+        ''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -136,6 +144,20 @@ class DBHelper {
               CREATE TABLE IF NOT EXISTS metadata_cache(
                 query TEXT PRIMARY KEY,
                 response TEXT,
+                fetchedAt TEXT
+              )
+            ''');
+          } catch (_) {
+            // Table may already exist, ignore
+          }
+        }
+        if (oldVersion < 6) {
+          // Synced (LRC) lyrics store for the synced lyrics feature.
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS synced_lyrics(
+                songId INTEGER PRIMARY KEY,
+                lrc TEXT,
                 fetchedAt TEXT
               )
             ''');
@@ -204,6 +226,7 @@ class DBHelper {
       batch.delete('songs', where: 'id = ?', whereArgs: [id]);
       batch.delete('playlist_songs', where: 'songId = ?', whereArgs: [id]);
       batch.delete('listening_entries', where: 'songId = ?', whereArgs: [id]);
+      batch.delete('synced_lyrics', where: 'songId = ?', whereArgs: [id]);
     }
     await batch.commit(noResult: true);
     return ghostIds.length;
@@ -232,6 +255,8 @@ class DBHelper {
         .delete('playlist_songs', where: 'songId = ?', whereArgs: [id]);
     await database
         .delete('listening_entries', where: 'songId = ?', whereArgs: [id]);
+    await database
+        .delete('synced_lyrics', where: 'songId = ?', whereArgs: [id]);
   }
 
   Future<void> updateSongMetadata(Song s) async {
@@ -531,6 +556,35 @@ class DBHelper {
       {
         'query': query,
         'response': response,
+        'fetchedAt': DateTime.now().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // ---------- Synced (LRC) lyrics ----------
+  /// Raw synced lyrics (LRC text) stored for [songId], or null when absent.
+  Future<String?> getSyncedLyrics(int songId) async {
+    final database = await db;
+    final rows = await database.query('synced_lyrics',
+        columns: ['lrc'],
+        where: 'songId = ?',
+        whereArgs: [songId],
+        limit: 1);
+    if (rows.isEmpty) return null;
+    final lrc = rows.first['lrc'] as String?;
+    if (lrc == null || lrc.isEmpty) return null;
+    return lrc;
+  }
+
+  /// Insert or replace the synced lyrics (LRC text) for [songId].
+  Future<void> setSyncedLyrics(int songId, String lrc) async {
+    final database = await db;
+    await database.insert(
+      'synced_lyrics',
+      {
+        'songId': songId,
+        'lrc': lrc,
         'fetchedAt': DateTime.now().toIso8601String(),
       },
       conflictAlgorithm: ConflictAlgorithm.replace,

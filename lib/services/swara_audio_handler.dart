@@ -8,7 +8,7 @@ import 'player_service.dart';
 /// MediaSession for notifications, the lockscreen, and the foreground service.
 ///
 /// Notification buttons: Shuffle | Previous | Play/Pause | Next | Repeat
-/// (using the built-in drawables already present in res/)
+/// (using the state aware drawables copied from android_res_extra/ into res/)
 class SwaraAudioHandler extends BaseAudioHandler {
   Timer? _positionTicker;
   // Last values seen by _syncState, used by the ticker to decide
@@ -16,19 +16,51 @@ class SwaraAudioHandler extends BaseAudioHandler {
   int? _lastSongId;
   bool? _lastPlaying;
 
-  static const _shuffleAction = MediaControl(
-    androidIcon: 'drawable/ic_notif_shuffle',
-    label: 'Acak',
-    action: MediaAction.custom,
-    customAction: CustomMediaAction(name: 'shuffle'),
-  );
+  // Notification icon names. The off icons are plain glyphs while the on
+  // icons carry a solid marker, so the active state stays clear in the
+  // notification shade where colors are stripped to a white mask.
+  static const _shuffleOffIcon = 'drawable/ic_notif_shuffle';
+  static const _shuffleOnIcon = 'drawable/ic_notif_shuffle_on';
+  static const _repeatOffIcon = 'drawable/ic_notif_repeat';
+  static const _repeatAllIcon = 'drawable/ic_notif_repeat_on';
+  static const _repeatOneIcon = 'drawable/ic_notif_repeat_one';
 
-  static const _repeatAction = MediaControl(
-    androidIcon: 'drawable/ic_notif_repeat',
-    label: 'Ulangi',
-    action: MediaAction.custom,
-    customAction: CustomMediaAction(name: 'repeat'),
-  );
+  /// Shuffle button with an icon that reflects the live shuffle state.
+  MediaControl _shuffleControl(bool enabled) {
+    return MediaControl(
+      androidIcon: enabled ? _shuffleOnIcon : _shuffleOffIcon,
+      label: 'Acak',
+      action: MediaAction.custom,
+      customAction: const CustomMediaAction(name: 'shuffle'),
+    );
+  }
+
+  /// Repeat button with one icon per repeat mode: off, all, and one.
+  MediaControl _repeatControl(SwaraRepeatMode mode) {
+    switch (mode) {
+      case SwaraRepeatMode.one:
+        return const MediaControl(
+          androidIcon: _repeatOneIcon,
+          label: 'Ulangi',
+          action: MediaAction.custom,
+          customAction: CustomMediaAction(name: 'repeat'),
+        );
+      case SwaraRepeatMode.all:
+        return const MediaControl(
+          androidIcon: _repeatAllIcon,
+          label: 'Ulangi',
+          action: MediaAction.custom,
+          customAction: CustomMediaAction(name: 'repeat'),
+        );
+      case SwaraRepeatMode.off:
+        return const MediaControl(
+          androidIcon: _repeatOffIcon,
+          label: 'Ulangi',
+          action: MediaAction.custom,
+          customAction: CustomMediaAction(name: 'repeat'),
+        );
+    }
+  }
 
   SwaraAudioHandler() {
     PlayerService.instance.addListener(_syncState);
@@ -93,14 +125,19 @@ class SwaraAudioHandler extends BaseAudioHandler {
     );
 
     final playing = ps.player.playing;
+    // Pick each icon from the live PlayerService state, so the notification
+    // always shows whether shuffle and repeat are active. Five combinations
+    // are possible: shuffle on/off crossed with repeat off/all/one.
+    final shuffleControl = _shuffleControl(ps.isShuffle);
+    final repeatControl = _repeatControl(ps.repeatMode);
     playbackState.add(
       playbackState.value.copyWith(
         controls: [
-          _shuffleAction,
+          shuffleControl,
           MediaControl.skipToPrevious,
           playing ? MediaControl.pause : MediaControl.play,
           MediaControl.skipToNext,
-          _repeatAction,
+          repeatControl,
         ],
         systemActions: const {
           MediaAction.seek,
@@ -161,9 +198,14 @@ class SwaraAudioHandler extends BaseAudioHandler {
     switch (name) {
       case 'shuffle':
         PlayerService.instance.toggleShuffle();
+        // Refresh right away so the notification icon flips without
+        // waiting for the next listener event.
+        _syncState();
         break;
       case 'repeat':
         PlayerService.instance.cycleRepeatMode();
+        // Same as above: show the new repeat icon immediately.
+        _syncState();
         break;
     }
   }

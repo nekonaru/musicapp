@@ -143,6 +143,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final current = PlayerService.instance.currentSong;
     final isPlaying = current != null && current.id == song.id;
     return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
       leading: isPlaying
           ? Container(
               width: 40,
@@ -189,6 +190,8 @@ class _SearchScreenState extends State<SearchScreen> {
           Text(formatDuration(song.durationMs),
               style: TextStyle(fontSize: 12, color: Colors.grey[500])),
           IconButton(
+            constraints:
+                const BoxConstraints(minWidth: 48, minHeight: 48),
             icon: const Icon(Icons.more_vert),
             onPressed: () => showSongOptions(context, song),
           ),
@@ -201,6 +204,8 @@ class _SearchScreenState extends State<SearchScreen> {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
+                  behavior: SnackBarBehavior.floating,
+                  duration: const Duration(seconds: 5),
                   content: Text(AppLocalizations.of(context)!
                       .libraryPlayFailed('$e'))),
             );
@@ -318,7 +323,6 @@ class _SearchScreenState extends State<SearchScreen> {
           if (gi >= groups.length) {
             return Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              // TODO L10N: move hardcoded English label to .arb.
               child: OutlinedButton(
                 onPressed: () => setState(() {
                   _visibleCount = visibleCount + _pageSize;
@@ -381,6 +385,8 @@ class _SearchScreenState extends State<SearchScreen> {
             contentPadding: const EdgeInsets.symmetric(horizontal: 4),
             suffixIcon: _query.isNotEmpty
                 ? IconButton(
+                    constraints:
+                        const BoxConstraints(minWidth: 48, minHeight: 48),
                     icon: const Icon(Icons.close),
                     onPressed: () {
                       _debounce?.cancel();

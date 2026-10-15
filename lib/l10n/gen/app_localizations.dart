@@ -1939,6 +1939,294 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Load more ({shown} of {total})'**
   String loadMore(int shown, int total);
+
+  /// Sleep timer state while volume fades out
+  ///
+  /// In en, this message translates to:
+  /// **'Fading out...'**
+  String get sleepFadingOut;
+
+  /// Subtitle while sleep fade out runs
+  ///
+  /// In en, this message translates to:
+  /// **'Stopping playback'**
+  String get sleepStoppingPlayback;
+
+  /// Error when auto playlist sync fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to update auto playlists: {error}'**
+  String autoPlaylistError(String error);
+
+  /// Badge marking an auto-generated playlist
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get autoBadge;
+
+  /// Tooltip for reshuffling the Daily Mix playlist
+  ///
+  /// In en, this message translates to:
+  /// **'Reshuffle Daily Mix'**
+  String get reshuffleDailyMix;
+
+  /// Menu label to reshuffle the Daily Mix
+  ///
+  /// In en, this message translates to:
+  /// **'Reshuffle'**
+  String get reshuffle;
+
+  /// Skip onboarding button
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get onboardSkip;
+
+  /// Onboarding next button
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get onboardNext;
+
+  /// Onboarding finish button
+  ///
+  /// In en, this message translates to:
+  /// **'Get Started'**
+  String get onboardGetStarted;
+
+  /// Onboarding page 1 title
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to Swara'**
+  String get onboardTitle1;
+
+  /// Onboarding page 1 description
+  ///
+  /// In en, this message translates to:
+  /// **'Your offline music player. Grant audio access so Swara can list the songs already on your device.'**
+  String get onboardDesc1;
+
+  /// Onboarding page 2 title
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic metadata and lyrics'**
+  String get onboardTitle2;
+
+  /// Onboarding page 2 description
+  ///
+  /// In en, this message translates to:
+  /// **'Swara fills in missing album art, artist info, and lyrics automatically so your library always looks complete.'**
+  String get onboardDesc2;
+
+  /// Onboarding page 3 title
+  ///
+  /// In en, this message translates to:
+  /// **'Ready to listen'**
+  String get onboardTitle3;
+
+  /// Onboarding page 3 description
+  ///
+  /// In en, this message translates to:
+  /// **'Browse songs, build playlists, and check your listening stats on the dashboard. Tap Get Started to begin.'**
+  String get onboardDesc3;
+
+  /// Settings section for backup and cache
+  ///
+  /// In en, this message translates to:
+  /// **'Data'**
+  String get dataSection;
+
+  /// Export backup row title
+  ///
+  /// In en, this message translates to:
+  /// **'Export backup'**
+  String get dataExport;
+
+  /// Export backup row subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Copy playlists, favorites, and history as JSON'**
+  String get dataExportSubtitle;
+
+  /// Import backup row title
+  ///
+  /// In en, this message translates to:
+  /// **'Import backup'**
+  String get dataImport;
+
+  /// Import backup row subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Restore from pasted backup JSON'**
+  String get dataImportSubtitle;
+
+  /// Art cache row title
+  ///
+  /// In en, this message translates to:
+  /// **'Album art cache'**
+  String get dataArtCache;
+
+  /// Art cache subtitle while measuring
+  ///
+  /// In en, this message translates to:
+  /// **'Measuring cache...'**
+  String get dataArtCacheMeasuring;
+
+  /// Art cache size subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'{bytes} in {files} files'**
+  String dataArtCacheUsage(String bytes, int files);
+
+  /// Refresh art cache measurement
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get dataRefresh;
+
+  /// Clear art cache row title
+  ///
+  /// In en, this message translates to:
+  /// **'Clear art cache'**
+  String get dataClearArtCache;
+
+  /// Clear art cache row subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Delete cover files and clear references'**
+  String get dataClearArtCacheSubtitle;
+
+  /// Export dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Export backup'**
+  String get dataExportTitle;
+
+  /// Export dialog message
+  ///
+  /// In en, this message translates to:
+  /// **'Backup ready: {chars} characters, {size}. Copy it to the clipboard for safekeeping.'**
+  String dataExportReady(int chars, String size);
+
+  /// Copy backup to clipboard
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get dataCopy;
+
+  /// Backup copied confirmation
+  ///
+  /// In en, this message translates to:
+  /// **'Backup copied to clipboard'**
+  String get dataCopied;
+
+  /// Export failure message
+  ///
+  /// In en, this message translates to:
+  /// **'Export failed: {error}'**
+  String dataExportFailed(String error);
+
+  /// Import dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Import backup'**
+  String get dataImportTitle;
+
+  /// Import dialog prompt
+  ///
+  /// In en, this message translates to:
+  /// **'Paste a backup JSON string, or load it from the clipboard.'**
+  String get dataImportPrompt;
+
+  /// Import text field hint
+  ///
+  /// In en, this message translates to:
+  /// **'Paste backup JSON here'**
+  String get dataImportHint;
+
+  /// Paste from clipboard
+  ///
+  /// In en, this message translates to:
+  /// **'Paste'**
+  String get dataPaste;
+
+  /// Import confirm button
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get dataImportAction;
+
+  /// Import confirmation title
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm import'**
+  String get dataConfirmImportTitle;
+
+  /// Import confirmation message
+  ///
+  /// In en, this message translates to:
+  /// **'Import will add missing playlists, favorites, and history entries. Continue?'**
+  String get dataConfirmImportMessage;
+
+  /// Import success summary
+  ///
+  /// In en, this message translates to:
+  /// **'Import done: {playlists} playlists, {members} members, {favorites} favorites, {entries} history entries'**
+  String dataImportDone(int playlists, int members, int favorites, int entries);
+
+  /// Import failure message
+  ///
+  /// In en, this message translates to:
+  /// **'Import failed: {error}'**
+  String dataImportFailed(String error);
+
+  /// Clear cache confirmation title
+  ///
+  /// In en, this message translates to:
+  /// **'Clear art cache?'**
+  String get dataClearConfirmTitle;
+
+  /// Clear cache confirmation message
+  ///
+  /// In en, this message translates to:
+  /// **'This deletes {files} cached cover files and removes their references. Continue?'**
+  String dataClearConfirmMessage(int files);
+
+  /// Clear cache confirm button
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get dataClear;
+
+  /// Art cache cleared message
+  ///
+  /// In en, this message translates to:
+  /// **'Art cache cleared: {deleted} files deleted'**
+  String dataArtCleared(int deleted);
+
+  /// Clear cache failure message
+  ///
+  /// In en, this message translates to:
+  /// **'Clear art cache failed: {error}'**
+  String dataClearFailed(String error);
+
+  /// Cache measurement failure
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to measure art cache: {error}'**
+  String dataMeasureFailed(String error);
+
+  /// Synced lyrics toggle label
+  ///
+  /// In en, this message translates to:
+  /// **'Synced'**
+  String get lyricsSynced;
+
+  /// Plain lyrics toggle label
+  ///
+  /// In en, this message translates to:
+  /// **'Plain'**
+  String get lyricsPlain;
 }
 
 class _AppLocalizationsDelegate

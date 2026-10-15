@@ -61,6 +61,9 @@ jobs:
           cp android_res_extra/ic_stat_swara.xml android/app/src/main/res/drawable/ic_stat_swara.xml
           cp android_res_extra/ic_notif_shuffle.xml android/app/src/main/res/drawable/ic_notif_shuffle.xml
           cp android_res_extra/ic_notif_repeat.xml android/app/src/main/res/drawable/ic_notif_repeat.xml
+          cp android_res_extra/ic_notif_shuffle_on.xml android/app/src/main/res/drawable/ic_notif_shuffle_on.xml
+          cp android_res_extra/ic_notif_repeat_on.xml android/app/src/main/res/drawable/ic_notif_repeat_on.xml
+          cp android_res_extra/ic_notif_repeat_one.xml android/app/src/main/res/drawable/ic_notif_repeat_one.xml
           echo "=== drawable folder contents after copy ==="
           ls -la android/app/src/main/res/drawable/
 
@@ -69,7 +72,7 @@ jobs:
           mkdir -p android/app/src/main/res/raw
           cat > android/app/src/main/res/raw/keep.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
-          <resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@drawable/ic_stat_swara,@drawable/ic_notif_shuffle,@drawable/ic_notif_repeat" />
+          <resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@drawable/ic_stat_swara,@drawable/ic_notif_shuffle,@drawable/ic_notif_repeat,@drawable/ic_notif_shuffle_on,@drawable/ic_notif_repeat_on,@drawable/ic_notif_repeat_one" />
           EOF
           cat android/app/src/main/res/raw/keep.xml
 
@@ -193,17 +196,21 @@ jobs:
           body: |
             # English
 
-            **Swara v1.8.3 - Less data, less memory**
+            **Swara v1.9.0 - Smarter playlists and synced lyrics**
 
             ## ✨ New features
 
-            - Playlist data now loads on demand instead of at startup.
+            - Smart auto-playlists: Daily Mix (25 fresh songs every day, reshufflable) and Unplayed, maintained automatically.
+            - Synced (LRC) lyrics with follow-along highlighting and auto-scroll, plus plain view toggle.
+            - Sleep timer fades volume out instead of stopping abruptly.
+            - Backup and restore: export/import playlists, favorites, and history as JSON, plus album-art cache size and cleanup.
+            - First-launch onboarding.
+            - Notification shuffle/repeat buttons now show clearly whether they are on or off.
+            - Polished UI: consistent padding, loading skeletons, centered empty states, 48px touch targets.
 
             ## ⚡ Optimizations
 
-            - Missing lyrics are remembered (90-day negative cache) instead of re-fetched every time you open a song.
-            - One shared HTTP client for all metadata traffic (fewer repeated connections).
-            - Album art decoded at display size (thumbnails for tiles, full size only on the player).
+            - Lyrics fetch results cached longer; synced lyrics stored locally.
 
             ## 📦 Install / Update
 
@@ -217,17 +224,21 @@ jobs:
 
             # Bahasa Indonesia
 
-            **Swara v1.8.3 - Data lebih hemat, memori lebih ringan**
+            **Swara v1.9.0 - Playlist pintar dan lirik sinkron**
 
             ## ✨ Fitur baru
 
-            - Data playlist kini dimuat saat dibutuhkan, bukan saat startup.
+            - Smart playlist otomatis: Daily Mix (25 lagu segar tiap hari, bisa diacak ulang) dan Unplayed, dirawat otomatis.
+            - Lirik sinkron (LRC) dengan highlight mengikuti lagu dan auto-scroll, plus toggle tampilan biasa.
+            - Sleep timer memudarkan volume, bukan berhenti mendadak.
+            - Backup dan restore: export/import playlist, favorit, dan riwayat sebagai JSON, plus info ukuran dan bersih-bersih cache cover.
+            - Onboarding saat pertama dibuka.
+            - Tombol shuffle/repeat notifikasi kini jelas aktif atau tidak.
+            - UI dipoles: padding konsisten, loading skeleton, empty state rata tengah, touch target 48px.
 
             ## ⚡ Pengoptimalan
 
-            - Lirik yang tidak ketemu diingat (negative cache 90 hari) alih-alih di-fetch ulang tiap buka lagu.
-            - Satu HTTP client bersama untuk semua traffic metadata (koneksi tidak diulang-ulang).
-            - Cover album di-decode sesuai ukuran tampil (thumbnail untuk tile, penuh hanya di player).
+            - Hasil fetch lirik di-cache lebih lama; lirik sinkron tersimpan lokal.
 
             ## 📦 Instalasi / Update
 

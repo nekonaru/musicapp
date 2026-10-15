@@ -1,8 +1,10 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import '../providers/library_provider.dart';
 import '../providers/playlist_provider.dart';
+import '../services/db_helper.dart';
 import 'extra_screens.dart';
 import 'history_screen.dart';
 import 'playlist_detail_screen.dart';
@@ -25,6 +27,19 @@ class CollectionsScreen extends StatefulWidget {
 
 class _CollectionsScreenState extends State<CollectionsScreen> {
   bool _sortAZ = true;
+
+  // Names for the built-in automatic playlists.
+  static const String _dailyMixName = 'Daily Mix';
+  static const String _unplayedName = 'Unplayed';
+  static const int _dailyMixLimit = 25;
+
+  // One-shot guard so the auto playlists are synced once per screen visit
+  // instead of on every rebuild. Deleting an auto playlist only removes
+  // that row; it is recreated on the next visit or manual refresh.
+  bool _autoSyncing = false;
+  bool _autoSynced = false;
+  // Extra salt added to the date seed when the user taps refresh.
+  int _dailySalt = 0;
 
   String _sortLabel(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -87,6 +102,122 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
     if (ok == true) prov.delete(id);
   }
 
+  bool _isAutoPlaylist(String name) =>
+      name == _dailyMixName || name == _unplayedName;
+
+  // Seed derived from the current calendar date so the mix stays stable
+  // for the whole day. The manual refresh salt makes a new mix on demand.
+  int _dailySeed() {
+    final now = DateTime.now();
+    final base = now.year * 10000 + now.month * 100 + now.day;
+    return base + _dailySalt;
+  }
+
+  // Pick up to [_dailyMixLimit] random songs from the loaded library.
+  List<int> _pickDailyMixIds(LibraryProvider lib) {
+    final ids = lib.songs.map((s) => s.id).toList();
+    ids.shuffle(Random(_dailySeed()));
+    if (ids.length > _dailyMixLimit) {
+      return ids.sublist(0, _dailyMixLimit);
+    }
+    return ids;
+  }
+
+  void _showAutoError(Object e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+          content: Text(
+              AppLocalizations.of(context)!.autoPlaylistError(e.toString()))),
+    );
+  }
+
+  // Create the playlist when missing, otherwise replace its content.
+  // Uses only the existing PlaylistProvider API so no other file changes.
+  Future<void> _syncOneAutoPlaylist(
+      PlaylistProvider prov, String name, List<int> songIds) async {
+    try {
+      await prov.load();
+      if (!mounted) return;
+      Map<String, dynamic>? existing;
+      for (final p in prov.playlists) {
+        if ((p['name'] as String) == name) {
+          existing = p;
+          break;
+        }
+      }
+      int playlistId;
+      if (existing == null) {
+        await prov.create(name);
+        if (!mounted) return;
+        final found = prov.playlists.firstWhere(
+          (p) => (p['name'] as String) == name,
+        );
+        playlistId = found['id'] as int;
+      } else {
+        playlistId = existing['id'] as int;
+        final current = await prov.songsIn(playlistId);
+        for (final s in current) {
+          await prov.removeSong(playlistId, s.id);
+        }
+      }
+      for (final id in songIds) {
+        try {
+          await prov.addSong(playlistId, id);
+        } catch (_) {
+          // Ignore per-song duplicate errors, keep syncing the rest.
+        }
+      }
+      await prov.load();
+    } catch (e) {
+      _showAutoError(e);
+    }
+  }
+
+  Future<void> _syncDailyMix(
+      PlaylistProvider prov, LibraryProvider lib) async {
+    await _syncOneAutoPlaylist(prov, _dailyMixName, _pickDailyMixIds(lib));
+  }
+
+  Future<void> _syncUnplayed(PlaylistProvider prov, LibraryProvider lib) async {
+    try {
+      final never = await DBHelper.instance.getNeverPlayedSongs();
+      if (!mounted) return;
+      final visible = lib.songs.map((s) => s.id).toSet();
+      final ids = never
+          .map((s) => s.id)
+          .where((id) => visible.contains(id))
+          .toList();
+      await _syncOneAutoPlaylist(prov, _unplayedName, ids);
+    } catch (e) {
+      _showAutoError(e);
+    }
+  }
+
+  // Runs once when the library is ready. Never duplicates: existing
+  // playlists with the same name are updated in place.
+  Future<void> _ensureAutoPlaylists(
+      PlaylistProvider prov, LibraryProvider lib) async {
+    if (_autoSynced || _autoSyncing || lib.songs.isEmpty) return;
+    _autoSyncing = true;
+    await _syncDailyMix(prov, lib);
+    if (!mounted) return;
+    await _syncUnplayed(prov, lib);
+    if (!mounted) return;
+    setState(() {
+      _autoSyncing = false;
+      _autoSynced = true;
+    });
+  }
+
+  Future<void> _reshuffleDailyMix(
+      PlaylistProvider prov, LibraryProvider lib) async {
+    setState(() {
+      _dailySalt = Random().nextInt(1 << 30);
+    });
+    await _syncDailyMix(prov, lib);
+  }
+
   void _openPage(BuildContext context, Widget page) {
     Navigator.push(
       context,
@@ -110,16 +241,36 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
 
     return Consumer2<PlaylistProvider, LibraryProvider>(
       builder: (context, playlists, lib, _) {
-        final pl = List<Map<String, dynamic>>.from(playlists.playlists);
-        if (_sortAZ) {
-          pl.sort((a, b) => (a['name'] as String)
-              .toLowerCase()
-              .compareTo((b['name'] as String).toLowerCase()));
-        } else {
-          pl.sort((a, b) => (b['name'] as String)
-              .toLowerCase()
-              .compareTo((a['name'] as String).toLowerCase()));
+        // Sync the auto playlists once the library is available.
+        // Post frame avoids calling provider methods during build.
+        if (!_autoSynced && !_autoSyncing && lib.songs.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _ensureAutoPlaylists(playlists, lib);
+          });
         }
+        final all = List<Map<String, dynamic>>.from(playlists.playlists);
+        // Auto playlists first so they stand out, then user playlists.
+        final auto = all
+            .where((p) => _isAutoPlaylist(p['name'] as String))
+            .toList();
+        final user = all
+            .where((p) => !_isAutoPlaylist(p['name'] as String))
+            .toList();
+        void sortByName(List<Map<String, dynamic>> list) {
+          if (_sortAZ) {
+            list.sort((a, b) => (a['name'] as String)
+                .toLowerCase()
+                .compareTo((b['name'] as String).toLowerCase()));
+          } else {
+            list.sort((a, b) => (b['name'] as String)
+                .toLowerCase()
+                .compareTo((a['name'] as String).toLowerCase()));
+          }
+        }
+
+        sortByName(auto);
+        sortByName(user);
+        final pl = [...auto, ...user];
 
         return Stack(
           children: [
@@ -237,6 +388,9 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                         delegate: SliverChildBuilderDelegate(
                           (context, i) {
                             final p = pl[i];
+                            final name = p['name'] as String;
+                            final isAuto = _isAutoPlaylist(name);
+                            final isDaily = name == _dailyMixName;
                             return TweenAnimationBuilder<double>(
                               key: ValueKey('pl_${p['id']}'),
                               tween: Tween(begin: 0.0, end: 1.0),
@@ -256,36 +410,77 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                                   width: 44,
                                   height: 44,
                                   decoration: BoxDecoration(
-                                    color: cs.primaryContainer,
+                                    color: isAuto
+                                        ? cs.secondaryContainer
+                                        : cs.primaryContainer,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: Icon(Icons.queue_music,
-                                      color: cs.onPrimaryContainer, size: 22),
+                                  child: Icon(
+                                      isAuto
+                                          ? Icons.auto_awesome_outlined
+                                          : Icons.queue_music,
+                                      color: isAuto
+                                          ? cs.onSecondaryContainer
+                                          : cs.onPrimaryContainer,
+                                      size: 22),
                                 ),
-                                title: Text(p['name'],
+                                title: Text(name,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w500)),
-                                trailing: PopupMenuButton<String>(
-                                  icon: const Icon(Icons.more_vert),
-                                  onSelected: (action) {
-                                    if (action == 'delete') {
-                                      _confirmDelete(context, playlists,
-                                          p['id'], p['name']);
-                                    }
-                                  },
-                                  itemBuilder: (_) => [
-                                    PopupMenuItem(
-                                        value: 'delete',
-                                        child: Text(l.delete)),
+                                subtitle: isAuto
+                                    ? Text(
+                                        AppLocalizations.of(context)!.autoBadge,
+                                        style: const TextStyle(fontSize: 12))
+                                    : null,
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (isDaily)
+                                      IconButton(
+                                        icon: const Icon(
+                                            Icons.refresh, size: 20),
+                                        tooltip:
+                                            AppLocalizations.of(context)!
+                                                .reshuffleDailyMix,
+                                        onPressed: () => _reshuffleDailyMix(
+                                            playlists, lib),
+                                      ),
+                                    PopupMenuButton<String>(
+                                      icon: const Icon(Icons.more_vert),
+                                      onSelected: (action) {
+                                        if (action == 'delete') {
+                                          // Deleting an auto playlist is safe:
+                                          // it only removes that row and the
+                                          // next sync recreates it fresh.
+                                          _confirmDelete(context, playlists,
+                                              p['id'], name);
+                                        } else if (action == 'reshuffle' &&
+                                            isDaily) {
+                                          _reshuffleDailyMix(
+                                              playlists, lib);
+                                        }
+                                      },
+                                      itemBuilder: (_) => [
+                                        if (isDaily)
+                                          PopupMenuItem(
+                                              value: 'reshuffle',
+                                              child: Text(
+                                                  AppLocalizations.of(context)!
+                                                      .reshuffle)),
+                                        PopupMenuItem(
+                                            value: 'delete',
+                                            child: Text(l.delete)),
+                                      ],
+                                    ),
                                   ],
                                 ),
                                 onTap: () => _openPage(
                                   context,
                                   PlaylistDetailScreen(
                                       playlistId: p['id'],
-                                      playlistName: p['name']),
+                                      playlistName: name),
                                 ),
                               ),
                             );

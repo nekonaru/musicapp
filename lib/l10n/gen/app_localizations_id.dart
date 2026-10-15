@@ -1053,4 +1053,176 @@ class AppLocalizationsId extends AppLocalizations {
   String loadMore(int shown, int total) {
     return 'Muat lagi ($shown dari $total)';
   }
+
+  @override
+  String get sleepFadingOut => 'Memudar...';
+
+  @override
+  String get sleepStoppingPlayback => 'Menghentikan pemutaran';
+
+  @override
+  String autoPlaylistError(String error) {
+    return 'Gagal memperbarui playlist otomatis: $error';
+  }
+
+  @override
+  String get autoBadge => 'Otomatis';
+
+  @override
+  String get reshuffleDailyMix => 'Acak Ulang Campuran Harian';
+
+  @override
+  String get reshuffle => 'Acak Ulang';
+
+  @override
+  String get onboardSkip => 'Lewati';
+
+  @override
+  String get onboardNext => 'Lanjut';
+
+  @override
+  String get onboardGetStarted => 'Mulai';
+
+  @override
+  String get onboardTitle1 => 'Selamat datang di Swara';
+
+  @override
+  String get onboardDesc1 =>
+      'Pemutar musik offline-mu. Izinkan akses audio agar Swara dapat menampilkan lagu yang sudah ada di perangkat.';
+
+  @override
+  String get onboardTitle2 => 'Metadata dan lirik otomatis';
+
+  @override
+  String get onboardDesc2 =>
+      'Swara melengkapi cover album, info artis, dan lirik yang hilang secara otomatis agar library selalu tampil lengkap.';
+
+  @override
+  String get onboardTitle3 => 'Siap mendengarkan';
+
+  @override
+  String get onboardDesc3 =>
+      'Jelajahi lagu, susun playlist, dan cek statistik mendengarkan di dashboard. Ketuk Mulai untuk memulai.';
+
+  @override
+  String get dataSection => 'Data';
+
+  @override
+  String get dataExport => 'Export backup';
+
+  @override
+  String get dataExportSubtitle =>
+      'Salin playlist, favorit, dan riwayat sebagai JSON';
+
+  @override
+  String get dataImport => 'Import backup';
+
+  @override
+  String get dataImportSubtitle => 'Pulihkan dari JSON backup yang ditempel';
+
+  @override
+  String get dataArtCache => 'Cache cover album';
+
+  @override
+  String get dataArtCacheMeasuring => 'Mengukur cache...';
+
+  @override
+  String dataArtCacheUsage(String bytes, int files) {
+    return '$bytes dalam $files file';
+  }
+
+  @override
+  String get dataRefresh => 'Segarkan';
+
+  @override
+  String get dataClearArtCache => 'Bersihkan cache cover';
+
+  @override
+  String get dataClearArtCacheSubtitle =>
+      'Hapus file cover dan bersihkan referensi';
+
+  @override
+  String get dataExportTitle => 'Export backup';
+
+  @override
+  String dataExportReady(int chars, String size) {
+    return 'Backup siap: $chars karakter, $size. Salin ke clipboard agar aman.';
+  }
+
+  @override
+  String get dataCopy => 'Salin';
+
+  @override
+  String get dataCopied => 'Backup tersalin ke clipboard';
+
+  @override
+  String dataExportFailed(String error) {
+    return 'Export gagal: $error';
+  }
+
+  @override
+  String get dataImportTitle => 'Import backup';
+
+  @override
+  String get dataImportPrompt =>
+      'Tempel string JSON backup, atau muat dari clipboard.';
+
+  @override
+  String get dataImportHint => 'Tempel JSON backup di sini';
+
+  @override
+  String get dataPaste => 'Tempel';
+
+  @override
+  String get dataImportAction => 'Import';
+
+  @override
+  String get dataConfirmImportTitle => 'Konfirmasi import';
+
+  @override
+  String get dataConfirmImportMessage =>
+      'Import akan menambah playlist, favorit, dan entri riwayat yang belum ada. Lanjut?';
+
+  @override
+  String dataImportDone(
+      int playlists, int members, int favorites, int entries) {
+    return 'Import selesai: $playlists playlist, $members anggota, $favorites favorit, $entries entri riwayat';
+  }
+
+  @override
+  String dataImportFailed(String error) {
+    return 'Import gagal: $error';
+  }
+
+  @override
+  String get dataClearConfirmTitle => 'Bersihkan cache cover?';
+
+  @override
+  String dataClearConfirmMessage(int files) {
+    return 'Ini menghapus $files file cover cache dan referensinya. Lanjut?';
+  }
+
+  @override
+  String get dataClear => 'Bersihkan';
+
+  @override
+  String dataArtCleared(int deleted) {
+    return 'Cache cover dibersihkan: $deleted file dihapus';
+  }
+
+  @override
+  String dataClearFailed(String error) {
+    return 'Gagal membersihkan cache cover: $error';
+  }
+
+  @override
+  String dataMeasureFailed(String error) {
+    return 'Gagal mengukur cache cover: $error';
+  }
+
+  @override
+  String get lyricsSynced => 'Sinkron';
+
+  @override
+  String get lyricsPlain => 'Biasa';
 }

@@ -53,15 +53,26 @@ class HistoryScreenState extends State<HistoryScreen> {
       );
     }
     if (_history.isEmpty) {
-      return Center(child: Text(l.historyEmpty));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.history_outlined, size: 64, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            Text(l.historyEmpty, textAlign: TextAlign.center),
+          ],
+        ),
+      );
     }
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: _history.length,
         itemBuilder: (context, i) {
           final song = _history[i];
           return ListTile(
+            contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.history),
             title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
             subtitle: Text(song.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -70,6 +81,8 @@ class HistoryScreenState extends State<HistoryScreen> {
               children: [
                 Text(formatDuration(song.durationMs), style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                 IconButton(
+                  constraints:
+                      const BoxConstraints(minWidth: 48, minHeight: 48),
                   icon: const Icon(Icons.more_vert),
                   onPressed: () => showSongOptions(context, song),
                 ),

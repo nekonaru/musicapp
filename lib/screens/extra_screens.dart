@@ -20,6 +20,80 @@ import 'playlist_detail_screen.dart';
 // SHARED WIDGET: consistent song list tile used on every screen
 // ─────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────
+// SHARED WIDGET: pulsing grey placeholder for first load.
+// Uses only Container and TweenAnimationBuilder, no new dependency.
+// ─────────────────────────────────────────────────────────────
+
+/// Single grey bar that fades in once on first load.
+class _SkeletonBar extends StatelessWidget {
+  final double height;
+  final double width;
+  final BorderRadius borderRadius;
+  const _SkeletonBar({
+    required this.height,
+    this.width = double.infinity,
+    this.borderRadius = const BorderRadius.all(Radius.circular(8)),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.35, end: 0.7),
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.easeInOut,
+      builder: (context, v, _) => Opacity(
+        opacity: v,
+        child: Container(
+          height: height,
+          width: width,
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHighest,
+            borderRadius: borderRadius,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Simple vertical skeleton list used for first load states.
+class _SkeletonList extends StatelessWidget {
+  const _SkeletonList();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      itemCount: 8,
+      itemBuilder: (context, i) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            _SkeletonBar(
+              height: 40,
+              width: 40,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SkeletonBar(height: 12, width: 160),
+                  SizedBox(height: 6),
+                  _SkeletonBar(height: 10, width: 110),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 Widget buildSongTile(
   BuildContext context,
   Song song,
@@ -34,7 +108,7 @@ Widget buildSongTile(
   // Isolate each tile so the mini player animation does not repaint the list.
   return RepaintBoundary(
     child: ListTile(
-    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
     tileColor: isPlaying ? cs.primaryContainer.withValues(alpha: 0.25) : null,
     leading: leading ??
         (isPlaying
@@ -94,6 +168,8 @@ Widget buildSongTile(
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 5),
                 content: Text(AppLocalizations.of(context)!
                     .libraryPlayFailed('$e'))),
           );
@@ -108,6 +184,8 @@ Widget buildSongTile(
         if (showOptions)
           IconButton(
             icon: const Icon(Icons.more_vert),
+            constraints:
+                const BoxConstraints(minWidth: 48, minHeight: 48),
             onPressed: () => showSongOptions(context, song),
           ),
       ],
@@ -139,7 +217,7 @@ Widget buildCollectionHeader({
         ),
       ),
       Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
         child: Row(
           children: [
             Expanded(
@@ -153,6 +231,8 @@ Widget buildCollectionHeader({
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
+                                  behavior: SnackBarBehavior.floating,
+                                  duration: const Duration(seconds: 5),
                                   content: Text(
                                       AppLocalizations.of(context)!
                                           .libraryPlayFailed('$e'))),
@@ -261,6 +341,8 @@ class _FoldersScreenState extends State<FoldersScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
             content: Text(AppLocalizations.of(context)!
                 .foldersLoadFailed('$e'))),
       );
@@ -276,6 +358,8 @@ class _FoldersScreenState extends State<FoldersScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
               content: Text(isHidden
                   ? AppLocalizations.of(context)!.foldersShownAgain
                   : AppLocalizations.of(context)!.foldersHidden)),
@@ -313,7 +397,16 @@ class _FoldersScreenState extends State<FoldersScreen> {
 
     if (_folders.isEmpty) {
       return Center(
-          child: Text(AppLocalizations.of(context)!.foldersEmpty));
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.folder_outlined, size: 64, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            Text(AppLocalizations.of(context)!.foldersEmpty,
+                textAlign: TextAlign.center),
+          ],
+        ),
+      );
     }
 
     return Column(
@@ -356,6 +449,8 @@ class _FoldersScreenState extends State<FoldersScreen> {
                 ],
               ),
               IconButton(
+                constraints:
+                    const BoxConstraints(minWidth: 48, minHeight: 48),
                 icon: Icon(
                     _showHidden ? Icons.visibility_off : Icons.visibility_outlined,
                     size: 18),
@@ -367,8 +462,10 @@ class _FoldersScreenState extends State<FoldersScreen> {
             ],
           ),
         ),
+        const Divider(height: 1),
         Expanded(
           child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: visibleFolders.length,
             itemBuilder: (context, i) {
               final folder = visibleFolders[i];
@@ -386,6 +483,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
                       Transform.translate(offset: Offset(0, (1 - v) * 6), child: child),
                 ),
                 child: ListTile(
+                  contentPadding: EdgeInsets.zero,
                   leading: Icon(Icons.folder_outlined,
                       color: isHidden ? Colors.grey : Theme.of(context).colorScheme.primary),
                   title: Text(folder.split('/').last,
@@ -396,6 +494,8 @@ class _FoldersScreenState extends State<FoldersScreen> {
                               formatDurationLong(totalMs)),
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                   trailing: IconButton(
+                    constraints:
+                        const BoxConstraints(minWidth: 48, minHeight: 48),
                     icon: Icon(
                         isHidden ? Icons.visibility_off : Icons.visibility_outlined,
                         size: 18),
@@ -547,6 +647,8 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
               content: Text(
                   AppLocalizations.of(context)!.foldersAllScanned)),
         );
@@ -570,6 +672,8 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
             content:
                 Text(AppLocalizations.of(context)!.foldersScanDone)),
       );
@@ -631,6 +735,8 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
                   padding: EdgeInsets.all(16),
                   child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
               : IconButton(
+                  constraints:
+                      const BoxConstraints(minWidth: 48, minHeight: 48),
                   icon: const Icon(Icons.cloud_sync_outlined),
                   onPressed: _localSongs.isEmpty
                       ? null
@@ -646,8 +752,18 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
           Expanded(
             child: displayed.isEmpty
                 ? Center(
-                    child: Text(
-                        AppLocalizations.of(context)!.foldersNoSongs))
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.music_note_outlined,
+                            size: 64, color: Colors.grey[300]),
+                        const SizedBox(height: 16),
+                        Text(
+                            AppLocalizations.of(context)!.foldersNoSongs,
+                            textAlign: TextAlign.center),
+                      ],
+                    ),
+                  )
                 : Stack(
                     children: [
                       AnimatedBuilder(
@@ -693,17 +809,22 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
   void _pickScanMode() {
     showModalBottomSheet(
       context: context,
+      showDragHandle: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
         child: Wrap(
           children: [
             ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16),
               leading: const Icon(Icons.cloud_sync_outlined),
               title: Text(AppLocalizations.of(context)!.libraryScanMissing),
               onTap: () { Navigator.pop(ctx); _scanThisFolder(onlyMissing: true); },
             ),
             ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16),
               leading: const Icon(Icons.refresh),
               title: Text(AppLocalizations.of(context)!.libraryRescanAll),
               onTap: () { Navigator.pop(ctx); _scanThisFolder(onlyMissing: false); },
@@ -744,7 +865,16 @@ class ArtistsScreen extends StatelessWidget {
       builder: (context, lib, _) {
         if (lib.songs.isEmpty) {
           return Center(
-              child: Text(AppLocalizations.of(context)!.artistsEmpty));
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.person_outline, size: 64, color: Colors.grey[300]),
+                const SizedBox(height: 16),
+                Text(AppLocalizations.of(context)!.artistsEmpty,
+                    textAlign: TextAlign.center),
+              ],
+            ),
+          );
         }
         final grouped = lib.groupedByArtist;
         final artists = grouped.keys.toList()..sort();
@@ -759,8 +889,10 @@ class ArtistsScreen extends StatelessWidget {
                     style: TextStyle(fontSize: 12, color: Colors.grey[500])),
               ),
             ),
+            const Divider(height: 1),
             Expanded(
               child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: artists.length,
                 itemBuilder: (context, i) {
                   final artist = artists[i];
@@ -775,6 +907,7 @@ class ArtistsScreen extends StatelessWidget {
                         child: Transform.translate(
                             offset: Offset(0, (1 - v) * 6), child: child)),
                     child: ListTile(
+                      contentPadding: EdgeInsets.zero,
                       leading: CircleAvatar(
                         backgroundColor:
                             Theme.of(context).colorScheme.primaryContainer,
@@ -869,7 +1002,17 @@ class GenresScreen extends StatelessWidget {
       builder: (context, lib, _) {
         if (lib.songs.isEmpty) {
           return Center(
-              child: Text(AppLocalizations.of(context)!.genresEmpty));
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.category_outlined,
+                    size: 64, color: Colors.grey[300]),
+                const SizedBox(height: 16),
+                Text(AppLocalizations.of(context)!.genresEmpty,
+                    textAlign: TextAlign.center),
+              ],
+            ),
+          );
         }
         final grouped = lib.groupedByGenre;
         final genres = grouped.keys.toList()..sort();
@@ -884,8 +1027,10 @@ class GenresScreen extends StatelessWidget {
                     style: TextStyle(fontSize: 12, color: Colors.grey[500])),
               ),
             ),
+            const Divider(height: 1),
             Expanded(
               child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: genres.length,
                 itemBuilder: (context, i) {
                   final genre = genres[i];
@@ -900,6 +1045,7 @@ class GenresScreen extends StatelessWidget {
                         child: Transform.translate(
                             offset: Offset(0, (1 - v) * 6), child: child)),
                     child: ListTile(
+                      contentPadding: EdgeInsets.zero,
                       leading: Container(
                         width: 40,
                         height: 40,
@@ -1106,7 +1252,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           children: [
             // Sort + total row
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: Row(
                 children: [
                   GestureDetector(
@@ -1140,7 +1286,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Row(
                 children: [
                   Expanded(
@@ -1154,6 +1300,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
+                                        behavior: SnackBarBehavior.floating,
+                                        duration:
+                                            const Duration(seconds: 5),
                                         content: Text(
                                             AppLocalizations.of(context)!
                                                 .libraryPlayFailed('$e'))),
@@ -1246,6 +1395,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   void _showSortMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      showDragHandle: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
@@ -1260,6 +1410,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       fontWeight: FontWeight.bold, fontSize: 15)),
             ),
             ..._FavSortOption.values.map((opt) => ListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16),
                   dense: true,
                   leading: _sortOption == opt
                       ? Icon(Icons.check, size: 18, color: Theme.of(context).colorScheme.primary)
@@ -1380,17 +1532,21 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                   ),
                   IconButton.filled(
                     onPressed: _createPlaylist,
+                    constraints:
+                        const BoxConstraints(minWidth: 48, minHeight: 48),
                     icon: const Icon(Icons.add, size: 18),
                     iconSize: 18,
                     style: IconButton.styleFrom(
-                        minimumSize: const Size(32, 32),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                        minimumSize: const Size(48, 48),
+                        tapTargetSize: MaterialTapTargetSize.padded),
                   ),
                 ],
               ),
             ),
+            const Divider(height: 1),
             Expanded(
               child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: provider.playlists.length,
                 itemBuilder: (context, i) {
                   final p = provider.playlists[i];
@@ -1404,6 +1560,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                         child: Transform.translate(
                             offset: Offset(0, (1 - v) * 6), child: child)),
                     child: ListTile(
+                      contentPadding: EdgeInsets.zero,
                       leading: Container(
                         width: 40, height: 40,
                         decoration: BoxDecoration(
@@ -1432,6 +1589,8 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                         ),
                       ),
                       trailing: IconButton(
+                        constraints: const BoxConstraints(
+                            minWidth: 48, minHeight: 48),
                         icon: const Icon(Icons.delete_outline, size: 20),
                         onPressed: () =>
                             _confirmDelete(context, provider, p['id'], p['name']),
@@ -1477,11 +1636,21 @@ class _RecentlyAddedScreenState extends State<RecentlyAddedScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return const _SkeletonList();
     if (_songs.isEmpty) {
       return Center(
-          child: Text(
-              AppLocalizations.of(context)!.collectionsRecentlyAddedEmpty));
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.new_releases_outlined,
+                size: 64, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            Text(
+                AppLocalizations.of(context)!.collectionsRecentlyAddedEmpty,
+                textAlign: TextAlign.center),
+          ],
+        ),
+      );
     }
     final totalMs = _songs.fold(0, (sum, s) => sum + s.durationMs);
     return RefreshIndicator(
@@ -1563,7 +1732,7 @@ class _MostPlayedScreenState extends State<MostPlayedScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return const _SkeletonList();
     if (_songs.isEmpty) {
       return Center(
         child: Column(

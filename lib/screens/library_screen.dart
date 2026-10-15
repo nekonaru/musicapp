@@ -17,6 +17,69 @@ class LibraryScreen extends StatefulWidget {
   State<LibraryScreen> createState() => _LibraryScreenState();
 }
 
+// ─────────────────────────────────────────────────────────────
+// First load skeleton: grey pulsing boxes, no new dependency.
+// ─────────────────────────────────────────────────────────────
+
+/// Single grey bar that fades in once on first load.
+class _SkeletonBar extends StatelessWidget {
+  final double height;
+  final double width;
+  const _SkeletonBar({required this.height, this.width = double.infinity});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.35, end: 0.7),
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.easeInOut,
+      builder: (context, v, _) => Opacity(
+        opacity: v,
+        child: Container(
+          height: height,
+          width: width,
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Simple vertical skeleton list for the library first load.
+class _LibrarySkeleton extends StatelessWidget {
+  const _LibrarySkeleton();
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      itemCount: 10,
+      itemBuilder: (context, i) => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            _SkeletonBar(height: 40, width: 40),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SkeletonBar(height: 12, width: 160),
+                  SizedBox(height: 6),
+                  _SkeletonBar(height: 10, width: 110),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _LibraryScreenState extends State<LibraryScreen> {
   final ScrollController _scrollController = ScrollController();
   static const double _itemHeight = 72.0;
@@ -97,7 +160,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final err = PlayerService.instance.lastError;
     if (err != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(err), backgroundColor: Colors.red));
+          SnackBar(
+              content: Text(err),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 5)));
     }
   }
 
@@ -105,6 +172,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final l = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
+      showDragHandle: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
@@ -118,6 +186,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             ),
             ...SortOption.values.map((opt) => ListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16),
                   dense: true,
                   leading: lib.sortOption == opt
                       ? Icon(Icons.check,
@@ -170,11 +240,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final playlists = provider.playlists;
     if (playlists.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.libraryCreatePlaylistFirst)));
+          SnackBar(
+              content: Text(l.libraryCreatePlaylistFirst),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3)));
       return;
     }
     await showModalBottomSheet(
       context: context,
+      showDragHandle: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
@@ -186,6 +260,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 child: Text(l.libraryChoosePlaylist,
                     style: const TextStyle(fontWeight: FontWeight.bold))),
             ...playlists.map((p) => ListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16),
                   leading: const Icon(Icons.queue_music),
                   title: Text(p['name']),
                   onTap: () async {
@@ -196,6 +272,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     _exitMultiSelect();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 3),
                           content: Text(l.libraryAddedToPlaylist(
                               songs.length, p['name']))));
                     }
@@ -214,18 +292,22 @@ class _LibraryScreenState extends State<LibraryScreen> {
         lib.songs.where((s) => _selectedIds.contains(s.id)).toList();
     return Container(
       color: Theme.of(context).colorScheme.surfaceContainerHigh,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         children: [
           Text(l.librarySelectedCount(_selectedIds.length),
               style: const TextStyle(fontWeight: FontWeight.bold)),
           const Spacer(),
           IconButton(
+              constraints:
+                  const BoxConstraints(minWidth: 48, minHeight: 48),
               icon: const Icon(Icons.playlist_add),
               tooltip: l.libraryAddToPlaylist,
               onPressed:
                   selected.isEmpty ? null : () => _bulkAddToPlaylist(selected)),
           IconButton(
+              constraints:
+                  const BoxConstraints(minWidth: 48, minHeight: 48),
               icon: const Icon(Icons.favorite_border),
               tooltip: l.libraryAddToFavorites,
               onPressed: selected.isEmpty
@@ -236,6 +318,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       _exitMultiSelect();
                     }),
           IconButton(
+              constraints:
+                  const BoxConstraints(minWidth: 48, minHeight: 48),
               icon: const Icon(Icons.close),
               onPressed: _exitMultiSelect),
         ],
@@ -251,7 +335,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       children: [
         // Sort chip + total info
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
           child: Row(
             children: [
               GestureDetector(
@@ -295,12 +379,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2)),
                     )
                   : IconButton(
+                      constraints: const BoxConstraints(
+                          minWidth: 48, minHeight: 48),
                       icon:
                           const Icon(Icons.cloud_sync_outlined, size: 18),
                       tooltip: l.libraryScanMetadata,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                          minWidth: 28, minHeight: 28),
                       onPressed: () => _showScanMenu(context, lib),
                     ),
             ],
@@ -308,7 +391,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ),
         // Play buttons
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Row(
             children: [
               Expanded(
@@ -350,12 +433,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final l = AppLocalizations.of(context)!;
     return Consumer<LibraryProvider>(builder: (context, lib, _) {
       if (lib.isScanning && lib.songs.isEmpty) {
-        return Center(
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: 16),
-          Text(l.libraryScanningMusic),
-        ]));
+        return Column(
+          children: [
+            Expanded(child: const _LibrarySkeleton()),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Text(l.libraryScanningMusic,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+            ),
+          ],
+        );
       }
       if (lib.songs.isEmpty) {
         return Center(
@@ -485,11 +572,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final l = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
+      showDragHandle: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
         child: Wrap(children: [
           ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16),
             leading: const Icon(Icons.cloud_sync_outlined),
             title: Text(l.libraryScanMissing),
             onTap: () {
@@ -498,6 +588,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
             },
           ),
           ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16),
             leading: const Icon(Icons.refresh),
             title: Text(l.libraryRescanAll),
             onTap: () async {
@@ -560,7 +652,7 @@ class _SongTile extends StatelessWidget {
             : isPlaying
                 ? cs.primaryContainer.withValues(alpha: 0.25)
                 : null,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         height: 72,
         child: Row(
           children: [
@@ -637,6 +729,8 @@ class _SongTile extends StatelessWidget {
                 style: TextStyle(fontSize: 12, color: Colors.grey[500])),
             if (!isMultiSelect)
               IconButton(
+                  constraints:
+                      const BoxConstraints(minWidth: 48, minHeight: 48),
                   icon: const Icon(Icons.more_vert),
                   onPressed: () => onOptions?.call(song) ??
                       showSongOptions(context, song)),

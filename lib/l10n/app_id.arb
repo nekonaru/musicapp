@@ -799,5 +799,262 @@
                                                           "type":  "int"
                                                       }
                                         }
-                   }
+                   },
+    "sleepFadingOut":  "Memudar...",
+    "@sleepFadingOut":  {
+                             "description":  "Status timer tidur saat volume memudar"
+                         },
+    "sleepStoppingPlayback":  "Menghentikan pemutaran",
+    "@sleepStoppingPlayback":  {
+                                    "description":  "Subjudul saat fade-out berjalan"
+                                },
+    "autoPlaylistError":  "Gagal memperbarui playlist otomatis: {error}",
+    "@autoPlaylistError":  {
+                                "description":  "Error saat sync playlist otomatis gagal",
+                                "placeholders":  {
+                                                     "error":  {
+                                                                   "type":  "String"
+                                                               }
+                                                 }
+                            },
+    "autoBadge":  "Otomatis",
+    "@autoBadge":  {
+                        "description":  "Badge penanda playlist otomatis"
+                    },
+    "reshuffleDailyMix":  "Acak Ulang Campuran Harian",
+    "@reshuffleDailyMix":  {
+                                "description":  "Tooltip acak ulang Daily Mix"
+                            },
+    "reshuffle":  "Acak Ulang",
+    "@reshuffle":  {
+                        "description":  "Label menu acak ulang"
+                    },
+    "onboardSkip":  "Lewati",
+    "@onboardSkip":  {
+                          "description":  "Tombol lewati onboarding"
+                      },
+    "onboardNext":  "Lanjut",
+    "@onboardNext":  {
+                          "description":  "Tombol lanjut onboarding"
+                      },
+    "onboardGetStarted":  "Mulai",
+    "@onboardGetStarted":  {
+                                "description":  "Tombol selesai onboarding"
+                            },
+    "onboardTitle1":  "Selamat datang di Swara",
+    "@onboardTitle1":  {
+                            "description":  "Judul onboarding halaman 1"
+                        },
+    "onboardDesc1":  "Pemutar musik offline-mu. Izinkan akses audio agar Swara dapat menampilkan lagu yang sudah ada di perangkat.",
+    "@onboardDesc1":  {
+                           "description":  "Deskripsi onboarding halaman 1"
+                       },
+    "onboardTitle2":  "Metadata dan lirik otomatis",
+    "@onboardTitle2":  {
+                            "description":  "Judul onboarding halaman 2"
+                        },
+    "onboardDesc2":  "Swara melengkapi cover album, info artis, dan lirik yang hilang secara otomatis agar library selalu tampil lengkap.",
+    "@onboardDesc2":  {
+                           "description":  "Deskripsi onboarding halaman 2"
+                       },
+    "onboardTitle3":  "Siap mendengarkan",
+    "@onboardTitle3":  {
+                            "description":  "Judul onboarding halaman 3"
+                        },
+    "onboardDesc3":  "Jelajahi lagu, susun playlist, dan cek statistik mendengarkan di dashboard. Ketuk Mulai untuk memulai.",
+    "@onboardDesc3":  {
+                           "description":  "Deskripsi onboarding halaman 3"
+                       },
+    "dataSection":  "Data",
+    "@dataSection":  {
+                          "description":  "Section pengaturan untuk backup dan cache"
+                      },
+    "dataExport":  "Export backup",
+    "@dataExport":  {
+                         "description":  "Judul baris export backup"
+                     },
+    "dataExportSubtitle":  "Salin playlist, favorit, dan riwayat sebagai JSON",
+    "@dataExportSubtitle":  {
+                                 "description":  "Subjudul baris export backup"
+                             },
+    "dataImport":  "Import backup",
+    "@dataImport":  {
+                         "description":  "Judul baris import backup"
+                     },
+    "dataImportSubtitle":  "Pulihkan dari JSON backup yang ditempel",
+    "@dataImportSubtitle":  {
+                                 "description":  "Subjudul baris import backup"
+                             },
+    "dataArtCache":  "Cache cover album",
+    "@dataArtCache":  {
+                           "description":  "Judul baris cache cover"
+                       },
+    "dataArtCacheMeasuring":  "Mengukur cache...",
+    "@dataArtCacheMeasuring":  {
+                                    "description":  "Subjudul saat mengukur cache"
+                                },
+    "dataArtCacheUsage":  "{bytes} dalam {files} file",
+    "@dataArtCacheUsage":  {
+                                "description":  "Subjudul ukuran cache",
+                                "placeholders":  {
+                                                     "bytes":  {
+                                                                   "type":  "String"
+                                                               },
+                                                     "files":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "dataRefresh":  "Segarkan",
+    "@dataRefresh":  {
+                          "description":  "Segarkan pengukuran cache"
+                      },
+    "dataClearArtCache":  "Bersihkan cache cover",
+    "@dataClearArtCache":  {
+                                "description":  "Judul baris bersihkan cache"
+                            },
+    "dataClearArtCacheSubtitle":  "Hapus file cover dan bersihkan referensi",
+    "@dataClearArtCacheSubtitle":  {
+                                        "description":  "Subjudul baris bersihkan cache"
+                                    },
+    "dataExportTitle":  "Export backup",
+    "@dataExportTitle":  {
+                              "description":  "Judul dialog export"
+                          },
+    "dataExportReady":  "Backup siap: {chars} karakter, {size}. Salin ke clipboard agar aman.",
+    "@dataExportReady":  {
+                              "description":  "Pesan dialog export",
+                              "placeholders":  {
+                                                   "chars":  {
+                                                                 "type":  "int"
+                                                             },
+                                                   "size":  {
+                                                                "type":  "String"
+                                                            }
+                                               }
+                          },
+    "dataCopy":  "Salin",
+    "@dataCopy":  {
+                       "description":  "Salin backup ke clipboard"
+                   },
+    "dataCopied":  "Backup tersalin ke clipboard",
+    "@dataCopied":  {
+                         "description":  "Konfirmasi backup tersalin"
+                     },
+    "dataExportFailed":  "Export gagal: {error}",
+    "@dataExportFailed":  {
+                               "description":  "Pesan gagal export",
+                               "placeholders":  {
+                                                    "error":  {
+                                                                  "type":  "String"
+                                                              }
+                                                }
+                           },
+    "dataImportTitle":  "Import backup",
+    "@dataImportTitle":  {
+                              "description":  "Judul dialog import"
+                          },
+    "dataImportPrompt":  "Tempel string JSON backup, atau muat dari clipboard.",
+    "@dataImportPrompt":  {
+                               "description":  "Prompt dialog import"
+                           },
+    "dataImportHint":  "Tempel JSON backup di sini",
+    "@dataImportHint":  {
+                             "description":  "Hint field import"
+                         },
+    "dataPaste":  "Tempel",
+    "@dataPaste":  {
+                        "description":  "Tempel dari clipboard"
+                    },
+    "dataImportAction":  "Import",
+    "@dataImportAction":  {
+                               "description":  "Tombol konfirmasi import"
+                           },
+    "dataConfirmImportTitle":  "Konfirmasi import",
+    "@dataConfirmImportTitle":  {
+                                     "description":  "Judul konfirmasi import"
+                                 },
+    "dataConfirmImportMessage":  "Import akan menambah playlist, favorit, dan entri riwayat yang belum ada. Lanjut?",
+    "@dataConfirmImportMessage":  {
+                                       "description":  "Pesan konfirmasi import"
+                                   },
+    "dataImportDone":  "Import selesai: {playlists} playlist, {members} anggota, {favorites} favorit, {entries} entri riwayat",
+    "@dataImportDone":  {
+                             "description":  "Ringkasan sukses import",
+                             "placeholders":  {
+                                                  "playlists":  {
+                                                                    "type":  "int"
+                                                                },
+                                                  "members":  {
+                                                                  "type":  "int"
+                                                              },
+                                                  "favorites":  {
+                                                                    "type":  "int"
+                                                                },
+                                                  "entries":  {
+                                                                  "type":  "int"
+                                                              }
+                                              }
+                         },
+    "dataImportFailed":  "Import gagal: {error}",
+    "@dataImportFailed":  {
+                               "description":  "Pesan gagal import",
+                               "placeholders":  {
+                                                    "error":  {
+                                                                  "type":  "String"
+                                                              }
+                                                }
+                           },
+    "dataClearConfirmTitle":  "Bersihkan cache cover?",
+    "@dataClearConfirmTitle":  {
+                                    "description":  "Judul konfirmasi bersihkan cache"
+                                },
+    "dataClearConfirmMessage":  "Ini menghapus {files} file cover cache dan referensinya. Lanjut?",
+    "@dataClearConfirmMessage":  {
+                                      "description":  "Pesan konfirmasi bersihkan cache",
+                                      "placeholders":  {
+                                                           "files":  {
+                                                                         "type":  "int"
+                                                                     }
+                                                       }
+                                  },
+    "dataClear":  "Bersihkan",
+    "@dataClear":  {
+                        "description":  "Tombol konfirmasi bersihkan"
+                    },
+    "dataArtCleared":  "Cache cover dibersihkan: {deleted} file dihapus",
+    "@dataArtCleared":  {
+                             "description":  "Pesan cache dibersihkan",
+                             "placeholders":  {
+                                                  "deleted":  {
+                                                                  "type":  "int"
+                                                              }
+                                              }
+                         },
+    "dataClearFailed":  "Gagal membersihkan cache cover: {error}",
+    "@dataClearFailed":  {
+                              "description":  "Pesan gagal bersihkan cache",
+                              "placeholders":  {
+                                                   "error":  {
+                                                                 "type":  "String"
+                                                             }
+                                               }
+                          },
+    "dataMeasureFailed":  "Gagal mengukur cache cover: {error}",
+    "@dataMeasureFailed":  {
+                                "description":  "Pesan gagal ukur cache",
+                                "placeholders":  {
+                                                     "error":  {
+                                                                   "type":  "String"
+                                                               }
+                                                 }
+                            },
+    "lyricsSynced":  "Sinkron",
+    "@lyricsSynced":  {
+                           "description":  "Label toggle lirik sinkron"
+                       },
+    "lyricsPlain":  "Biasa",
+    "@lyricsPlain":  {
+                          "description":  "Label toggle lirik biasa"
+                      }
 }

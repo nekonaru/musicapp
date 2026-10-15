@@ -15,7 +15,16 @@ class AlbumsScreen extends StatelessWidget {
     return Consumer<LibraryProvider>(builder: (context, lib, _) {
       final l = AppLocalizations.of(context)!;
       if (lib.songs.isEmpty) {
-        return Center(child: Text(l.albumsEmpty));
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.album_outlined, size: 64, color: Colors.grey[300]),
+              const SizedBox(height: 16),
+              Text(l.albumsEmpty, textAlign: TextAlign.center),
+            ],
+          ),
+        );
       }
 
       // Group by album
@@ -35,9 +44,10 @@ class AlbumsScreen extends StatelessWidget {
                   style: TextStyle(fontSize: 12, color: Colors.grey[500])),
             ),
           ),
+          const Divider(height: 1),
           Expanded(
             child: GridView.builder(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 mainAxisSpacing: 12,

@@ -60,7 +60,9 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
 
   bool get _isTimerActive {
     final ps = PlayerService.instance;
-    return ps.sleepTimerRemaining != null || ps.sleepSongsRemaining != null;
+    return ps.sleepTimerRemaining != null ||
+        ps.sleepSongsRemaining != null ||
+        ps.isSleepFadeOutActive;
   }
 
   void _start() {
@@ -141,6 +143,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
   Widget _buildActiveState(PlayerService ps, ColorScheme cs) {
     final remaining  = ps.sleepTimerRemaining;
     final songsLeft  = ps.sleepSongsRemaining;
+    final isFading = ps.isSleepFadeOutActive;
     final isTimeMode = remaining != null;
 
     return Column(
@@ -186,6 +189,18 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
               ),
             ),
           ),
+        ] else if (isFading) ...[
+          // Sleep fade out in progress, timer already expired.
+          Text(
+            AppLocalizations.of(context)!.sleepFadingOut,
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(AppLocalizations.of(context)!.sleepStoppingPlayback,
+              style: const TextStyle(fontSize: 14, color: Colors.grey)),
         ] else ...[
           // Song mode
           Text(

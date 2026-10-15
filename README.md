@@ -37,6 +37,10 @@
 | 📁 **Folder browsing** | Browse by source folder, hide folders from the library |
 | 🔤 **A-Z navigation** | Finger-following letter scrollbar for fast jumps |
 | 💿 **Playlists and favorites** | Custom playlists, favorites, recently played |
+| 🤖 **Smart auto-playlists** | Daily Mix (25 fresh songs every day) and Unplayed, maintained automatically |
+| 🎼 **Synced lyrics** | Line-by-line lyrics that follow the song, with plain view fallback |
+| 😴 **Gentle sleep timer** | Volume fades out instead of stopping abruptly |
+| 💾 **Backup and restore** | Export and import playlists, favorites, and history as JSON |
 | 🔍 **Search** | Real-time search by title, artist, album, folder, or genre, with debounced input |
 | 📊 **Dashboard** | Last-7-days chart, top songs and artists, genre and region distribution |
 | 🌍 **English and Indonesian UI** | English by default; switch to Bahasa Indonesia in Settings |
