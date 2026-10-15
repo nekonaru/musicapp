@@ -120,6 +120,8 @@ class _AlbumCard extends StatelessWidget {
                     ? Image.network(
                         coverUrl!,
                         fit: BoxFit.cover,
+                        // Match grid column width to limit decoded size.
+                        cacheWidth: 400,
                         errorBuilder: (_, __, ___) =>
                             _PlaceholderCover(cs: cs),
                       )

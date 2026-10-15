@@ -339,6 +339,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           ? Image.network(
                               song.albumArtUrl!,
                               width: 260, height: 260, fit: BoxFit.cover,
+                              // Decode near display size to save image memory.
+                              cacheWidth: 520,
                               loadingBuilder: (context, child, progress) {
                                 if (progress == null) return child;
                                 return Container(

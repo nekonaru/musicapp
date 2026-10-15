@@ -13,6 +13,11 @@ class MetadataService {
   MetadataService._();
   static final MetadataService instance = MetadataService._();
 
+  /// Single shared HTTP client for all metadata requests (iTunes + lyrics).
+  /// Created once and never closed because this singleton lives for the
+  /// whole app lifetime, which avoids socket churn from one-shot http.get.
+  final http.Client _client = http.Client();
+
   /// Start of the 429 backoff window. While now is before this value,
   /// enrich calls skip the network so a burst of 429s does not repeat.
   /// Single 30 second window, no retry loop. Leftovers are retried on
@@ -92,7 +97,7 @@ class MetadataService {
         'entity': 'song',
         'limit': '1',
       });
-      final res = await http
+      final res = await _client
           .get(url, headers: {'User-Agent': 'Swara/1.0'})
           .timeout(const Duration(seconds: 8));
 
@@ -179,6 +184,9 @@ class MetadataService {
 
   /// Fetch lyrics only WITHOUT overwriting title/artist/album - used by the
   /// PlayerScreen auto-fetch so manual user edits are never clobbered.
+  /// Uses the shared metadata_cache table with a "lyrics|" key prefix:
+  /// a MISS marker hit returns false without HTTP (90 day TTL, same as
+  /// iTunes misses), a valid hit applies the cached lyrics directly.
   Future<bool> fetchLyricsOnly(Song song) async {
     // Never call the API with empty/unknown fields - guaranteed 404 + wasted quota.
     if (song.artist.isEmpty ||
@@ -187,9 +195,23 @@ class MetadataService {
         song.title == 'Unknown Title') {
       return false;
     }
+    final lyricsKey = _lyricsCacheKeyFor(song);
+    // Serve a fresh cache entry before touching the network.
+    final cachedLyrics = await _readValidCache(lyricsKey);
+    if (cachedLyrics != null) {
+      if (cachedLyrics == _cacheMissMarker) {
+        return false;
+      }
+      if (cachedLyrics.isNotEmpty) {
+        song.lyrics = cachedLyrics;
+        return true;
+      }
+      // Empty cached body should behave like a miss.
+      return false;
+    }
     try {
       final lyricsUrl = Uri.https('api.lyrics.ovh', '/v1/${song.artist}/${song.title}');
-      final res = await http
+      final res = await _client
           .get(lyricsUrl, headers: {'User-Agent': 'Swara/1.0'})
           .timeout(const Duration(seconds: 8));
       if (res.statusCode == 200) {
@@ -202,12 +224,31 @@ class MetadataService {
           }
           if (lyrics.isNotEmpty) {
             song.lyrics = lyrics;
+            // Remember successful lookups so later calls skip the network.
+            try {
+              await DBHelper.instance.putMetadataCache(lyricsKey, lyrics);
+            } catch (_) {
+              // Cache write failure must never break lyric fetch.
+            }
             return true;
           }
         }
       }
+      // Empty body or non-200 (for example 404): remember the miss so
+      // later calls skip the network for 90 days.
+      try {
+        await DBHelper.instance.putMetadataCache(lyricsKey, _cacheMissMarker);
+      } catch (_) {
+        // Cache write failure must never break lyric fetch.
+      }
     } catch (_) {
       // Lyrics not found, keep null - the user can fill them in via the edit feature
+      // Remember the failure as a miss so repeated calls skip the network.
+      try {
+        await DBHelper.instance.putMetadataCache(lyricsKey, _cacheMissMarker);
+      } catch (_) {
+        // Cache write failure must never break lyric fetch.
+      }
     }
     return false;
   }
@@ -215,6 +256,12 @@ class MetadataService {
   /// Cache key for a song: "artist|title", lowercase and trimmed.
   String _cacheKeyFor(Song song) {
     return '${song.artist.trim().toLowerCase()}|${song.title.trim().toLowerCase()}';
+  }
+
+  /// Lyrics cache key: "lyrics|artist|title", lowercase and trimmed, so
+  /// lyric entries never collide with iTunes entries in the same table.
+  String _lyricsCacheKeyFor(Song song) {
+    return 'lyrics|${song.artist.trim().toLowerCase()}|${song.title.trim().toLowerCase()}';
   }
 
   /// Fresh cached iTunes body for [cacheKey], or null when absent/expired.

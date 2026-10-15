@@ -30,17 +30,28 @@ class _LibraryScreenState extends State<LibraryScreen> {
   int _visibleCount = _pageSize;
   SortOption? _lastSortOption;
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => context.read<PlaylistProvider>().load());
-  }
+  // Playlists are loaded lazily on first use to keep startup cheap.
+  bool _playlistsRequested = false;
 
   @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // Load playlists once when first needed. Guarded by mounted.
+  Future<void> _ensurePlaylistsLoaded() async {
+    if (_playlistsRequested) return;
+    _playlistsRequested = true;
+    if (!mounted) return;
+    await context.read<PlaylistProvider>().load();
+  }
+
+  // Song options need the playlist list, so ensure it is ready first.
+  Future<void> _openSongOptions(Song song) async {
+    await _ensurePlaylistsLoaded();
+    if (!mounted) return;
+    showSongOptions(context, song);
   }
 
   void _exitMultiSelect() => setState(() {
@@ -151,6 +162,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _bulkAddToPlaylist(List<Song> songs) async {
+    // Lazy load playlists on first need instead of at startup.
+    await _ensurePlaylistsLoaded();
+    if (!mounted) return;
     final l = AppLocalizations.of(context)!;
     final provider = context.read<PlaylistProvider>();
     final playlists = provider.playlists;
@@ -423,6 +437,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                   _multiSelectMode = true;
                                   _selectedIds.add(song.id);
                                 }),
+                                onOptions: _openSongOptions,
                               );
                             },
                             childCount: visibleCount,
@@ -520,6 +535,7 @@ class _SongTile extends StatelessWidget {
   final int index;
   final bool isPlaying, isSelected, isMultiSelect;
   final VoidCallback onTap, onLongPress;
+  final Future<void> Function(Song song)? onOptions;
 
   const _SongTile({
     required this.song,
@@ -529,6 +545,7 @@ class _SongTile extends StatelessWidget {
     required this.isMultiSelect,
     required this.onTap,
     required this.onLongPress,
+    this.onOptions,
   });
 
   @override
@@ -577,6 +594,8 @@ class _SongTile extends StatelessWidget {
                                     width: 40,
                                     height: 40,
                                     fit: BoxFit.cover,
+                                    // Decode thumbnail size only to save image memory.
+                                    cacheWidth: 88,
                                     errorBuilder: (context, url, error) =>
                                         const CircleAvatar(
                                       child:
@@ -619,7 +638,8 @@ class _SongTile extends StatelessWidget {
             if (!isMultiSelect)
               IconButton(
                   icon: const Icon(Icons.more_vert),
-                  onPressed: () => showSongOptions(context, song)),
+                  onPressed: () => onOptions?.call(song) ??
+                      showSongOptions(context, song)),
           ],
         ),
       ),

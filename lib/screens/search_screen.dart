@@ -165,6 +165,8 @@ class _SearchScreenState extends State<SearchScreen> {
                     width: 40,
                     height: 40,
                     fit: BoxFit.cover,
+                    // Decode thumbnail size only to save image memory.
+                    cacheWidth: 88,
                     errorBuilder: (context, url, error) =>
                         const CircleAvatar(
                       child: Icon(Icons.music_note, size: 20),

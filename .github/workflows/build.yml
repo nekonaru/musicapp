@@ -193,19 +193,17 @@ jobs:
           body: |
             # English
 
-            **Swara v1.8.2 - Slimmer install and kinder battery**
+            **Swara v1.8.3 - Less data, less memory**
 
             ## ✨ New features
 
-            - Only phone architectures are published now (arm64 + armv7), no more emulator-only build in the downloads.
-            - First widget test among 67 total tests.
+            - Playlist data now loads on demand instead of at startup.
 
             ## ⚡ Optimizations
 
-            - Metadata responses are cached on disk (30 days, misses 90 days) so reinstalls skip re-fetching everything.
-            - Lyrics stored gzip-compressed in the database.
-            - Position stream sleeps while paused; notification sync does less redundant work.
-            - Dropped a heavy image-caching dependency in favor of built-in image widgets.
+            - Missing lyrics are remembered (90-day negative cache) instead of re-fetched every time you open a song.
+            - One shared HTTP client for all metadata traffic (fewer repeated connections).
+            - Album art decoded at display size (thumbnails for tiles, full size only on the player).
 
             ## 📦 Install / Update
 
@@ -219,19 +217,17 @@ jobs:
 
             # Bahasa Indonesia
 
-            **Swara v1.8.2 - Install lebih ramping dan baterai lebih hemat**
+            **Swara v1.8.3 - Data lebih hemat, memori lebih ringan**
 
             ## ✨ Fitur baru
 
-            - Kini hanya arsitektur HP yang dipublish (arm64 + armv7), tidak ada lagi build khusus emulator di download.
-            - Widget test pertama dari total 67 test.
+            - Data playlist kini dimuat saat dibutuhkan, bukan saat startup.
 
             ## ⚡ Pengoptimalan
 
-            - Respons metadata di-cache di disk (30 hari, miss 90 hari) sehingga install ulang tidak fetch ulang semuanya.
-            - Lirik disimpan terkompresi gzip di database.
-            - Position stream tidur saat pause; sync notifikasi lebih sedikit kerja redundan.
-            - Buang dependency image-caching yang berat, ganti widget image bawaan.
+            - Lirik yang tidak ketemu diingat (negative cache 90 hari) alih-alih di-fetch ulang tiap buka lagu.
+            - Satu HTTP client bersama untuk semua traffic metadata (koneksi tidak diulang-ulang).
+            - Cover album di-decode sesuai ukuran tampil (thumbnail untuk tile, penuh hanya di player).
 
             ## 📦 Instalasi / Update
 

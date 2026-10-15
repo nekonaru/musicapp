@@ -59,6 +59,8 @@ Widget buildSongTile(
                       width: 40,
                       height: 40,
                       fit: BoxFit.cover,
+                      // Decode thumbnail size only to save image memory.
+                      cacheWidth: 88,
                       errorBuilder: (context, url, error) =>
                           const CircleAvatar(
                         child: Icon(Icons.music_note, size: 20),
@@ -1510,6 +1512,8 @@ class _RecentlyAddedScreenState extends State<RecentlyAddedScreen> {
                                 width: 40,
                                 height: 40,
                                 fit: BoxFit.cover,
+                                // Decode thumbnail size only to save image memory.
+                                cacheWidth: 88,
                                 errorBuilder: (context, url, error) =>
                                     const CircleAvatar(
                                   child: Icon(Icons.music_note, size: 20),
@@ -1608,6 +1612,8 @@ class _MostPlayedScreenState extends State<MostPlayedScreen> {
                                   width: 40,
                                   height: 40,
                                   fit: BoxFit.cover,
+                                  // Decode thumbnail size only to save image memory.
+                                  cacheWidth: 88,
                                   errorBuilder:
                                       (context, url, error) =>
                                           const CircleAvatar(

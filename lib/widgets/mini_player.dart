@@ -41,6 +41,8 @@ class MiniPlayer extends StatelessWidget {
                       ? Image.network(
                           song.albumArtUrl!,
                           width: 44, height: 44, fit: BoxFit.cover,
+                          // Decode thumbnail size only to save image memory.
+                          cacheWidth: 88,
                           errorBuilder: (context, url, error) => Container(
                             width: 44, height: 44, color: Colors.grey[400],
                             child: const Icon(Icons.music_note, size: 20),
