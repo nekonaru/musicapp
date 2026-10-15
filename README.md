@@ -45,6 +45,11 @@
 | 🏆 **Yearly recap** | Top songs, artists, and hours of the current year, shareable as an image |
 | 📋 **Save queue** | Save the play queue as a playlist in one tap |
 | 🌙 **Bedtime schedule** | Sleep timer for a fixed clock time every night |
+| 🎚️ **Real equalizer** | 9 presets shaping actual playback sound via system DSP |
+| 🔍 **Forgiving search** | Finds "faded alan walker" for "faded - alan walker" |
+| 🗂️ **Duplicate finder** | Find and remove duplicate songs, keep one per group |
+| 🖼️ **Missing covers** | List songs without art with one-tap refetch |
+| 📂 **Playlist folders** | Group playlists into folders |
 | 📥 **M3U import** | Import playlists from .m3u files, matched against your library |
 | 📤 **Share songs** | Share the currently playing info plus audio file |
 | 🔥 **Listening streaks** | Day streak and top genre of the month on the dashboard |

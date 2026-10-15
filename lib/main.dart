@@ -8,6 +8,7 @@ import 'providers/language_provider.dart';
 import 'providers/library_provider.dart';
 import 'providers/playlist_provider.dart';
 import 'providers/theme_provider.dart';
+import 'services/equalizer_service.dart';
 import 'services/player_service.dart';
 import 'services/swara_audio_handler.dart';
 import 'screens/home_screen.dart';
@@ -79,6 +80,10 @@ Future<void> _bootApp({
     () async {
       try {
         await themeProvider.load();
+        // Seed the equalizer with the saved preset so the first
+        // attach already uses it (no session yet, just stored).
+        await EqualizerService.instance
+            .applyPreset(themeProvider.equalizerPreset);
       } catch (e) {
         debugPrint('ThemeProvider failed to load: $e');
       }

@@ -221,7 +221,7 @@ abstract class AppLocalizations {
   /// Honest disclaimer that EQ presets are visual only
   ///
   /// In en, this message translates to:
-  /// **'These presets are only a visual preview and do not change the actual sound. Your choice is saved between sessions.'**
+  /// **'These presets shape the actual playback sound through the system equalizer. Your choice is saved between sessions.'**
   String get settingsEqualizerNote;
 
   /// Section header for library actions
@@ -2431,6 +2431,240 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to share recap image: {error}'**
   String recapShareFailed(String error);
+
+  /// Duplicate song play failure
+  ///
+  /// In en, this message translates to:
+  /// **'Could not play song: {error}'**
+  String dupPlayFailed(String error);
+
+  /// Delete selected duplicates dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Delete selected duplicates?'**
+  String get dupDeleteTitle;
+
+  /// Delete selected duplicates message
+  ///
+  /// In en, this message translates to:
+  /// **'This will delete {count} songs from the library. One copy per group is kept.'**
+  String dupDeleteMessage(int count);
+
+  /// Removed duplicates summary
+  ///
+  /// In en, this message translates to:
+  /// **'Removed {removed} of {total} selected songs'**
+  String dupRemoved(int removed, int total);
+
+  /// Delete failure message
+  ///
+  /// In en, this message translates to:
+  /// **'Delete failed: {error}'**
+  String dupDeleteFailed(String error);
+
+  /// Remove all duplicates dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Remove all duplicates?'**
+  String get dupRemoveAllTitle;
+
+  /// Remove all duplicates message
+  ///
+  /// In en, this message translates to:
+  /// **'This will delete {extras} duplicate songs in {groups} groups. One copy per group is kept.'**
+  String dupRemoveAllMessage(int extras, int groups);
+
+  /// Removed all duplicates summary
+  ///
+  /// In en, this message translates to:
+  /// **'Removed {removed} duplicate songs, kept {kept} originals'**
+  String dupRemovedAll(int removed, int kept);
+
+  /// Duplicate finder title
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate Finder'**
+  String get dupTitle;
+
+  /// No duplicates empty state
+  ///
+  /// In en, this message translates to:
+  /// **'No duplicates found'**
+  String get dupEmpty;
+
+  /// Duplicate summary label
+  ///
+  /// In en, this message translates to:
+  /// **'{groups} duplicate groups, {extras} extra songs'**
+  String dupSummary(int groups, int extras);
+
+  /// Select extras button
+  ///
+  /// In en, this message translates to:
+  /// **'Select extras'**
+  String get dupSelectExtras;
+
+  /// Selected count label
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String dupSelected(int count);
+
+  /// Delete selected button
+  ///
+  /// In en, this message translates to:
+  /// **'Delete selected'**
+  String get dupDeleteSelected;
+
+  /// Keep one badge
+  ///
+  /// In en, this message translates to:
+  /// **'Keep 1'**
+  String get dupKeepOne;
+
+  /// Kept badge
+  ///
+  /// In en, this message translates to:
+  /// **'Kept'**
+  String get dupKept;
+
+  /// Play tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get dupPlay;
+
+  /// Group subtitle with artist and copy count
+  ///
+  /// In en, this message translates to:
+  /// **'{artist} - {count} copies'**
+  String dupCopies(String artist, int count);
+
+  /// Remove all duplicates button
+  ///
+  /// In en, this message translates to:
+  /// **'Remove duplicates, keep one per group'**
+  String get dupRemoveAll;
+
+  /// Cover refreshed confirmation
+  ///
+  /// In en, this message translates to:
+  /// **'Cover refreshed'**
+  String get artRefreshed;
+
+  /// Cover refresh failure
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh failed: {error}'**
+  String artRefreshFailed(String error);
+
+  /// Bulk fetch stopped early
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped early: rate limited ({done}/{total})'**
+  String artFetchStopped(int done, int total);
+
+  /// Bulk fetch finished
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch finished ({done}/{total})'**
+  String artFetchFinished(int done, int total);
+
+  /// Bulk fetch failure
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch failed: {error}'**
+  String artFetchFailed(String error);
+
+  /// Missing covers title
+  ///
+  /// In en, this message translates to:
+  /// **'Missing covers'**
+  String get artMissingTitle;
+
+  /// Fetch all button
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch all'**
+  String get artFetchAll;
+
+  /// All covers present empty state
+  ///
+  /// In en, this message translates to:
+  /// **'All songs have covers'**
+  String get artAllHaveCovers;
+
+  /// Refetch cover tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Refetch cover'**
+  String get artRefetch;
+
+  /// Move to folder dialog and menu
+  ///
+  /// In en, this message translates to:
+  /// **'Move to folder'**
+  String get plFolderMoveTo;
+
+  /// New folder name hint
+  ///
+  /// In en, this message translates to:
+  /// **'New folder name'**
+  String get plFolderNewName;
+
+  /// Remove from folder row
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from folder'**
+  String get plFolderRemove;
+
+  /// Move confirm button
+  ///
+  /// In en, this message translates to:
+  /// **'Move'**
+  String get plFolderMove;
+
+  /// Rename folder row
+  ///
+  /// In en, this message translates to:
+  /// **'Rename folder'**
+  String get plFolderRename;
+
+  /// Delete folder row
+  ///
+  /// In en, this message translates to:
+  /// **'Delete folder'**
+  String get plFolderDelete;
+
+  /// Delete folder confirmation
+  ///
+  /// In en, this message translates to:
+  /// **'Delete folder \"{folder}\"? {count} playlist(s) will become ungrouped.'**
+  String plFolderDeleteConfirm(String folder, int count);
+
+  /// Ungrouped section header
+  ///
+  /// In en, this message translates to:
+  /// **'Ungrouped'**
+  String get plFolderUngrouped;
+
+  /// Duplicate finder entry title
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate Finder'**
+  String get dupFinderTitle;
+
+  /// Duplicate group count
+  ///
+  /// In en, this message translates to:
+  /// **'{count} duplicate groups'**
+  String dupFinderCount(int count);
+
+  /// Missing covers menu entry
+  ///
+  /// In en, this message translates to:
+  /// **'Missing covers'**
+  String get artMissingEntry;
 }
 
 class _AppLocalizationsDelegate

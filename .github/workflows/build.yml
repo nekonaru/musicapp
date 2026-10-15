@@ -35,7 +35,7 @@ jobs:
       - name: Add required permissions (audio, internet, background playback)
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i 's#<manifest xmlns:android="http://schemas.android.com/apk/res/android">#<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />#' "$MANIFEST"
+          sed -i 's#<manifest xmlns:android="http://schemas.android.com/apk/res/android">#<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />#' "$MANIFEST"
           sed -i 's/android:label="offline_music_player"/android:label="Swara"/' "$MANIFEST"
           cat "$MANIFEST"
 
@@ -196,15 +196,13 @@ jobs:
           body: |
             # English
 
-            **Swara v2.1.0 - Shareable recap and smarter queue**
+            **Swara v2.2.0 - Real equalizer and library tools**
 
             ## ✨ New features
 
-            - Share the yearly recap card as an image.
-            - Save the play queue as a playlist in one tap.
-            - Bedtime schedule: sleep timer for a fixed clock time every night.
-            - Multi-select extended to search results and favorites; album sorting.
-            - Notification and lockscreen now use the real playback queue with proper next/previous.
+            - Real working equalizer: 9 presets shaping actual playback sound (no longer visual-only).
+            - Duplicate finder with bulk cleanup, missing-covers list with batch refetch, playlist folders.
+            - Forgiving search: "faded alan walker" finds "faded - alan walker".
 
             ## 📦 Install / Update
 
@@ -218,15 +216,13 @@ jobs:
 
             # Bahasa Indonesia
 
-            **Swara v2.1.0 - Rekap bisa dibagikan dan antrean lebih pintar**
+            **Swara v2.2.0 - Equalizer beneran dan perkakas library**
 
             ## ✨ Fitur baru
 
-            - Bagikan kartu rekap tahunan sebagai gambar.
-            - Simpan antrean putar sebagai playlist sekali ketuk.
-            - Jadwal tidur: sleep timer jam tetap setiap malam.
-            - Multi-select diperluas ke hasil pencarian dan favorit; sortir album.
-            - Notifikasi dan lockscreen kini memakai antrean asli dengan next/previous yang benar.
+            - Equalizer yang benar-benar berfungsi: 9 preset membentuk suara putar (tidak lagi sekadar visual).
+            - Pencari duplikat dengan bersih-bersih massal, daftar cover hilang dengan fetch ulang, folder playlist.
+            - Pencarian toleran: "faded alan walker" ketemu untuk "faded - alan walker".
 
             ## 📦 Instalasi / Update
 

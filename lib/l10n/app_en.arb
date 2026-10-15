@@ -80,7 +80,7 @@
     "@settingsEqualizer":  {
                                "description":  "Section header for equalizer presets"
                            },
-    "settingsEqualizerNote":  "These presets are only a visual preview and do not change the actual sound. Your choice is saved between sessions.",
+    "settingsEqualizerNote":  "These presets shape the actual playback sound through the system equalizer. Your choice is saved between sessions.",
     "@settingsEqualizerNote":  {
                                    "description":  "Honest disclaimer that EQ presets are visual only"
                                },
@@ -1278,5 +1278,260 @@
                                                                   "type":  "String"
                                                               }
                                                 }
-                           }
+                           },
+    "dupPlayFailed":  "Could not play song: {error}",
+    "@dupPlayFailed":  {
+                            "description":  "Duplicate song play failure",
+                            "placeholders":  {
+                                                 "error":  {
+                                                               "type":  "String"
+                                                           }
+                                             }
+                        },
+    "dupDeleteTitle":  "Delete selected duplicates?",
+    "@dupDeleteTitle":  {
+                             "description":  "Delete selected duplicates dialog title"
+                         },
+    "dupDeleteMessage":  "This will delete {count} songs from the library. One copy per group is kept.",
+    "@dupDeleteMessage":  {
+                               "description":  "Delete selected duplicates message",
+                               "placeholders":  {
+                                                    "count":  {
+                                                                  "type":  "int"
+                                                              }
+                                                }
+                           },
+    "dupRemoved":  "Removed {removed} of {total} selected songs",
+    "@dupRemoved":  {
+                         "description":  "Removed duplicates summary",
+                         "placeholders":  {
+                                              "removed":  {
+                                                              "type":  "int"
+                                                          },
+                                              "total":  {
+                                                            "type":  "int"
+                                                        }
+                                          }
+                     },
+    "dupDeleteFailed":  "Delete failed: {error}",
+    "@dupDeleteFailed":  {
+                              "description":  "Delete failure message",
+                              "placeholders":  {
+                                                   "error":  {
+                                                                 "type":  "String"
+                                                             }
+                                               }
+                          },
+    "dupRemoveAllTitle":  "Remove all duplicates?",
+    "@dupRemoveAllTitle":  {
+                                "description":  "Remove all duplicates dialog title"
+                            },
+    "dupRemoveAllMessage":  "This will delete {extras} duplicate songs in {groups} groups. One copy per group is kept.",
+    "@dupRemoveAllMessage":  {
+                                  "description":  "Remove all duplicates message",
+                                  "placeholders":  {
+                                                       "extras":  {
+                                                                      "type":  "int"
+                                                                  },
+                                                       "groups":  {
+                                                                      "type":  "int"
+                                                                  }
+                                                   }
+                              },
+    "dupRemovedAll":  "Removed {removed} duplicate songs, kept {kept} originals",
+    "@dupRemovedAll":  {
+                            "description":  "Removed all duplicates summary",
+                            "placeholders":  {
+                                                 "removed":  {
+                                                                 "type":  "int"
+                                                             },
+                                                 "kept":  {
+                                                              "type":  "int"
+                                                          }
+                                             }
+                        },
+    "dupTitle":  "Duplicate Finder",
+    "@dupTitle":  {
+                       "description":  "Duplicate finder title"
+                   },
+    "dupEmpty":  "No duplicates found",
+    "@dupEmpty":  {
+                       "description":  "No duplicates empty state"
+                   },
+    "dupSummary":  "{groups} duplicate groups, {extras} extra songs",
+    "@dupSummary":  {
+                         "description":  "Duplicate summary label",
+                         "placeholders":  {
+                                              "groups":  {
+                                                             "type":  "int"
+                                                         },
+                                              "extras":  {
+                                                             "type":  "int"
+                                                         }
+                                          }
+                     },
+    "dupSelectExtras":  "Select extras",
+    "@dupSelectExtras":  {
+                              "description":  "Select extras button"
+                          },
+    "dupSelected":  "{count} selected",
+    "@dupSelected":  {
+                          "description":  "Selected count label",
+                          "placeholders":  {
+                                               "count":  {
+                                                             "type":  "int"
+                                                         }
+                                           }
+                      },
+    "dupDeleteSelected":  "Delete selected",
+    "@dupDeleteSelected":  {
+                                "description":  "Delete selected button"
+                            },
+    "dupKeepOne":  "Keep 1",
+    "@dupKeepOne":  {
+                         "description":  "Keep one badge"
+                     },
+    "dupKept":  "Kept",
+    "@dupKept":  {
+                      "description":  "Kept badge"
+                  },
+    "dupPlay":  "Play",
+    "@dupPlay":  {
+                      "description":  "Play tooltip"
+                  },
+    "dupCopies":  "{artist} - {count} copies",
+    "@dupCopies":  {
+                        "description":  "Group subtitle with artist and copy count",
+                        "placeholders":  {
+                                             "artist":  {
+                                                           "type":  "String"
+                                                       },
+                                             "count":  {
+                                                           "type":  "int"
+                                                       }
+                                         }
+                    },
+    "dupRemoveAll":  "Remove duplicates, keep one per group",
+    "@dupRemoveAll":  {
+                           "description":  "Remove all duplicates button"
+                       },
+    "artRefreshed":  "Cover refreshed",
+    "@artRefreshed":  {
+                           "description":  "Cover refreshed confirmation"
+                       },
+    "artRefreshFailed":  "Refresh failed: {error}",
+    "@artRefreshFailed":  {
+                               "description":  "Cover refresh failure",
+                               "placeholders":  {
+                                                    "error":  {
+                                                                  "type":  "String"
+                                                              }
+                                                }
+                           },
+    "artFetchStopped":  "Stopped early: rate limited ({done}/{total})",
+    "@artFetchStopped":  {
+                              "description":  "Bulk fetch stopped early",
+                              "placeholders":  {
+                                                   "done":  {
+                                                                "type":  "int"
+                                                            },
+                                                   "total":  {
+                                                                 "type":  "int"
+                                                             }
+                                               }
+                          },
+    "artFetchFinished":  "Fetch finished ({done}/{total})",
+    "@artFetchFinished":  {
+                               "description":  "Bulk fetch finished",
+                               "placeholders":  {
+                                                    "done":  {
+                                                                 "type":  "int"
+                                                             },
+                                                    "total":  {
+                                                                  "type":  "int"
+                                                              }
+                                                }
+                           },
+    "artFetchFailed":  "Fetch failed: {error}",
+    "@artFetchFailed":  {
+                             "description":  "Bulk fetch failure",
+                             "placeholders":  {
+                                                  "error":  {
+                                                                "type":  "String"
+                                                            }
+                                              }
+                         },
+    "artMissingTitle":  "Missing covers",
+    "@artMissingTitle":  {
+                              "description":  "Missing covers title"
+                          },
+    "artFetchAll":  "Fetch all",
+    "@artFetchAll":  {
+                          "description":  "Fetch all button"
+                      },
+    "artAllHaveCovers":  "All songs have covers",
+    "@artAllHaveCovers":  {
+                               "description":  "All covers present empty state"
+                           },
+    "artRefetch":  "Refetch cover",
+    "@artRefetch":  {
+                         "description":  "Refetch cover tooltip"
+                     },
+    "plFolderMoveTo":  "Move to folder",
+    "@plFolderMoveTo":  {
+                             "description":  "Move to folder dialog and menu"
+                         },
+    "plFolderNewName":  "New folder name",
+    "@plFolderNewName":  {
+                              "description":  "New folder name hint"
+                          },
+    "plFolderRemove":  "Remove from folder",
+    "@plFolderRemove":  {
+                             "description":  "Remove from folder row"
+                         },
+    "plFolderMove":  "Move",
+    "@plFolderMove":  {
+                           "description":  "Move confirm button"
+                       },
+    "plFolderRename":  "Rename folder",
+    "@plFolderRename":  {
+                             "description":  "Rename folder row"
+                         },
+    "plFolderDelete":  "Delete folder",
+    "@plFolderDelete":  {
+                             "description":  "Delete folder row"
+                         },
+    "plFolderDeleteConfirm":  "Delete folder \"{folder}\"? {count} playlist(s) will become ungrouped.",
+    "@plFolderDeleteConfirm":  {
+                                    "description":  "Delete folder confirmation",
+                                    "placeholders":  {
+                                                         "folder":  {
+                                                                       "type":  "String"
+                                                                   },
+                                                         "count":  {
+                                                                       "type":  "int"
+                                                                   }
+                                                     }
+                                },
+    "plFolderUngrouped":  "Ungrouped",
+    "@plFolderUngrouped":  {
+                                "description":  "Ungrouped section header"
+                            },
+    "dupFinderTitle":  "Duplicate Finder",
+    "@dupFinderTitle":  {
+                             "description":  "Duplicate finder entry title"
+                         },
+    "dupFinderCount":  "{count} duplicate groups",
+    "@dupFinderCount":  {
+                             "description":  "Duplicate group count",
+                             "placeholders":  {
+                                                  "count":  {
+                                                                "type":  "int"
+                                                            }
+                                              }
+                         },
+    "artMissingEntry":  "Missing covers",
+    "@artMissingEntry":  {
+                              "description":  "Missing covers menu entry"
+                          }
 }

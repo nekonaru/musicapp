@@ -6,6 +6,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:offline_music_player/providers/language_provider.dart';
 import '../models/song.dart';
 import 'db_helper.dart';
+import 'equalizer_service.dart';
 
 enum SwaraRepeatMode { off, all, one }
 
@@ -192,6 +193,8 @@ class PlayerService extends ChangeNotifier {
 
     try {
       await incoming.setFilePath(nextSong.filePath);
+      // Move the equalizer to the incoming session as well.
+      unawaited(EqualizerService.instance.attach(incoming));
       await incoming.setVolume(0);
       await incoming.play();
 
@@ -300,6 +303,9 @@ class PlayerService extends ChangeNotifier {
     _accumulatedListenedMs = 0;
     await DBHelper.instance.markPlayed(song.id);
     lastError = null;
+    // Attach the system equalizer to this session (fire and forget,
+    // the service guards its own errors and never blocks playback).
+    unawaited(EqualizerService.instance.attach(_player));
     // Re-attach the position listener to the now-active player, so
     // crossfade keeps triggering for the following songs too (not just once).
     await _subscribePosition();
@@ -822,6 +828,7 @@ class PlayerService extends ChangeNotifier {
       debugPrint('Gagal dispose crossfade player: $e');
     });
     _crossfadePlayer = null;
+    unawaited(EqualizerService.instance.release());
     super.dispose();
   }
 }

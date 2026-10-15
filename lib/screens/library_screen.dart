@@ -11,6 +11,7 @@ import '../widgets/az_scrollbar.dart';
 import '../widgets/playing_indicator.dart';
 import '../utils/song_options.dart';
 import '../utils/format.dart';
+import 'missing_art_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -671,6 +672,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   void _showScanMenu(BuildContext context, LibraryProvider lib) {
     final l = AppLocalizations.of(context)!;
+    // Count of songs with neither local art nor remote art URL.
+    final missingCount = lib.songs.where((s) {
+      final path = (s.albumArtPath ?? '').trim();
+      final url = (s.albumArtUrl ?? '').trim();
+      return path.isEmpty && url.isEmpty;
+    }).length;
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
@@ -711,6 +718,28 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         ],
                       ));
               if (ok == true) lib.bulkScanMetadata(onlyMissing: false);
+            },
+          ),
+          // Entry to the screen listing songs without cover art.
+          ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16),
+            leading: const Icon(Icons.image_not_supported_outlined),
+            title: Text(AppLocalizations.of(context)!.artMissingEntry),
+            trailing: missingCount > 0
+                ? CircleAvatar(
+                    radius: 12,
+                    child: Text('$missingCount',
+                        style: const TextStyle(fontSize: 12)),
+                  )
+                : null,
+            onTap: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const MissingArtScreen()),
+              );
             },
           ),
         ]),

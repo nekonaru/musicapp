@@ -71,7 +71,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get settingsEqualizerNote =>
-      'Preset ini hanya tampilan visualisasi, belum mengubah suara aktual. Pilihan disimpan antar sesi.';
+      'Preset ini membentuk suara putar yang sebenarnya lewat equalizer sistem. Pilihan disimpan antar sesi.';
 
   @override
   String get settingsLibrary => 'Library';
@@ -1353,4 +1353,151 @@ class AppLocalizationsId extends AppLocalizations {
   String recapShareFailed(String error) {
     return 'Gagal membagikan gambar rekap: $error';
   }
+
+  @override
+  String dupPlayFailed(String error) {
+    return 'Tidak bisa memutar lagu: $error';
+  }
+
+  @override
+  String get dupDeleteTitle => 'Hapus duplikat terpilih?';
+
+  @override
+  String dupDeleteMessage(int count) {
+    return 'Ini akan menghapus $count lagu dari library. Satu salinan per grup dipertahankan.';
+  }
+
+  @override
+  String dupRemoved(int removed, int total) {
+    return 'Menghapus $removed dari $total lagu terpilih';
+  }
+
+  @override
+  String dupDeleteFailed(String error) {
+    return 'Hapus gagal: $error';
+  }
+
+  @override
+  String get dupRemoveAllTitle => 'Hapus semua duplikat?';
+
+  @override
+  String dupRemoveAllMessage(int extras, int groups) {
+    return 'Ini akan menghapus $extras lagu duplikat dalam $groups grup. Satu salinan per grup dipertahankan.';
+  }
+
+  @override
+  String dupRemovedAll(int removed, int kept) {
+    return 'Menghapus $removed lagu duplikat, $kept asli dipertahankan';
+  }
+
+  @override
+  String get dupTitle => 'Pencari Duplikat';
+
+  @override
+  String get dupEmpty => 'Tidak ada duplikat';
+
+  @override
+  String dupSummary(int groups, int extras) {
+    return '$groups grup duplikat, $extras lagu ekstra';
+  }
+
+  @override
+  String get dupSelectExtras => 'Pilih ekstra';
+
+  @override
+  String dupSelected(int count) {
+    return '$count terpilih';
+  }
+
+  @override
+  String get dupDeleteSelected => 'Hapus terpilih';
+
+  @override
+  String get dupKeepOne => 'Sisakan 1';
+
+  @override
+  String get dupKept => 'Dipertahankan';
+
+  @override
+  String get dupPlay => 'Putar';
+
+  @override
+  String dupCopies(String artist, int count) {
+    return '$artist - $count duplikat';
+  }
+
+  @override
+  String get dupRemoveAll => 'Hapus duplikat, sisakan satu per grup';
+
+  @override
+  String get artRefreshed => 'Cover tersegarkan';
+
+  @override
+  String artRefreshFailed(String error) {
+    return 'Segarkan gagal: $error';
+  }
+
+  @override
+  String artFetchStopped(int done, int total) {
+    return 'Berhenti dini: rate limited ($done/$total)';
+  }
+
+  @override
+  String artFetchFinished(int done, int total) {
+    return 'Fetch selesai ($done/$total)';
+  }
+
+  @override
+  String artFetchFailed(String error) {
+    return 'Fetch gagal: $error';
+  }
+
+  @override
+  String get artMissingTitle => 'Cover hilang';
+
+  @override
+  String get artFetchAll => 'Fetch semua';
+
+  @override
+  String get artAllHaveCovers => 'Semua lagu sudah bercover';
+
+  @override
+  String get artRefetch => 'Fetch ulang cover';
+
+  @override
+  String get plFolderMoveTo => 'Pindah ke folder';
+
+  @override
+  String get plFolderNewName => 'Nama folder baru';
+
+  @override
+  String get plFolderRemove => 'Keluarkan dari folder';
+
+  @override
+  String get plFolderMove => 'Pindah';
+
+  @override
+  String get plFolderRename => 'Ganti nama folder';
+
+  @override
+  String get plFolderDelete => 'Hapus folder';
+
+  @override
+  String plFolderDeleteConfirm(String folder, int count) {
+    return 'Hapus folder \"$folder\"? $count playlist tidak berkelompok.';
+  }
+
+  @override
+  String get plFolderUngrouped => 'Tanpa folder';
+
+  @override
+  String get dupFinderTitle => 'Pencari Duplikat';
+
+  @override
+  String dupFinderCount(int count) {
+    return '$count grup duplikat';
+  }
+
+  @override
+  String get artMissingEntry => 'Cover hilang';
 }

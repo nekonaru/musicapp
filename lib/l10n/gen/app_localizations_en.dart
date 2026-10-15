@@ -71,7 +71,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsEqualizerNote =>
-      'These presets are only a visual preview and do not change the actual sound. Your choice is saved between sessions.';
+      'These presets shape the actual playback sound through the system equalizer. Your choice is saved between sessions.';
 
   @override
   String get settingsLibrary => 'Library';
@@ -1352,4 +1352,151 @@ class AppLocalizationsEn extends AppLocalizations {
   String recapShareFailed(String error) {
     return 'Failed to share recap image: $error';
   }
+
+  @override
+  String dupPlayFailed(String error) {
+    return 'Could not play song: $error';
+  }
+
+  @override
+  String get dupDeleteTitle => 'Delete selected duplicates?';
+
+  @override
+  String dupDeleteMessage(int count) {
+    return 'This will delete $count songs from the library. One copy per group is kept.';
+  }
+
+  @override
+  String dupRemoved(int removed, int total) {
+    return 'Removed $removed of $total selected songs';
+  }
+
+  @override
+  String dupDeleteFailed(String error) {
+    return 'Delete failed: $error';
+  }
+
+  @override
+  String get dupRemoveAllTitle => 'Remove all duplicates?';
+
+  @override
+  String dupRemoveAllMessage(int extras, int groups) {
+    return 'This will delete $extras duplicate songs in $groups groups. One copy per group is kept.';
+  }
+
+  @override
+  String dupRemovedAll(int removed, int kept) {
+    return 'Removed $removed duplicate songs, kept $kept originals';
+  }
+
+  @override
+  String get dupTitle => 'Duplicate Finder';
+
+  @override
+  String get dupEmpty => 'No duplicates found';
+
+  @override
+  String dupSummary(int groups, int extras) {
+    return '$groups duplicate groups, $extras extra songs';
+  }
+
+  @override
+  String get dupSelectExtras => 'Select extras';
+
+  @override
+  String dupSelected(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String get dupDeleteSelected => 'Delete selected';
+
+  @override
+  String get dupKeepOne => 'Keep 1';
+
+  @override
+  String get dupKept => 'Kept';
+
+  @override
+  String get dupPlay => 'Play';
+
+  @override
+  String dupCopies(String artist, int count) {
+    return '$artist - $count copies';
+  }
+
+  @override
+  String get dupRemoveAll => 'Remove duplicates, keep one per group';
+
+  @override
+  String get artRefreshed => 'Cover refreshed';
+
+  @override
+  String artRefreshFailed(String error) {
+    return 'Refresh failed: $error';
+  }
+
+  @override
+  String artFetchStopped(int done, int total) {
+    return 'Stopped early: rate limited ($done/$total)';
+  }
+
+  @override
+  String artFetchFinished(int done, int total) {
+    return 'Fetch finished ($done/$total)';
+  }
+
+  @override
+  String artFetchFailed(String error) {
+    return 'Fetch failed: $error';
+  }
+
+  @override
+  String get artMissingTitle => 'Missing covers';
+
+  @override
+  String get artFetchAll => 'Fetch all';
+
+  @override
+  String get artAllHaveCovers => 'All songs have covers';
+
+  @override
+  String get artRefetch => 'Refetch cover';
+
+  @override
+  String get plFolderMoveTo => 'Move to folder';
+
+  @override
+  String get plFolderNewName => 'New folder name';
+
+  @override
+  String get plFolderRemove => 'Remove from folder';
+
+  @override
+  String get plFolderMove => 'Move';
+
+  @override
+  String get plFolderRename => 'Rename folder';
+
+  @override
+  String get plFolderDelete => 'Delete folder';
+
+  @override
+  String plFolderDeleteConfirm(String folder, int count) {
+    return 'Delete folder \"$folder\"? $count playlist(s) will become ungrouped.';
+  }
+
+  @override
+  String get plFolderUngrouped => 'Ungrouped';
+
+  @override
+  String get dupFinderTitle => 'Duplicate Finder';
+
+  @override
+  String dupFinderCount(int count) {
+    return '$count duplicate groups';
+  }
+
+  @override
+  String get artMissingEntry => 'Missing covers';
 }

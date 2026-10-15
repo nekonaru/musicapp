@@ -9,6 +9,7 @@ import '../services/db_helper.dart';
 import '../services/m3u_service.dart';
 import '../services/playlist_art_service.dart';
 import 'extra_screens.dart';
+import 'duplicates_screen.dart';
 import 'history_screen.dart';
 import 'playlist_detail_screen.dart';
 import '../widgets/mini_player.dart';
@@ -138,6 +139,140 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
 
   bool _isAutoPlaylist(String name) =>
       name == _dailyMixName || name == _unplayedName;
+
+  // Folder label of a playlist row. Missing or blank means ungrouped.
+  String _folderOf(Map<String, dynamic> p) {
+    final raw = p['folder'] as String?;
+    return (raw ?? '').trim();
+  }
+
+  // Dialog to move one user playlist into an existing or a new folder.
+  // Returns after reloading the provider. Auto playlists never call this.
+  Future<void> _movePlaylistToFolder(
+      BuildContext ctx, PlaylistProvider prov, int id, String current) async {
+    List<String> existing = [];
+    try {
+      existing = await DBHelper.instance.getPlaylistFolders();
+    } catch (_) {
+      existing = [];
+    }
+    if (!ctx.mounted) return;
+    final controller = TextEditingController(text: current);
+    final selected = await showDialog<String?>(
+      context: ctx,
+      builder: (c) {
+        final folders = existing.where((f) => f != current).toList();
+        return AlertDialog(
+          title: Text(AppLocalizations.of(c)!.plFolderMoveTo),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText:
+                        AppLocalizations.of(c)!.plFolderNewName,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (current.isNotEmpty)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.remove_circle_outline),
+                    title:
+                        Text(AppLocalizations.of(c)!.plFolderRemove),
+                    subtitle: Text(current),
+                    onTap: () => Navigator.pop(c, ''),
+                  ),
+                for (final f in folders)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.folder_outlined),
+                    title: Text(f),
+                    onTap: () => Navigator.pop(c, f),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c),
+              child: Text(AppLocalizations.of(c)!.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(c, controller.text.trim()),
+              child: Text(AppLocalizations.of(c)!.plFolderMove),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+    if (selected == null || !ctx.mounted) return;
+    await DBHelper.instance.setPlaylistFolder(id, selected);
+    await prov.load();
+  }
+
+  // Rename a folder. Playlists stay in place, only the label changes.
+  Future<void> _renameFolder(
+      BuildContext ctx, PlaylistProvider prov, String folder) async {
+    final controller = TextEditingController(text: folder);
+    final next = await showDialog<String>(
+      context: ctx,
+      builder: (c) => AlertDialog(
+        title: Text(AppLocalizations.of(c)!.plFolderRename),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(hintText: folder),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: Text(AppLocalizations.of(c)!.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, controller.text.trim()),
+            child: Text(AppLocalizations.of(c)!.save),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (next == null || next.isEmpty || next == folder || !ctx.mounted) return;
+    await DBHelper.instance.renamePlaylistFolder(folder, next);
+    await prov.load();
+  }
+
+  // Delete a folder label only. Playlists inside become ungrouped.
+  Future<void> _deleteFolder(BuildContext ctx, PlaylistProvider prov,
+      String folder, int count) async {
+    final ok = await showDialog<bool>(
+      context: ctx,
+      builder: (c) => AlertDialog(
+        title: Text(AppLocalizations.of(c)!.plFolderDelete),
+        content: Text(AppLocalizations.of(c)!
+            .plFolderDeleteConfirm(folder, count)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: Text(AppLocalizations.of(c)!.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text(AppLocalizations.of(c)!.delete),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !ctx.mounted) return;
+    await DBHelper.instance.renamePlaylistFolder(folder, '');
+    await prov.load();
+  }
 
   // Seed derived from the current calendar date so the mix stays stable
   // for the whole day. The manual refresh salt makes a new mix on demand.
@@ -322,6 +457,133 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
     }
   }
 
+  // Single playlist row. Shared by the auto list and every folder section
+  // so behavior (tap, reshuffle, delete) stays identical everywhere.
+  Widget _playlistTile(BuildContext context, PlaylistProvider playlists,
+      LibraryProvider lib, Map<String, dynamic> p, int animIndex) {
+    final l = AppLocalizations.of(context)!;
+    final name = p['name'] as String;
+    final isAuto = _isAutoPlaylist(name);
+    final isDaily = name == _dailyMixName;
+    return TweenAnimationBuilder<double>(
+      key: ValueKey('pl_${p['id']}'),
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 160 + (animIndex % 8) * 25),
+      curve: Curves.easeOut,
+      builder: (ctx, v, child) => Opacity(
+        opacity: v,
+        child: Transform.translate(
+            offset: Offset(0, (1 - v) * 6), child: child),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
+        leading: _PlaylistTileArt(
+          playlistId: p['id'] as int,
+          isAuto: isAuto,
+        ),
+        title: Text(name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w500)),
+        subtitle: isAuto
+            ? Text(AppLocalizations.of(context)!.autoBadge,
+                style: const TextStyle(fontSize: 12))
+            : null,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isDaily)
+              IconButton(
+                icon: const Icon(Icons.refresh, size: 20),
+                tooltip: AppLocalizations.of(context)!.reshuffleDailyMix,
+                onPressed: () => _reshuffleDailyMix(playlists, lib),
+              ),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              onSelected: (action) {
+                if (action == 'delete') {
+                  // Deleting an auto playlist is safe:
+                  // it only removes that row and the
+                  // next sync recreates it fresh.
+                  _confirmDelete(context, playlists, p['id'], name);
+                } else if (action == 'reshuffle' && isDaily) {
+                  _reshuffleDailyMix(playlists, lib);
+                } else if (action == 'move_folder' && !isAuto) {
+                  _movePlaylistToFolder(
+                      context, playlists, p['id'] as int, _folderOf(p));
+                }
+              },
+              itemBuilder: (_) => [
+                if (isDaily)
+                  PopupMenuItem(
+                      value: 'reshuffle',
+                      child: Text(
+                          AppLocalizations.of(context)!.reshuffle)),
+                if (!isAuto)
+                  PopupMenuItem(
+                      value: 'move_folder',
+                      child: Text(AppLocalizations.of(context)!
+                          .plFolderMoveTo)),
+                PopupMenuItem(value: 'delete', child: Text(l.delete)),
+              ],
+            ),
+          ],
+        ),
+        onTap: () => _openPage(
+          context,
+          PlaylistDetailScreen(playlistId: p['id'], playlistName: name),
+        ),
+      ),
+    );
+  }
+
+  // Header for one folder section. Long press renames the folder.
+  // The popup menu offers rename and delete (ungroup only).
+  Widget _folderHeader(BuildContext context, PlaylistProvider prov,
+      String folder, int count) {
+    return GestureDetector(
+      onLongPress: () => _renameFolder(context, prov, folder),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+        child: Row(
+          children: [
+            const Icon(Icons.folder_outlined, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(folder,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w700)),
+            ),
+            Text('$count',
+                style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, size: 20),
+              onSelected: (action) {
+                if (action == 'rename') {
+                  _renameFolder(context, prov, folder);
+                } else if (action == 'delete') {
+                  _deleteFolder(context, prov, folder, count);
+                }
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                    value: 'rename',
+                    child: Text(AppLocalizations.of(context)!
+                        .plFolderRename)),
+                PopupMenuItem(
+                    value: 'delete',
+                    child: Text(AppLocalizations.of(context)!
+                        .plFolderDelete)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _openPage(BuildContext context, Widget page) {
     Navigator.push(
       context,
@@ -375,6 +637,24 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
         sortByName(auto);
         sortByName(user);
         final pl = [...auto, ...user];
+        // Group user playlists by folder. Auto playlists stay on top
+        // and are never grouped, preserving the old behavior.
+        final Map<String, List<Map<String, dynamic>>> grouped = {};
+        final List<Map<String, dynamic>> ungrouped = [];
+        for (final p in user) {
+          final folder = _folderOf(p);
+          if (folder.isEmpty) {
+            ungrouped.add(p);
+          } else {
+            grouped.putIfAbsent(folder, () => []).add(p);
+          }
+        }
+        final folders = grouped.keys.toList();
+        if (_sortAZ) {
+          folders.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        } else {
+          folders.sort((a, b) => b.toLowerCase().compareTo(a.toLowerCase()));
+        }
 
         return Stack(
           children: [
@@ -424,6 +704,27 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                               _openPage(context, const _MostPlayedSheet()),
                         ),
                       ],
+                    ),
+                  ),
+                ),
+
+                // ── Duplicate finder entry ──
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                    child: Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.copy_outlined),
+                        title: Text(AppLocalizations.of(context)!
+                            .dupFinderTitle),
+                        subtitle: Text(
+                          AppLocalizations.of(context)!.dupFinderCount(
+                              countDuplicateGroups(lib.songs)),
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => _openPage(
+                            context, const DuplicatesScreen()),
+                      ),
                     ),
                   ),
                 ),
@@ -496,115 +797,80 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                   ),
                 ),
 
-                // ── Playlist list ──
-                pl.isEmpty
-                    ? SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                // Playlist sections: auto on top, then one per folder.
+                if (pl.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.queue_music_outlined,
+                              size: 64, color: Colors.grey[300]),
+                          const SizedBox(height: 12),
+                          Text(l.collectionsNoPlaylists,
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  )
+                else ...[
+                  // Auto playlists stay flat on top, never grouped.
+                  if (auto.isNotEmpty)
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) => _playlistTile(
+                            context, playlists, lib, auto[i], i),
+                        childCount: auto.length,
+                      ),
+                    ),
+                  // One section per folder, in the current sort order.
+                  for (final folder in folders) ...[
+                    SliverToBoxAdapter(
+                      child: _folderHeader(context, playlists, folder,
+                          grouped[folder]!.length),
+                    ),
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) => _playlistTile(context, playlists,
+                            lib, grouped[folder]![i], i),
+                        childCount: grouped[folder]!.length,
+                      ),
+                    ),
+                  ],
+                  if (ungrouped.isNotEmpty) ...[
+                    // Show the Ungrouped header only when folders exist,
+                    // so the old flat look is kept when unused.
+                    if (folders.isNotEmpty)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(16, 12, 8, 4),
+                          child: Row(
                             children: [
-                              Icon(Icons.queue_music_outlined,
-                                  size: 64, color: Colors.grey[300]),
-                              const SizedBox(height: 12),
-                              Text(l.collectionsNoPlaylists,
-                                  style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600)),
+                              Icon(Icons.folder_outlined, size: 18),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                    AppLocalizations.of(context)!
+                                        .plFolderUngrouped,
+                                    style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700)),
+                              ),
                             ],
                           ),
                         ),
-                      )
-                    : SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, i) {
-                            final p = pl[i];
-                            final name = p['name'] as String;
-                            final isAuto = _isAutoPlaylist(name);
-                            final isDaily = name == _dailyMixName;
-                            return TweenAnimationBuilder<double>(
-                              key: ValueKey('pl_${p['id']}'),
-                              tween: Tween(begin: 0.0, end: 1.0),
-                              duration:
-                                  Duration(milliseconds: 160 + (i % 8) * 25),
-                              curve: Curves.easeOut,
-                              builder: (ctx, v, child) => Opacity(
-                                opacity: v,
-                                child: Transform.translate(
-                                    offset: Offset(0, (1 - v) * 6),
-                                    child: child),
-                              ),
-                              child: ListTile(
-                                contentPadding:
-                                    const EdgeInsets.fromLTRB(16, 4, 8, 4),
-                                leading: _PlaylistTileArt(
-                                  playlistId: p['id'] as int,
-                                  isAuto: isAuto,
-                                ),
-                                title: Text(name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w500)),
-                                subtitle: isAuto
-                                    ? Text(
-                                        AppLocalizations.of(context)!.autoBadge,
-                                        style: const TextStyle(fontSize: 12))
-                                    : null,
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (isDaily)
-                                      IconButton(
-                                        icon: const Icon(
-                                            Icons.refresh, size: 20),
-                                        tooltip:
-                                            AppLocalizations.of(context)!
-                                                .reshuffleDailyMix,
-                                        onPressed: () => _reshuffleDailyMix(
-                                            playlists, lib),
-                                      ),
-                                    PopupMenuButton<String>(
-                                      icon: const Icon(Icons.more_vert),
-                                      onSelected: (action) {
-                                        if (action == 'delete') {
-                                          // Deleting an auto playlist is safe:
-                                          // it only removes that row and the
-                                          // next sync recreates it fresh.
-                                          _confirmDelete(context, playlists,
-                                              p['id'], name);
-                                        } else if (action == 'reshuffle' &&
-                                            isDaily) {
-                                          _reshuffleDailyMix(
-                                              playlists, lib);
-                                        }
-                                      },
-                                      itemBuilder: (_) => [
-                                        if (isDaily)
-                                          PopupMenuItem(
-                                              value: 'reshuffle',
-                                              child: Text(
-                                                  AppLocalizations.of(context)!
-                                                      .reshuffle)),
-                                        PopupMenuItem(
-                                            value: 'delete',
-                                            child: Text(l.delete)),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                onTap: () => _openPage(
-                                  context,
-                                  PlaylistDetailScreen(
-                                      playlistId: p['id'],
-                                      playlistName: name),
-                                ),
-                              ),
-                            );
-                          },
-                          childCount: pl.length,
-                        ),
                       ),
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) => _playlistTile(context, playlists,
+                            lib, ungrouped[i], auto.length + i),
+                        childCount: ungrouped.length,
+                      ),
+                    ),
+                  ],
+                ],
 
                 const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
               ],

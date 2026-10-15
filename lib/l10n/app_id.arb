@@ -80,7 +80,7 @@
     "@settingsEqualizer":  {
                                "description":  "Section header for equalizer presets"
                            },
-    "settingsEqualizerNote":  "Preset ini hanya tampilan visualisasi, belum mengubah suara aktual. Pilihan disimpan antar sesi.",
+    "settingsEqualizerNote":  "Preset ini membentuk suara putar yang sebenarnya lewat equalizer sistem. Pilihan disimpan antar sesi.",
     "@settingsEqualizerNote":  {
                                    "description":  "Honest disclaimer that EQ presets are visual only"
                                },
@@ -1278,5 +1278,260 @@
                                                                   "type":  "String"
                                                               }
                                                 }
-                           }
+                           },
+    "dupPlayFailed":  "Tidak bisa memutar lagu: {error}",
+    "@dupPlayFailed":  {
+                            "description":  "Pesan gagal putar duplikat",
+                            "placeholders":  {
+                                                 "error":  {
+                                                               "type":  "String"
+                                                           }
+                                             }
+                        },
+    "dupDeleteTitle":  "Hapus duplikat terpilih?",
+    "@dupDeleteTitle":  {
+                             "description":  "Judul dialog hapus duplikat terpilih"
+                         },
+    "dupDeleteMessage":  "Ini akan menghapus {count} lagu dari library. Satu salinan per grup dipertahankan.",
+    "@dupDeleteMessage":  {
+                               "description":  "Pesan dialog hapus duplikat terpilih",
+                               "placeholders":  {
+                                                    "count":  {
+                                                                  "type":  "int"
+                                                              }
+                                                }
+                           },
+    "dupRemoved":  "Menghapus {removed} dari {total} lagu terpilih",
+    "@dupRemoved":  {
+                         "description":  "Ringkasan duplikat dihapus",
+                         "placeholders":  {
+                                              "removed":  {
+                                                              "type":  "int"
+                                                          },
+                                              "total":  {
+                                                            "type":  "int"
+                                                        }
+                                          }
+                     },
+    "dupDeleteFailed":  "Hapus gagal: {error}",
+    "@dupDeleteFailed":  {
+                              "description":  "Pesan gagal hapus",
+                              "placeholders":  {
+                                                   "error":  {
+                                                                 "type":  "String"
+                                                             }
+                                               }
+                          },
+    "dupRemoveAllTitle":  "Hapus semua duplikat?",
+    "@dupRemoveAllTitle":  {
+                                "description":  "Judul dialog hapus semua duplikat"
+                            },
+    "dupRemoveAllMessage":  "Ini akan menghapus {extras} lagu duplikat dalam {groups} grup. Satu salinan per grup dipertahankan.",
+    "@dupRemoveAllMessage":  {
+                                  "description":  "Pesan dialog hapus semua duplikat",
+                                  "placeholders":  {
+                                                       "extras":  {
+                                                                      "type":  "int"
+                                                                  },
+                                                       "groups":  {
+                                                                      "type":  "int"
+                                                                  }
+                                                   }
+                              },
+    "dupRemovedAll":  "Menghapus {removed} lagu duplikat, {kept} asli dipertahankan",
+    "@dupRemovedAll":  {
+                            "description":  "Ringkasan semua duplikat dihapus",
+                            "placeholders":  {
+                                                 "removed":  {
+                                                                 "type":  "int"
+                                                             },
+                                                 "kept":  {
+                                                              "type":  "int"
+                                                          }
+                                             }
+                        },
+    "dupTitle":  "Pencari Duplikat",
+    "@dupTitle":  {
+                       "description":  "Judul pencari duplikat"
+                   },
+    "dupEmpty":  "Tidak ada duplikat",
+    "@dupEmpty":  {
+                       "description":  "Empty state tanpa duplikat"
+                   },
+    "dupSummary":  "{groups} grup duplikat, {extras} lagu ekstra",
+    "@dupSummary":  {
+                         "description":  "Label ringkasan duplikat",
+                         "placeholders":  {
+                                              "groups":  {
+                                                             "type":  "int"
+                                                         },
+                                              "extras":  {
+                                                             "type":  "int"
+                                                         }
+                                          }
+                     },
+    "dupSelectExtras":  "Pilih ekstra",
+    "@dupSelectExtras":  {
+                              "description":  "Tombol pilih ekstra"
+                          },
+    "dupSelected":  "{count} terpilih",
+    "@dupSelected":  {
+                          "description":  "Label jumlah terpilih",
+                          "placeholders":  {
+                                               "count":  {
+                                                             "type":  "int"
+                                                         }
+                                           }
+                      },
+    "dupDeleteSelected":  "Hapus terpilih",
+    "@dupDeleteSelected":  {
+                                "description":  "Tombol hapus terpilih"
+                            },
+    "dupKeepOne":  "Sisakan 1",
+    "@dupKeepOne":  {
+                         "description":  "Badge sisakan satu"
+                     },
+    "dupKept":  "Dipertahankan",
+    "@dupKept":  {
+                      "description":  "Badge dipertahankan"
+                  },
+    "dupPlay":  "Putar",
+    "@dupPlay":  {
+                      "description":  "Tooltip putar"
+                  },
+    "dupCopies":  "{artist} - {count} duplikat",
+    "@dupCopies":  {
+                        "description":  "Subjudul grup dengan artis dan jumlah",
+                        "placeholders":  {
+                                             "artist":  {
+                                                           "type":  "String"
+                                                       },
+                                             "count":  {
+                                                           "type":  "int"
+                                                       }
+                                         }
+                    },
+    "dupRemoveAll":  "Hapus duplikat, sisakan satu per grup",
+    "@dupRemoveAll":  {
+                           "description":  "Tombol hapus semua duplikat"
+                       },
+    "artRefreshed":  "Cover tersegarkan",
+    "@artRefreshed":  {
+                           "description":  "Konfirmasi cover tersegarkan"
+                       },
+    "artRefreshFailed":  "Segarkan gagal: {error}",
+    "@artRefreshFailed":  {
+                               "description":  "Pesan gagal segarkan cover",
+                               "placeholders":  {
+                                                    "error":  {
+                                                                  "type":  "String"
+                                                              }
+                                                }
+                           },
+    "artFetchStopped":  "Berhenti dini: rate limited ({done}/{total})",
+    "@artFetchStopped":  {
+                              "description":  "Fetch massal berhenti dini",
+                              "placeholders":  {
+                                                   "done":  {
+                                                                "type":  "int"
+                                                            },
+                                                   "total":  {
+                                                                 "type":  "int"
+                                                             }
+                                               }
+                          },
+    "artFetchFinished":  "Fetch selesai ({done}/{total})",
+    "@artFetchFinished":  {
+                               "description":  "Fetch massal selesai",
+                               "placeholders":  {
+                                                    "done":  {
+                                                                 "type":  "int"
+                                                             },
+                                                    "total":  {
+                                                                  "type":  "int"
+                                                              }
+                                                }
+                           },
+    "artFetchFailed":  "Fetch gagal: {error}",
+    "@artFetchFailed":  {
+                             "description":  "Pesan gagal fetch massal",
+                             "placeholders":  {
+                                                  "error":  {
+                                                                "type":  "String"
+                                                            }
+                                              }
+                         },
+    "artMissingTitle":  "Cover hilang",
+    "@artMissingTitle":  {
+                              "description":  "Judul cover hilang"
+                          },
+    "artFetchAll":  "Fetch semua",
+    "@artFetchAll":  {
+                          "description":  "Tombol fetch semua"
+                      },
+    "artAllHaveCovers":  "Semua lagu sudah bercover",
+    "@artAllHaveCovers":  {
+                               "description":  "Empty state semua bercover"
+                           },
+    "artRefetch":  "Fetch ulang cover",
+    "@artRefetch":  {
+                         "description":  "Tooltip fetch ulang cover"
+                     },
+    "plFolderMoveTo":  "Pindah ke folder",
+    "@plFolderMoveTo":  {
+                             "description":  "Dialog dan menu pindah ke folder"
+                         },
+    "plFolderNewName":  "Nama folder baru",
+    "@plFolderNewName":  {
+                              "description":  "Hint nama folder baru"
+                          },
+    "plFolderRemove":  "Keluarkan dari folder",
+    "@plFolderRemove":  {
+                             "description":  "Baris keluarkan dari folder"
+                         },
+    "plFolderMove":  "Pindah",
+    "@plFolderMove":  {
+                           "description":  "Tombol konfirmasi pindah"
+                       },
+    "plFolderRename":  "Ganti nama folder",
+    "@plFolderRename":  {
+                             "description":  "Baris ganti nama folder"
+                         },
+    "plFolderDelete":  "Hapus folder",
+    "@plFolderDelete":  {
+                             "description":  "Baris hapus folder"
+                         },
+    "plFolderDeleteConfirm":  "Hapus folder \"{folder}\"? {count} playlist tidak berkelompok.",
+    "@plFolderDeleteConfirm":  {
+                                    "description":  "Konfirmasi hapus folder",
+                                    "placeholders":  {
+                                                         "folder":  {
+                                                                       "type":  "String"
+                                                                   },
+                                                         "count":  {
+                                                                       "type":  "int"
+                                                                   }
+                                                     }
+                                },
+    "plFolderUngrouped":  "Tanpa folder",
+    "@plFolderUngrouped":  {
+                                "description":  "Header section tanpa folder"
+                            },
+    "dupFinderTitle":  "Pencari Duplikat",
+    "@dupFinderTitle":  {
+                             "description":  "Judul entry pencari duplikat"
+                         },
+    "dupFinderCount":  "{count} grup duplikat",
+    "@dupFinderCount":  {
+                             "description":  "Jumlah grup duplikat",
+                             "placeholders":  {
+                                                  "count":  {
+                                                                "type":  "int"
+                                                            }
+                                              }
+                         },
+    "artMissingEntry":  "Cover hilang",
+    "@artMissingEntry":  {
+                              "description":  "Entry menu cover hilang"
+                          }
 }

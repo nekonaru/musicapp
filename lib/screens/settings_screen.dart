@@ -7,6 +7,7 @@ import '../providers/playlist_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/backup_service.dart';
+import '../services/equalizer_service.dart';
 import '../services/player_service.dart';
 
 const List<String> kEqualizerPresets = [
@@ -462,8 +463,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   selected: isSelected,
                   onSelected: _savingPrefs
                       ? null
-                      : (_) => _savePrefs(
-                          () => themeProvider.setEqualizerPreset(preset)),
+                      : (_) => _savePrefs(() async {
+                            await themeProvider.setEqualizerPreset(preset);
+                            await EqualizerService.instance
+                                .applyPreset(preset);
+                          }),
                 );
               }).toList(),
             ),
@@ -629,7 +633,7 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// Simple EQ bar visualizer for the selected preset (display only, no audio processing)
+// Simple EQ bar visualizer mirroring the selected preset curve.
 class _EqVisualizer extends StatelessWidget {
   final String preset;
   const _EqVisualizer({required this.preset});

@@ -45,6 +45,11 @@
 | 🏆 **Rekap tahunan** | Lagu, artis, dan jam teratas tahun berjalan, bisa dibagikan sebagai gambar |
 | 📋 **Simpan antrean** | Simpan antrean putar sebagai playlist sekali ketuk |
 | 🌙 **Jadwal tidur** | Sleep timer jam tetap setiap malam |
+| 🎚️ **Equalizer beneran** | 9 preset membentuk suara putar via DSP sistem |
+| 🔍 **Pencarian toleran** | "faded alan walker" ketemu untuk "faded - alan walker" |
+| 🗂️ **Pencari duplikat** | Temukan dan hapus lagu duplikat, sisakan satu per grup |
+| 🖼️ **Cover hilang** | Daftar lagu tanpa cover dengan fetch ulang sekali ketuk |
+| 📂 **Folder playlist** | Kelompokkan playlist ke dalam folder |
 | 📥 **Import M3U** | Import playlist dari file .m3u, dicocokkan ke library |
 | 📤 **Bagikan lagu** | Bagikan info lagu plus file audio |
 | 🔥 **Streak mendengarkan** | Streak harian dan genre teratas bulan ini di dashboard |

@@ -9,6 +9,7 @@ import '../providers/playlist_provider.dart';
 import '../services/player_service.dart';
 import '../services/art_cache_service.dart';
 import '../utils/format.dart';
+import '../utils/fuzzy.dart';
 import '../utils/song_options.dart';
 import '../widgets/playing_indicator.dart';
 import '../widgets/mini_player.dart';
@@ -245,29 +246,27 @@ class _SearchScreenState extends State<SearchScreen> {
 
   List<Song> _getResults(List<Song> songs) {
     if (_query.trim().isEmpty) return [];
-    final q = _query.toLowerCase();
+    // Use tolerant matching so separators and token order do not matter.
+    // Each filter builds one haystack per song from its own fields.
     switch (_filter) {
       case _SearchFilter.lagu:
         return songs
-            .where((s) =>
-                s.title.toLowerCase().contains(q) ||
-                s.artist.toLowerCase().contains(q))
+            .where((s) => fuzzyMatch('${s.title} ${s.artist}', _query))
             .toList();
       case _SearchFilter.album:
-        return songs.where((s) => s.album.toLowerCase().contains(q)).toList();
+        return songs.where((s) => fuzzyMatch(s.album, _query)).toList();
       case _SearchFilter.artis:
-        return songs.where((s) => s.artist.toLowerCase().contains(q)).toList();
+        return songs.where((s) => fuzzyMatch(s.artist, _query)).toList();
       case _SearchFilter.folder:
         return songs.where((s) {
           final parts = s.filePath.split('/');
-          final folderName = parts.length > 1
-              ? parts[parts.length - 2].toLowerCase()
-              : '';
-          return folderName.contains(q);
+          final folderName =
+              parts.length > 1 ? parts[parts.length - 2] : '';
+          return fuzzyMatch(folderName, _query);
         }).toList();
       case _SearchFilter.genre:
         return songs
-            .where((s) => (s.genre ?? '').toLowerCase().contains(q))
+            .where((s) => fuzzyMatch(s.genre ?? '', _query))
             .toList();
     }
   }

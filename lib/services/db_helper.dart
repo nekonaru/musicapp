@@ -19,7 +19,7 @@ class DBHelper {
     final path = p.join(dbPath, 'music_app.db');
     return openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE songs(
@@ -52,7 +52,8 @@ class DBHelper {
           CREATE TABLE playlists(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE,
-            createdAt TEXT
+            createdAt TEXT,
+            folder TEXT DEFAULT ''
           )
         ''');
         await db.execute('''
@@ -163,6 +164,16 @@ class DBHelper {
             ''');
           } catch (_) {
             // Table may already exist, ignore
+          }
+        }
+        if (oldVersion < 7) {
+          // Playlist folder label for the collections grouping feature.
+          // Empty string means the playlist is not in any folder.
+          try {
+            await db.execute(
+                "ALTER TABLE playlists ADD COLUMN folder TEXT DEFAULT ''");
+          } catch (_) {
+            // Column may already exist, ignore
           }
         }
       },
@@ -417,6 +428,75 @@ class DBHelper {
     await database.delete('playlists', where: 'id = ?', whereArgs: [id]);
     await database
         .delete('playlist_songs', where: 'playlistId = ?', whereArgs: [id]);
+  }
+
+  // ---------- Playlist folders ----------
+  // Optional label stored per playlist. Empty string means ungrouped.
+
+  /// Move one playlist into [folder]. Pass '' to remove it from any folder.
+  Future<void> setPlaylistFolder(int playlistId, String folder) async {
+    try {
+      final database = await db;
+      await database.update(
+        'playlists',
+        {'folder': folder.trim()},
+        where: 'id = ?',
+        whereArgs: [playlistId],
+      );
+    } catch (_) {
+      // Best effort only, the list still renders without the folder change.
+    }
+  }
+
+  /// Distinct non-empty folder names, sorted A to Z.
+  Future<List<String>> getPlaylistFolders() async {
+    try {
+      final database = await db;
+      final rows = await database.rawQuery(
+        "SELECT DISTINCT folder FROM playlists "
+        "WHERE folder IS NOT NULL AND TRIM(folder) != '' "
+        "ORDER BY folder COLLATE NOCASE ASC",
+      );
+      return rows
+          .map((r) => ((r['folder'] as String?) ?? '').trim())
+          .where((f) => f.isNotEmpty)
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// All playlists stored in [folder], newest first like [getPlaylists].
+  Future<List<Map<String, dynamic>>> getPlaylistsInFolder(String folder) async {
+    try {
+      final database = await db;
+      return await database.query(
+        'playlists',
+        where: 'folder = ?',
+        whereArgs: [folder.trim()],
+        orderBy: 'createdAt DESC',
+      );
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Rename [oldName] to [newName] for every playlist in that folder.
+  /// Pass '' as [newName] to ungroup all playlists in the folder.
+  Future<void> renamePlaylistFolder(String oldName, String newName) async {
+    try {
+      final oldTrimmed = oldName.trim();
+      if (oldTrimmed.isEmpty) return;
+      final database = await db;
+      await database.update(
+        'playlists',
+        {'folder': newName.trim()},
+        where: 'folder = ?',
+        whereArgs: [oldTrimmed],
+      );
+    } catch (_) {
+      // Best effort only, folders still render with the old name.
+    }
   }
 
   Future<void> addSongToPlaylist(int playlistId, int songId) async {
