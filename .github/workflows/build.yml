@@ -150,22 +150,6 @@ jobs:
           echo "=== app/build.gradle.kts after patch ==="
           cat "$APP_GRADLE"
 
-      - name: Trim unused language resources (keep en and in only)
-        run: |
-          APP_GRADLE="android/app/build.gradle.kts"
-          if ! grep -q 'resConfigs("en", "in")' "$APP_GRADLE"; then
-            sed -i '/targetSdk/a\        resConfigs("en", "in")' "$APP_GRADLE"
-          fi
-          cat "$APP_GRADLE"
-
-      - name: Enable shrinkResources in release build
-        run: |
-          APP_GRADLE="android/app/build.gradle.kts"
-          if ! grep -q "shrinkResources" "$APP_GRADLE"; then
-            sed -i '/signingConfig = signingConfigs.getByName("debug")/a\            shrinkResources = true' "$APP_GRADLE"
-          fi
-          cat "$APP_GRADLE"
-
       - name: Build APK
         run: flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols
 
@@ -222,7 +206,6 @@ jobs:
             - Lyrics stored gzip-compressed in the database.
             - Position stream sleeps while paused; notification sync does less redundant work.
             - Dropped a heavy image-caching dependency in favor of built-in image widgets.
-            - Release builds shrink unused resources.
 
             ## 📦 Install / Update
 
@@ -249,7 +232,6 @@ jobs:
             - Lirik disimpan terkompresi gzip di database.
             - Position stream tidur saat pause; sync notifikasi lebih sedikit kerja redundan.
             - Buang dependency image-caching yang berat, ganti widget image bawaan.
-            - Build rilis menyusutkan unused resources.
 
             ## 📦 Instalasi / Update
 
