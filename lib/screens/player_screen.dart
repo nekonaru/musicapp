@@ -70,9 +70,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final options = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
     final speed = await showModalBottomSheet<double>(
       context: context,
-      builder: (ctx) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      isScrollControlled: true,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        // Cap height at 90 percent of the screen and scroll on small phones.
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.9,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
           Padding(
             padding: const EdgeInsets.all(12),
             child: Text(AppLocalizations.of(ctx)!.playerPlaybackSpeed,
@@ -84,7 +96,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
               trailing: _player.playbackSpeed == s ? const Icon(Icons.check) : null,
               onTap: () => Navigator.pop(ctx, s),
             ),
-        ],
+              ],
+            ),
+          ),
+        ),
       ),
     );
     if (speed != null) await _player.setPlaybackSpeed(speed);

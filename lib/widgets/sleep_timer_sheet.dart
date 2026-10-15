@@ -98,14 +98,19 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
     final isActive = _isTimerActive;
 
     return Container(
+      constraints: BoxConstraints(
+        // Cap height at 90 percent of the screen and scroll on small phones.
+        maxHeight: MediaQuery.of(context).size.height * 0.9,
+      ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHigh,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
           // Handle
           Container(
             margin: const EdgeInsets.only(top: 12, bottom: 20),
@@ -131,7 +136,8 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
             _buildPickerState(cs),
 
           const SizedBox(height: 8),
-        ],
+          ],
+        ),
       ),
     );
   }

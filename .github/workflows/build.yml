@@ -196,19 +196,21 @@ jobs:
           body: |
             # English
 
-            **Swara v1.9.1 - M3U import, sharing, and streaks**
+            **Swara v1.10.0 - Yearly recap and playlist covers**
 
             ## ✨ New features
 
-            - Import playlists from .m3u/.m3u8 files, matched against your library.
-            - Share songs (info plus audio file) from the song menu.
-            - Listening day streak and top genre of the month on the dashboard, with cached aggregates.
-            - Faster cold start with parallel initialization behind a splash screen.
+            - Yearly recap on the dashboard (top songs, artists, and hours of the current year).
+            - Auto-generated playlist covers (collage of member album art).
+            - Custom charts replace a heavy chart dependency.
 
             ## ⚡ Optimizations
 
-            - Remote album art cached on disk (100MB LRU) instead of re-downloaded every launch.
-            - Playlist data loads on demand; removed an unused icon font.
+            - Song queries are paged in SQL (no more loading the whole library for the first paint).
+
+            ## 🐛 Bug fixes
+
+            - Bottom sheets (sort, song options, speed picker) no longer get cut off: capped height with scrolling on small screens.
 
             ## 📦 Install / Update
 
@@ -222,19 +224,21 @@ jobs:
 
             # Bahasa Indonesia
 
-            **Swara v1.9.1 - Import M3U, berbagi, dan streak**
+            **Swara v1.10.0 - Rekap tahunan dan cover playlist**
 
             ## ✨ Fitur baru
 
-            - Import playlist dari file .m3u/.m3u8, dicocokkan ke library.
-            - Bagikan lagu (info plus file audio) dari menu lagu.
-            - Streak harian dan genre teratas bulan ini di dashboard, dengan agregat ter-cache.
-            - Cold start lebih cepat dengan inisialisasi paralel di balik splash screen.
+            - Rekap tahunan di dashboard (lagu, artis, dan jam teratas tahun berjalan).
+            - Cover playlist otomatis (kolase cover album anggota).
+            - Chart kustom menggantikan dependency chart yang berat.
 
             ## ⚡ Pengoptimalan
 
-            - Cover art remote di-cache di disk (LRU 100MB) alih-alih diunduh ulang tiap buka app.
-            - Data playlist dimuat saat dibutuhkan; buang font ikon yang tak terpakai.
+            - Query lagu per halaman di SQL (tidak lagi memuat seluruh library untuk paint pertama).
+
+            ## 🐛 Perbaikan bug
+
+            - Bottom sheet (sort, opsi lagu, pilih kecepatan) tidak lagi kepotong: tinggi dibatasi + bisa scroll di layar kecil.
 
             ## 📦 Instalasi / Update
 

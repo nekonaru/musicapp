@@ -220,14 +220,21 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final l = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       showDragHandle: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        // Cap height at 90 percent of the screen and scroll on small phones.
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.9,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Text(l.librarySortBy,
@@ -250,7 +257,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   },
                 )),
             const SizedBox(height: 8),
-          ],
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -297,13 +306,21 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
     await showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       showDragHandle: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        // Cap height at 90 percent of the screen and scroll long lists.
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.9,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
             Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(l.libraryChoosePlaylist,
@@ -328,7 +345,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     }
                   },
                 )),
-          ],
+              ],
+            ),
+          ),
         ),
       ),
     );

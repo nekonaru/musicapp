@@ -1,7 +1,7 @@
 name: offline_music_player
 description: Swara - Offline music player with automatic metadata, lyrics, and listening analytics dashboard.
 publish_to: 'none'
-version: 1.9.1+13
+version: 1.10.0+14
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -35,9 +35,6 @@ dependencies:
 
   # HTTP untuk fetch metadata/album art/lirik dari API eksternal
   http: ^1.2.2
-
-  # Chart untuk dashboard
-  fl_chart: ^0.68.0
 
   # Permission storage
   permission_handler: ^11.3.1

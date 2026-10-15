@@ -36,9 +36,21 @@ Future<void> showSongOptions(
 
   await showModalBottomSheet(
     context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
     builder: (ctx) => SafeArea(
-      child: Wrap(
-        children: [
+      // Cap height at 90 percent of the screen and scroll on small phones.
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(ctx).size.height * 0.9,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(
@@ -172,6 +184,8 @@ Future<void> showSongOptions(
               },
             ),
         ],
+          ),
+        ),
       ),
     ),
   );
@@ -237,10 +251,21 @@ Future<void> pickPlaylist(BuildContext context, Song song, PlaylistProvider prov
   final l = AppLocalizations.of(context)!;
   return showModalBottomSheet(
     context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
     builder: (ctx) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      // Cap height at 90 percent of the screen and scroll long lists.
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(ctx).size.height * 0.9,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
           for (final p in provider.playlists)
             ListTile(
               title: Text(p['name']),
@@ -302,7 +327,9 @@ Future<void> pickPlaylist(BuildContext context, Song song, PlaylistProvider prov
               }
             },
           ),
-        ],
+            ],
+          ),
+        ),
       ),
     ),
   );
