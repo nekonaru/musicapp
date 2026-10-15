@@ -1047,4 +1047,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sleepTimerStopped => 'Sleep timer stopped';
+
+  @override
+  String loadMore(int shown, int total) {
+    return 'Load more ($shown of $total)';
+  }
 }

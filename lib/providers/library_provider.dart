@@ -48,6 +48,21 @@ class LibraryProvider extends ChangeNotifier {
   // Auto scan only when more than 30 minutes have passed
   static const _scanIntervalMs = 1800000;
 
+  // Guard so notifyListeners never runs after dispose.
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (_disposed) return;
+    super.notifyListeners();
+  }
+
   LibraryProvider() {
     _loadPrefs();
   }
@@ -98,14 +113,16 @@ class LibraryProvider extends ChangeNotifier {
     await prefs.setInt(_kLastDeviceScan, nowMs);
   }
 
-  /// Scan files from the phone (detect new/removed songs), WITHOUT
-  /// fetching internet metadata.
-  Future<void> scanDevice() async {
+  /// Scan files from the phone (detect new/removed songs).
+  /// Fast path: device read + DB write only, no internet fetch, so the
+  /// song list appears instantly at startup. Pass [autoFetchMetadata] true
+  /// only when the caller explicitly wants the slow internet enrich inline.
+  Future<void> scanDevice({bool autoFetchMetadata = false}) async {
     isScanning = true;
     scanError = null;
     notifyListeners();
     try {
-      await LibraryScanner().scanAndSync(autoFetchMetadata: false);
+      await LibraryScanner().scanAndSync(autoFetchMetadata: autoFetchMetadata);
       await loadFromDb();
     } catch (e) {
       scanError = '${lookupAppLocalizations(LanguageProvider.instance.locale).coreScanFailed}: $e';
@@ -115,8 +132,8 @@ class LibraryProvider extends ChangeNotifier {
   }
 
   /// Force a device scan and refresh the timestamp
-  Future<void> forceScanDevice() async {
-    await scanDevice();
+  Future<void> forceScanDevice({bool autoFetchMetadata = false}) async {
+    await scanDevice(autoFetchMetadata: autoFetchMetadata);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_kLastDeviceScan, DateTime.now().millisecondsSinceEpoch);
   }
@@ -132,10 +149,15 @@ class LibraryProvider extends ChangeNotifier {
 
     const batchSize = 5;
     for (int i = 0; i < targets.length; i += batchSize) {
-      final batch = targets.skip(i).take(batchSize);
-      await Future.wait(batch.map((song) => MetadataService.instance.enrichSong(song)));
+      final batch = targets.skip(i).take(batchSize).toList();
+      // Await the batch and stop at once on iTunes 429: leftovers keep
+      // metadataScanned false and are retried on a later scan.
+      // Single backoff window lives in MetadataService, no retry loop here.
+      final results =
+          await Future.wait(batch.map((song) => MetadataService.instance.enrichSong(song)));
       bulkScanProgress += batch.length;
       notifyListeners();
+      if (results.any((limited) => limited)) break;
     }
 
     isBulkScanningMetadata = false;

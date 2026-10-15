@@ -80,7 +80,7 @@ jobs:
           mkdir -p android/app/src/main/res/raw
           cat > android/app/src/main/res/raw/keep.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
-          <resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@drawable/*" />
+          <resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@drawable/ic_stat_swara,@drawable/ic_notif_shuffle,@drawable/ic_notif_repeat" />
           EOF
           cat android/app/src/main/res/raw/keep.xml
 
@@ -189,29 +189,31 @@ jobs:
           echo "=== app/build.gradle.kts after patch ==="
           cat "$APP_GRADLE"
 
-      - name: Build APK
-        run: flutter build apk --release
-        continue-on-error: true
+      - name: Trim unused language resources (keep en and in only)
+        run: |
+          APP_GRADLE="android/app/build.gradle.kts"
+          if ! grep -q 'resConfigs("en", "in")' "$APP_GRADLE"; then
+            sed -i '/targetSdk/a\        resConfigs("en", "in")' "$APP_GRADLE"
+          fi
+          cat "$APP_GRADLE"
 
-      - name: Locate APK file wherever it was built
+      - name: Build APK
+        run: flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols
+
+      - name: Verify split APK outputs exist
         run: |
           DEST="build/app/outputs/flutter-apk"
-          mkdir -p "$DEST"
-          FOUND=$(find . -name "app-release.apk" -not -path "*/node_modules/*" | head -n 1)
-          if [ -z "$FOUND" ]; then
-            echo "APK not found, listing all existing .apk files:"
-            find . -name "*.apk"
+          echo "=== APK outputs in $DEST ==="
+          ls -la "$DEST"
+          COUNT=$(ls "$DEST"/app-*-release.apk 2>/dev/null | wc -l)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No app-*-release.apk found in $DEST"
             exit 1
           fi
-          echo "APK found at: $FOUND"
-          if [ "$FOUND" != "./$DEST/app-release.apk" ] && [ "$FOUND" != "$DEST/app-release.apk" ]; then
-            cp "$FOUND" "$DEST/app-release.apk"
-          else
-            echo "APK already in the correct location, skipping copy."
-          fi
+          echo "Found $COUNT split APK(s)."
 
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: music-app-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: music-app-apks
+          path: build/app/outputs/flutter-apk/*.apk

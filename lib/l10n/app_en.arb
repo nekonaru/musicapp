@@ -787,5 +787,17 @@
     "sleepSongMode":  "Songs",
     "sleepStart":  "Start",
     "sleepSongUnit":  "songs",
-    "sleepTimerStopped":  "Sleep timer stopped"
+    "sleepTimerStopped":  "Sleep timer stopped",
+    "loadMore":  "Load more ({shown} of {total})",
+    "@loadMore":  {
+                       "description":  "Button to render the next page of a long song list",
+                       "placeholders":  {
+                                            "shown":  {
+                                                          "type":  "int"
+                                                      },
+                                            "total":  {
+                                                          "type":  "int"
+                                                      }
+                                        }
+                   }
 }

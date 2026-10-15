@@ -11,6 +11,10 @@ import 'player_service.dart';
 /// (using the built-in drawables already present in res/)
 class SwaraAudioHandler extends BaseAudioHandler {
   Timer? _positionTicker;
+  // Last values seen by _syncState, used by the ticker to decide
+  // between a cheap position update and a full state sync.
+  int? _lastSongId;
+  bool? _lastPlaying;
 
   static const _shuffleAction = MediaControl(
     androidIcon: 'drawable/ic_notif_shuffle',
@@ -31,7 +35,16 @@ class SwaraAudioHandler extends BaseAudioHandler {
     _positionTicker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_disposed) return;
       try {
-        if (PlayerService.instance.player.playing) _syncState();
+        final ps = PlayerService.instance;
+        // Update the position cheaply while playing. Run a full sync
+        // only when the track or the playing state actually changed.
+        if (!ps.player.playing) return;
+        final songId = ps.currentSong?.id;
+        if (songId != _lastSongId || ps.player.playing != _lastPlaying) {
+          _syncState();
+        } else {
+          _updatePosition();
+        }
       } catch (e) {
         debugPrint('Gagal sync audio handler: $e');
       }
@@ -66,7 +79,6 @@ class SwaraAudioHandler extends BaseAudioHandler {
   void _syncState() {
     final ps = PlayerService.instance;
     final song = ps.currentSong;
-
     mediaItem.add(
       song == null
           ? null
@@ -98,6 +110,21 @@ class SwaraAudioHandler extends BaseAudioHandler {
         androidCompactActionIndices: const [1, 2, 3],
         processingState: AudioProcessingState.ready,
         playing: playing,
+        updatePosition: ps.player.position,
+        speed: ps.player.speed,
+      ),
+    );
+    _lastSongId = song?.id;
+    _lastPlaying = playing;
+  }
+
+  /// Lightweight position update for the 1 second ticker. Refreshes only
+  /// the playback position without rebuilding the media item, so the
+  /// notification costs almost nothing while the song keeps playing.
+  void _updatePosition() {
+    final ps = PlayerService.instance;
+    playbackState.add(
+      playbackState.value.copyWith(
         updatePosition: ps.player.position,
         speed: ps.player.speed,
       ),

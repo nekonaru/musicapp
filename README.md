@@ -64,7 +64,7 @@
 ### Option A: Download the APK (easiest)
 
 1. Open the [Releases](https://github.com/nekonaru/musicapp/releases) page
-2. Download `app-release.apk` from the latest version
+2. Download the APK matching your device (`app-arm64-v8a-release.apk` for most modern phones, `app-armeabi-v7a-release.apk` for older 32-bit ones)
 3. Open it on your phone, allow installs from unknown sources if asked
 4. Allow audio access when the app first opens
 

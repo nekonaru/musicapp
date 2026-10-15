@@ -32,7 +32,9 @@ Widget buildSongTile(
   final current = PlayerService.instance.currentSong;
   final isPlaying = current != null && current.id == song.id;
   final cs = Theme.of(context).colorScheme;
-  return ListTile(
+  // Isolate each tile so the mini player animation does not repaint the list.
+  return RepaintBoundary(
+    child: ListTile(
     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
     tileColor: isPlaying ? cs.primaryContainer.withValues(alpha: 0.25) : null,
     leading: leading ??
@@ -99,6 +101,7 @@ Widget buildSongTile(
             onPressed: () => showSongOptions(context, song),
           ),
       ],
+    ),
     ),
   );
 }

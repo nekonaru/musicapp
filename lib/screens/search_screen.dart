@@ -27,11 +27,19 @@ class _SearchScreenState extends State<SearchScreen> {
   _SearchFilter _filter = _SearchFilter.lagu;
   Timer? _debounce;
 
+  // Render only a prefix of the full search results to keep scrolling cheap.
+  // Filtering and grouping still use the full result list.
+  static const int _pageSize = 200;
+  int _visibleCount = _pageSize;
+
   void _onQueryChanged(String v) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 300), () {
       if (!mounted) return;
-      setState(() => _query = v);
+      setState(() {
+        _query = v;
+        _visibleCount = _pageSize;
+      });
     });
   }
 
@@ -121,7 +129,10 @@ class _SearchScreenState extends State<SearchScreen> {
           return FilterChip(
             label: Text(label),
             selected: isSelected,
-            onSelected: (_) => setState(() => _filter = filter),
+            onSelected: (_) => setState(() {
+              _filter = filter;
+              _visibleCount = _pageSize;
+            }),
             showCheckmark: false,
           );
         },
@@ -240,12 +251,33 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     if (_filter == _SearchFilter.lagu) {
+      // Render a prefix of the flat results plus a pager row at the end.
+      final visibleCount =
+          results.length < _visibleCount ? results.length : _visibleCount;
+      final hasMore = visibleCount < results.length;
       return AnimatedBuilder(
         animation: PlayerService.instance,
         builder: (context, _) => ListView.builder(
-          itemCount: results.length,
-          itemExtent: 72,
-          itemBuilder: (context, i) => _buildSongTile(results[i], results, i),
+          itemCount: visibleCount + (hasMore ? 1 : 0),
+          itemExtent: hasMore ? null : 72,
+          itemBuilder: (context, i) {
+            if (i >= visibleCount) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                child: OutlinedButton(
+                  onPressed: () => setState(() {
+                    _visibleCount = visibleCount + _pageSize;
+                  }),
+                  child: Text(AppLocalizations.of(context)!
+                      .loadMore(visibleCount, results.length)),
+                ),
+              );
+            }
+            return SizedBox(
+              height: 72,
+              child: _buildSongTile(results[i], results, i),
+            );
+          },
         ),
       );
     }
@@ -254,13 +286,43 @@ class _SearchScreenState extends State<SearchScreen> {
     final grouped = _groupResults(results);
     final groups = grouped.keys.toList()..sort();
 
+    // Allocate the visible tile budget across groups in display order.
+    final visibleCount =
+        results.length < _visibleCount ? results.length : _visibleCount;
+    final hasMore = visibleCount < results.length;
+    final alloc = <int>[];
+    var remaining = visibleCount;
+    for (final groupKey in groups) {
+      final take = grouped[groupKey]!.length <= remaining
+          ? grouped[groupKey]!.length
+          : remaining;
+      alloc.add(take);
+      remaining -= take;
+    }
+
     return AnimatedBuilder(
       animation: PlayerService.instance,
       builder: (context, _) => ListView.builder(
-        itemCount: groups.length,
+        itemCount: groups.length + (hasMore ? 1 : 0),
         itemBuilder: (context, gi) {
+          if (gi >= groups.length) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              // TODO L10N: move hardcoded English label to .arb.
+              child: OutlinedButton(
+                onPressed: () => setState(() {
+                  _visibleCount = visibleCount + _pageSize;
+                }),
+                child: Text(
+                    AppLocalizations.of(context)!
+                        .loadMore(visibleCount, results.length)),
+              ),
+            );
+          }
           final groupKey = groups[gi];
           final groupSongs = grouped[groupKey]!;
+          final shown = groupSongs.take(alloc[gi]).toList();
+          if (shown.isEmpty) return const SizedBox.shrink();
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -279,9 +341,9 @@ class _SearchScreenState extends State<SearchScreen> {
                   ],
                 ),
               ),
-              ...groupSongs.asMap().entries.map((e) {
-                return _buildSongTile(e.value, groupSongs, e.key);
-              }),
+              // Shown rows are a prefix, so index k matches the full group queue.
+              for (var k = 0; k < shown.length; k++)
+                _buildSongTile(shown[k], groupSongs, k),
               const Divider(height: 1),
             ],
           );
@@ -313,7 +375,10 @@ class _SearchScreenState extends State<SearchScreen> {
                     onPressed: () {
                       _debounce?.cancel();
                       _controller.clear();
-                      setState(() => _query = '');
+                      setState(() {
+                        _query = '';
+                        _visibleCount = _pageSize;
+                      });
                     },
                   )
                 : null,

@@ -17,10 +17,20 @@ class _PlayingIndicatorState extends State<PlayingIndicator> with TickerProvider
   @override
   void initState() {
     super.initState();
-    _controllers = List.generate(3, (i) => AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: 450 + i * 120),
-    )..repeat(reverse: true));
+    // Start the bars only when something is actually playing, so idle
+    // rows never pay for the animation ticker.
+    _controllers = List.generate(
+      3,
+      (i) => AnimationController(
+        vsync: this,
+        duration: Duration(milliseconds: 450 + i * 120),
+      ),
+    );
+    if (widget.isPlaying) {
+      for (final c in _controllers) {
+        c.repeat(reverse: true);
+      }
+    }
   }
 
   @override

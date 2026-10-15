@@ -25,6 +25,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
   bool _multiSelectMode = false;
   final Set<int> _selectedIds = {};
 
+  // Render only a prefix of the full sorted list to keep first paint cheap.
+  // The full filter and sort results are untouched, only the row count grows.
+  static const int _pageSize = 200;
+  int _visibleCount = _pageSize;
+  SortOption? _lastSortOption;
+
   @override
   void initState() {
     super.initState();
@@ -61,6 +67,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
             s.title.isNotEmpty &&
             s.title.toUpperCase().startsWith(letter));
     if (index == -1) return;
+    // Expand the rendered prefix so the jump target exists before scrolling.
+    if (index >= _visibleCount) {
+      setState(() {
+        _visibleCount = ((index ~/ _pageSize) + 1) * _pageSize;
+      });
+    }
     final offset =
         (index * _itemHeight).clamp(0.0, _scrollController.position.maxScrollExtent);
     _scrollController.animateTo(
@@ -348,6 +360,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
       }
 
       final songs = lib.filteredSongs('');
+      // Reset the rendered prefix when sort changes. Direct assignment here
+      // is safe because it runs before the rows below are built.
+      if (_lastSortOption != lib.sortOption) {
+        _lastSortOption = lib.sortOption;
+        _visibleCount = _pageSize;
+      }
+      final visibleCount =
+          songs.length < _visibleCount ? songs.length : _visibleCount;
+      final hasMore = visibleCount < songs.length;
       final showAz = lib.sortOption == SortOption.titleAZ;
       final available = <String>{
         for (final s in songs)
@@ -379,7 +400,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         SliverToBoxAdapter(
                             child: _buildSortHeader(lib, songs)),
 
-                        // Song list
+                        // Song list (rendered prefix only)
                         SliverFixedExtentList(
                           itemExtent: _itemHeight,
                           delegate: SliverChildBuilderDelegate(
@@ -405,9 +426,25 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                 }),
                               );
                             },
-                            childCount: songs.length,
+                            childCount: visibleCount,
                           ),
                         ),
+
+                        // Load more button grows the rendered prefix by one page.
+                        if (hasMore)
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                              child: OutlinedButton(
+                                onPressed: () => setState(() {
+                                  _visibleCount = visibleCount + _pageSize;
+                                }),
+                                child: Text(
+                                    AppLocalizations.of(context)!.loadMore(
+                                        visibleCount, songs.length)),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),

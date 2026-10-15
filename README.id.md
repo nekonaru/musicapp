@@ -64,7 +64,7 @@
 ### Cara A: Download APK (paling gampang)
 
 1. Buka halaman [Releases](https://github.com/nekonaru/musicapp/releases)
-2. Download `app-release.apk` dari versi terbaru
+2. Download APK yang cocok dengan HP (`app-arm64-v8a-release.apk` untuk kebanyakan HP modern, `app-armeabi-v7a-release.apk` untuk yang 32-bit lama)
 3. Buka di HP, izinkan instalasi dari sumber tidak dikenal bila diminta
 4. Izinkan akses audio saat aplikasi pertama dibuka
 

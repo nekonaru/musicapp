@@ -1048,4 +1048,9 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get sleepTimerStopped => 'Timer tidur dihentikan';
+
+  @override
+  String loadMore(int shown, int total) {
+    return 'Muat lagi ($shown dari $total)';
+  }
 }

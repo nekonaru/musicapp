@@ -14,8 +14,9 @@ class PlayerService extends ChangeNotifier {
   static final PlayerService instance = PlayerService._();
 
   final AudioPlayer _player = AudioPlayer();
-  // Second player dedicated to crossfade (alternates with _player)
-  final AudioPlayer _crossfadePlayer = AudioPlayer();
+  // Second player for crossfade, created lazily only when crossfade is
+  // actually used, so idle playback never pays its memory cost.
+  AudioPlayer? _crossfadePlayer;
   bool _usingCrossfadePlayer = false;
 
   // _queue: the original song list (source order, never changed by shuffle)
@@ -49,9 +50,52 @@ class PlayerService extends ChangeNotifier {
   bool _disposed = false;
 
   /// The player that is CURRENTLY audible (switches each time a crossfade finishes)
-  AudioPlayer get _activePlayer => _usingCrossfadePlayer ? _crossfadePlayer : _player;
-  /// The "standby" player used to fade in the next song
-  AudioPlayer get _fadeTargetPlayer => _usingCrossfadePlayer ? _player : _crossfadePlayer;
+  AudioPlayer get _activePlayer {
+    final crossfade = _crossfadePlayer;
+    if (_usingCrossfadePlayer && crossfade != null) return crossfade;
+    return _player;
+  }
+
+  /// The "standby" player used to fade in the next song. Creates the
+  /// crossfade player on first real use so normal playback stays light.
+  AudioPlayer get _fadeTargetPlayer {
+    if (_usingCrossfadePlayer) return _player;
+    return _ensureCrossfadePlayer();
+  }
+
+  /// Create the crossfade player on demand and attach its completion
+  /// listener. Copies the current speed so the fade in starts in sync.
+  AudioPlayer _ensureCrossfadePlayer() {
+    final existing = _crossfadePlayer;
+    if (existing != null) return existing;
+    final created = AudioPlayer();
+    _crossfadePlayer = created;
+    created.setSpeed(_player.speed).catchError((Object e) {
+      debugPrint('Crossfade speed sync failed: $e');
+    });
+    _crossfadeStateSub?.cancel();
+    _crossfadeStateSub = created.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed && _usingCrossfadePlayer) {
+        _logListening();
+        _onTrackFinished();
+      }
+    });
+    return created;
+  }
+
+  /// Release the standby crossfade player and drop the reference so it
+  /// holds no audio resources. Skipped while it is the audible player;
+  /// that case is released on the next track change instead.
+  void _releaseCrossfadePlayer() {
+    if (_usingCrossfadePlayer) return;
+    _crossfadeStateSub?.cancel();
+    _crossfadeStateSub = null;
+    final standby = _crossfadePlayer;
+    _crossfadePlayer = null;
+    standby?.dispose().catchError((Object e) {
+      debugPrint('Crossfade dispose failed: $e');
+    });
+  }
 
   AudioPlayer get player => _activePlayer;
 
@@ -69,7 +113,6 @@ class PlayerService extends ChangeNotifier {
 
   Future<void> init() async {
     await _playerStateSub?.cancel();
-    await _crossfadeStateSub?.cancel();
     await _positionSub?.cancel();
     _playerStateSub = _player.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed && !_usingCrossfadePlayer) {
@@ -77,12 +120,19 @@ class PlayerService extends ChangeNotifier {
         _onTrackFinished();
       }
     });
-    _crossfadeStateSub = _crossfadePlayer.playerStateStream.listen((state) {
-      if (state.processingState == ProcessingState.completed && _usingCrossfadePlayer) {
-        _logListening();
-        _onTrackFinished();
-      }
-    });
+    // The crossfade completion listener is attached inside
+    // _ensureCrossfadePlayer, so nothing is created here. Reattach only
+    // when the standby player already exists (for example after hot restart).
+    final standby = _crossfadePlayer;
+    if (standby != null) {
+      await _crossfadeStateSub?.cancel();
+      _crossfadeStateSub = standby.playerStateStream.listen((state) {
+        if (state.processingState == ProcessingState.completed && _usingCrossfadePlayer) {
+          _logListening();
+          _onTrackFinished();
+        }
+      });
+    }
     _positionSub = _activePlayer.positionStream.listen(_maybeStartCrossfade);
   }
 
@@ -180,7 +230,10 @@ class PlayerService extends ChangeNotifier {
     _crossfadeCancelled = true;
     _crossfadeTriggeredForCurrent = false;
     _usingCrossfadePlayer = false;
-    await _crossfadePlayer.pause();
+    await _crossfadePlayer?.pause();
+    // Drop the standby player while crossfade is off so manual
+    // navigation does not leave audio resources allocated.
+    if (!crossfadeEnabled) _releaseCrossfadePlayer();
     _queue = List.of(songs);
 
     if (_shuffle) {
@@ -244,9 +297,10 @@ class PlayerService extends ChangeNotifier {
   Future<void> next() async {
     _logListening();
     _crossfadeCancelled = true;
-    await _crossfadePlayer.pause();
+    await _crossfadePlayer?.pause();
     _usingCrossfadePlayer = false;
     _crossfadeTriggeredForCurrent = false;
+    if (!crossfadeEnabled) _releaseCrossfadePlayer();
     if (_posInOrder < _playOrder.length - 1) {
       _posInOrder++;
     } else if (_repeatMode == SwaraRepeatMode.all) {
@@ -262,9 +316,10 @@ class PlayerService extends ChangeNotifier {
   Future<void> previous() async {
     _logListening();
     _crossfadeCancelled = true;
-    await _crossfadePlayer.pause();
+    await _crossfadePlayer?.pause();
     _usingCrossfadePlayer = false;
     _crossfadeTriggeredForCurrent = false;
+    if (!crossfadeEnabled) _releaseCrossfadePlayer();
     if (_posInOrder > 0) {
       _posInOrder--;
     } else if (_repeatMode == SwaraRepeatMode.all) {
@@ -297,9 +352,10 @@ class PlayerService extends ChangeNotifier {
     if (posInOrder < 0 || posInOrder >= _playOrder.length) return;
     _logListening();
     _crossfadeCancelled = true;
-    await _crossfadePlayer.pause();
+    await _crossfadePlayer?.pause();
     _usingCrossfadePlayer = false;
     _crossfadeTriggeredForCurrent = false;
+    if (!crossfadeEnabled) _releaseCrossfadePlayer();
     _posInOrder = posInOrder;
     await _playCurrent();
   }
@@ -392,8 +448,10 @@ class PlayerService extends ChangeNotifier {
   Future<void> setPlaybackSpeed(double speed) async {
     try {
       await _activePlayer.setSpeed(speed);
-      // Mirror the speed on the standby player so it does not jump on crossfade.
-      await _fadeTargetPlayer.setSpeed(speed);
+      // Mirror the speed on the standby player only when it already
+      // exists, so this call never creates it just for a speed update.
+      // A player created later copies the speed in _ensureCrossfadePlayer.
+      await _crossfadePlayer?.setSpeed(speed);
     } catch (e) {
       debugPrint('Gagal set kecepatan: $e');
     }
@@ -437,6 +495,15 @@ class PlayerService extends ChangeNotifier {
 
   void setCrossfadeEnabled(bool value) {
     crossfadeEnabled = value;
+    if (!value) {
+      // Cancel any fade in flight and release the standby player so it
+      // holds no audio resources while crossfade stays off. When the
+      // standby player is currently audible, the release is deferred to
+      // the next track change inside _releaseCrossfadePlayer.
+      _crossfadeCancelled = true;
+      _crossfadeTriggeredForCurrent = false;
+      _releaseCrossfadePlayer();
+    }
     notifyListeners();
   }
 
@@ -456,7 +523,7 @@ class PlayerService extends ChangeNotifier {
         _logListening();
         // Pause BOTH players so playback really stops even mid-crossfade
         await _player.pause();
-        await _crossfadePlayer.pause();
+        await _crossfadePlayer?.pause();
       }
       notifyListeners();
     });
@@ -499,7 +566,7 @@ class PlayerService extends ChangeNotifier {
         _player.pause().catchError((e) {
           debugPrint('Gagal pause saat sleep-timer: $e');
         });
-        _crossfadePlayer.pause().catchError((e) {
+        _crossfadePlayer?.pause().catchError((e) {
           debugPrint('Gagal pause saat sleep-timer: $e');
         });
         notifyListeners();
@@ -513,7 +580,7 @@ class PlayerService extends ChangeNotifier {
       _player.pause().catchError((e) {
         debugPrint('Gagal pause saat sleep-timer: $e');
       });
-      _crossfadePlayer.pause().catchError((e) {
+      _crossfadePlayer?.pause().catchError((e) {
         debugPrint('Gagal pause saat sleep-timer: $e');
       });
       notifyListeners();
@@ -523,6 +590,7 @@ class PlayerService extends ChangeNotifier {
     if (_repeatMode == SwaraRepeatMode.one) {
       _usingCrossfadePlayer = false;
       _crossfadeTriggeredForCurrent = false;
+      if (!crossfadeEnabled) _releaseCrossfadePlayer();
       _playCurrent().then((_) {}, onError: (e) {
         debugPrint('Gagal repeat-one: $e');
       });
@@ -570,9 +638,10 @@ class PlayerService extends ChangeNotifier {
     _player.dispose().catchError((e) {
       debugPrint('Gagal dispose player: $e');
     });
-    _crossfadePlayer.dispose().catchError((e) {
+    _crossfadePlayer?.dispose().catchError((e) {
       debugPrint('Gagal dispose crossfade player: $e');
     });
+    _crossfadePlayer = null;
     super.dispose();
   }
 }

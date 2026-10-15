@@ -69,7 +69,7 @@ jobs:
           mkdir -p android/app/src/main/res/raw
           cat > android/app/src/main/res/raw/keep.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
-          <resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@drawable/*" />
+          <resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@drawable/ic_stat_swara,@drawable/ic_notif_shuffle,@drawable/ic_notif_repeat" />
           EOF
           cat android/app/src/main/res/raw/keep.xml
 
@@ -150,26 +150,28 @@ jobs:
           echo "=== app/build.gradle.kts after patch ==="
           cat "$APP_GRADLE"
 
-      - name: Build APK
-        run: flutter build apk --release
-        continue-on-error: true
+      - name: Trim unused language resources (keep en and in only)
+        run: |
+          APP_GRADLE="android/app/build.gradle.kts"
+          if ! grep -q 'resConfigs("en", "in")' "$APP_GRADLE"; then
+            sed -i '/targetSdk/a\        resConfigs("en", "in")' "$APP_GRADLE"
+          fi
+          cat "$APP_GRADLE"
 
-      - name: Locate APK file wherever it was built
+      - name: Build APK
+        run: flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols
+
+      - name: Verify split APK outputs exist
         run: |
           DEST="build/app/outputs/flutter-apk"
-          mkdir -p "$DEST"
-          FOUND=$(find . -name "app-release.apk" -not -path "*/node_modules/*" | head -n 1)
-          if [ -z "$FOUND" ]; then
-            echo "APK not found, listing all existing .apk files:"
-            find . -name "*.apk"
+          echo "=== APK outputs in $DEST ==="
+          ls -la "$DEST"
+          COUNT=$(ls "$DEST"/app-*-release.apk 2>/dev/null | wc -l)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No app-*-release.apk found in $DEST"
             exit 1
           fi
-          echo "APK found at: $FOUND"
-          if [ "$FOUND" != "./$DEST/app-release.apk" ] && [ "$FOUND" != "$DEST/app-release.apk" ]; then
-            cp "$FOUND" "$DEST/app-release.apk"
-          else
-            echo "APK already in the correct location, skipping copy."
-          fi
+          echo "Found $COUNT split APK(s)."
 
       - name: Read version from pubspec.yaml
         id: version
@@ -184,8 +186,8 @@ jobs:
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: swara-${{ steps.version.outputs.version }}-release
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: music-app-apks
+          path: build/app/outputs/flutter-apk/*.apk
 
       - name: Create GitHub Release Draft
         uses: softprops/action-gh-release@v2
@@ -198,28 +200,28 @@ jobs:
           body: |
             # English
 
-            **Swara v1.8.0 - English by default, Bahasa Indonesia available**
-
-            The whole app is now English-first: every screen, dialog, snackbar, and validation message is localized, with Bahasa Indonesia one tap away in Settings.
+            **Swara v1.8.1 - Lighter downloads and faster startup**
 
             ## ✨ New features
 
-            - App UI is now English by default; switch to Bahasa Indonesia anytime in Settings, remembered between sessions.
-            - New Language section in Settings with English and Bahasa Indonesia options.
+            - Per-architecture APKs: download the small build matching your phone instead of one universal APK.
+            - Long lists (All Songs, Search) render in pages of 200 with a Load more button.
+            - First unit tests: 46 tests covering filename parsing and formatting helpers.
 
             ## ⚡ Optimizations
 
-            - All ~390 user-facing strings moved to ARB localization files (single source of truth, no more hardcoded text scattered across screens).
-            - Code comments translated to English across the codebase.
+            - Much smaller downloads via split-per-ABI, obfuscation, trimmed resources, and narrowed R8 keep rules.
+            - Song list appears right after the first frame; heavy metadata fetching is deferred and backs off on rate limits.
+            - Second audio player is now created lazily only while crossfade is enabled.
+            - Notification sync skips redundant work every second; play indicator animation stops when paused.
 
             ## 🐛 Bug fixes
 
-            - Validation, error, and confirmation messages now follow the selected language, including provider-level errors.
-            - Bumped intl to match flutter_localizations requirements.
+            - CI build step no longer swallows real failures.
 
             ## 📦 Install / Update
 
-            Download `app-release.apk` below, open it on your phone, and allow installs from unknown sources if asked. Minimum Android 8.0 (API 26).
+            Download the APK matching your device below (`app-arm64-v8a-release.apk` for most modern phones, `app-armeabi-v7a-release.apk` for older 32-bit ones). Open it on your phone and allow installs from unknown sources if asked. Minimum Android 8.0 (API 26).
 
             <br>
 
@@ -229,29 +231,29 @@ jobs:
 
             # Bahasa Indonesia
 
-            **Swara v1.8.0 - Default English, Bahasa Indonesia tersedia**
-
-            Seluruh aplikasi kini English-first: semua layar, dialog, snackbar, dan pesan validasi terlokalisasi, dengan Bahasa Indonesia sejauh satu ketukan di Pengaturan.
+            **Swara v1.8.1 - Download lebih ringan dan startup lebih cepat**
 
             ## ✨ Fitur baru
 
-            - UI aplikasi kini default English; ganti ke Bahasa Indonesia kapan saja di Pengaturan, diingat antar sesi.
-            - Section Bahasa baru di Pengaturan dengan opsi English dan Bahasa Indonesia.
+            - APK per arsitektur: download build kecil sesuai HP, bukan satu APK universal.
+            - List panjang (Semua Lagu, Search) dirender per halaman 200 dengan tombol Muat lagi.
+            - Unit test pertama: 46 test untuk parsing nama file dan helper formatting.
 
             ## ⚡ Pengoptimalan
 
-            - Seluruh ~390 string user-facing pindah ke file lokalisasi ARB (satu sumber utama, tidak lagi tercecer di tiap layar).
-            - Komentar kode diterjemahkan ke English di seluruh codebase.
+            - Download jauh lebih kecil via split-per-ABI, obfuscation, resource dipangkas, dan R8 keep rules dipersempit.
+            - Daftar lagu muncul tepat setelah frame pertama; fetch metadata berat ditunda dan backoff saat rate limit.
+            - Player audio kedua kini dibuat lazy hanya saat crossfade aktif.
+            - Sync notifikasi melewati kerja redundan tiap detik; animasi indikator berhenti saat pause.
 
             ## 🐛 Perbaikan bug
 
-            - Pesan validasi, error, dan konfirmasi kini ikut bahasa yang dipilih, termasuk error level provider.
-            - Bump intl mengikuti kebutuhan flutter_localizations.
+            - Step build CI tidak lagi menelan failure asli.
 
             ## 📦 Instalasi / Update
 
-            Download `app-release.apk` di bawah, buka di HP, dan izinkan instalasi dari sumber tidak dikenal bila diminta. Minimum Android 8.0 (API 26).
+            Download APK sesuai HP di bawah (`app-arm64-v8a-release.apk` untuk kebanyakan HP modern, `app-armeabi-v7a-release.apk` untuk yang 32-bit lama). Buka di HP dan izinkan instalasi dari sumber tidak dikenal bila diminta. Minimum Android 8.0 (API 26).
           files: |
-            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/flutter-apk/app-*-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

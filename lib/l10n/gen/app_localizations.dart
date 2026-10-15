@@ -1933,6 +1933,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sleep timer stopped'**
   String get sleepTimerStopped;
+
+  /// Button to render the next page of a long song list
+  ///
+  /// In en, this message translates to:
+  /// **'Load more ({shown} of {total})'**
+  String loadMore(int shown, int total);
 }
 
 class _AppLocalizationsDelegate

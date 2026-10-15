@@ -787,5 +787,17 @@
     "sleepSongMode":  "Lagu",
     "sleepStart":  "Mulai",
     "sleepSongUnit":  "lagu",
-    "sleepTimerStopped":  "Timer tidur dihentikan"
+    "sleepTimerStopped":  "Timer tidur dihentikan",
+    "loadMore":  "Muat lagi ({shown} dari {total})",
+    "@loadMore":  {
+                       "description":  "Tombol untuk menampilkan halaman berikutnya dari daftar lagu panjang",
+                       "placeholders":  {
+                                            "shown":  {
+                                                          "type":  "int"
+                                                      },
+                                            "total":  {
+                                                          "type":  "int"
+                                                      }
+                                        }
+                   }
 }
