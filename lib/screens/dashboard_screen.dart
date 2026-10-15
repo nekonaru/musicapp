@@ -34,6 +34,7 @@ class DashboardScreenState extends State<DashboardScreen> {
   List<MapEntry<String, int>> _yearTopArtists = [];
   int _streak = 0;
   String? _topGenreMonth;
+  Map<int, int> _hourly = {for (int h = 0; h < 24; h++) h: 0};
   bool _fromCache = false;
   List<Song> _neverPlayed = [];
   bool _loading = true;
@@ -139,6 +140,9 @@ class DashboardScreenState extends State<DashboardScreen> {
           DBHelper.instance.getTopGenreThisMonth(),
         ]);
       }
+      // Hourly distribution always runs fresh with the detail queries.
+      // Appended last so the summary indices above never shift.
+      futures.add(DBHelper.instance.getHourlyDistribution());
 
       final results = await Future.wait(futures);
       final daily = results[0] as Map<DateTime, int>;
@@ -150,6 +154,8 @@ class DashboardScreenState extends State<DashboardScreen> {
       final yearTopSongs = results[6] as List<MapEntry<int, int>>;
       final yearTopArtists = results[7] as List<MapEntry<String, int>>;
       final yearMs = results[8] as int;
+      // Hourly map is always the last future in the list.
+      final hourly = results.last as Map<int, int>;
 
       final int totalMs;
       final int monthMs;
@@ -190,6 +196,7 @@ class DashboardScreenState extends State<DashboardScreen> {
         _yearTopArtists = yearTopArtists;
         _streak = streak;
         _topGenreMonth = topGenre;
+        _hourly = hourly;
         _neverPlayed = neverPlayed;
         _fromCache = useCache;
         _loading = false;
@@ -628,8 +635,91 @@ class DashboardScreenState extends State<DashboardScreen> {
             title: l.dashboardWeekActivityTitle,
             child: _buildWeekActivity(),
           ),
+          const SizedBox(height: 14),
+
+          // Hourly listening pattern across the 24 hours of the day.
+          _SectionCard(
+            icon: Icons.schedule_outlined,
+            title: l.hourlyTitle,
+            trailing: _hourlyPeakLabel(),
+            child: _buildHourlyChart(),
+          ),
         ],
       ),
+    );
+  }
+
+  /// Peak hour label like "Peak 20:00", or null when there is no data.
+  Widget? _hourlyPeakLabel() {
+    var peakHour = -1;
+    var peakMs = 0;
+    _hourly.forEach((hour, ms) {
+      if (ms > peakMs) {
+        peakMs = ms;
+        peakHour = hour;
+      }
+    });
+    if (peakHour < 0) return null;
+    return Text(
+        AppLocalizations.of(context)!.hourlyPeak(
+            peakHour.toString().padLeft(2, '0')),
+        style: TextStyle(fontSize: 12, color: Colors.grey[500]));
+  }
+
+  /// 24 vertical bars for total listened time per hour of day.
+  Widget _buildHourlyChart() {
+    final values =
+        List<double>.generate(24, (h) => (_hourly[h] ?? 0) / 3600000);
+    final hasData = values.any((v) => v > 0);
+    if (!hasData) {
+      return Text(AppLocalizations.of(context)!.hourlyEmpty);
+    }
+    final cs = Theme.of(context).colorScheme;
+    // Peak bar uses the tertiary color, the rest use primary.
+    var peakIndex = 0;
+    for (int i = 1; i < values.length; i++) {
+      if (values[i] > values[peakIndex]) peakIndex = i;
+    }
+    return Column(
+      children: [
+        SizedBox(
+          height: 140,
+          child: RepaintBoundary(
+            child: CustomPaint(
+              size: Size.infinite,
+              painter: _HourlyBarsPainter(
+                values: values,
+                barColor: cs.primary,
+                peakBarColor: cs.tertiary,
+                gridColor: cs.outlineVariant.withValues(alpha: 0.4),
+                peakIndex: peakIndex,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            for (int h = 0; h < 24; h++)
+              Expanded(
+                child: Text(
+                  // Label every 6 hours to avoid crowding, others blank.
+                  h % 6 == 0 ? '${h}h' : '',
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.clip,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: h == peakIndex
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    color: h == peakIndex ? cs.primary : Colors.grey,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -1245,6 +1335,56 @@ class _WeekBarsPainter extends CustomPainter {
   bool shouldRepaint(covariant _WeekBarsPainter old) =>
       old.values != values ||
       old.todayIndex != todayIndex ||
+      old.barColor != barColor;
+}
+
+/// Vertical 24 hour bars with grid lines, painted without any chart package.
+/// Same style as [_WeekBarsPainter], with a highlighted peak bar.
+class _HourlyBarsPainter extends CustomPainter {
+  final List<double> values;
+  final Color barColor;
+  final Color peakBarColor;
+  final Color gridColor;
+  final int peakIndex;
+  const _HourlyBarsPainter({
+    required this.values,
+    required this.barColor,
+    required this.peakBarColor,
+    required this.gridColor,
+    required this.peakIndex,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1;
+    for (int g = 1; g <= 3; g++) {
+      final y = size.height - (size.height * g / 4);
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+    if (values.isEmpty) return;
+    final maxV = values.reduce((a, b) => a > b ? a : b);
+    final safeMax = maxV <= 0 ? 1.0 : maxV;
+    const gap = 3.0;
+    final n = values.length;
+    final barW = (size.width - gap * (n - 1)) / n;
+    for (int i = 0; i < n; i++) {
+      final h = (values[i] / safeMax * (size.height - 12)).clamp(4.0, size.height);
+      final x = i * (barW + gap);
+      final rect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(x, size.height - h, barW, h),
+        const Radius.circular(3),
+      );
+      canvas.drawRRect(
+          rect, Paint()..color = i == peakIndex ? peakBarColor : barColor);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _HourlyBarsPainter old) =>
+      old.values != values ||
+      old.peakIndex != peakIndex ||
       old.barColor != barColor;
 }
 

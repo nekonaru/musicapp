@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:offline_music_player/l10n/gen/app_localizations.dart';
 import '../models/song.dart';
 import '../providers/library_provider.dart';
@@ -38,6 +39,99 @@ class _SearchScreenState extends State<SearchScreen> {
   // Session only, cleared when the query or filter changes.
   bool _multiSelectMode = false;
   final Set<int> _selectedIds = {};
+
+  // Last 10 non-empty queries, newest first, persisted in SharedPreferences.
+  static const _historyKey = 'search_history';
+  static const _historyMax = 10;
+  List<String> _history = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  // Read the stored history once. Guarded by mounted.
+  Future<void> _loadHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getStringList(_historyKey) ?? const <String>[];
+      if (!mounted) return;
+      setState(() {
+        _history = stored
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .take(_historyMax)
+            .toList();
+      });
+    } catch (_) {
+      // History is optional, ignore load failures.
+    }
+  }
+
+  // Persist the current history list. Best effort only.
+  Future<void> _persistHistory(List<String> value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_historyKey, value);
+    } catch (_) {
+      // Ignore write failures, the in memory list still renders.
+    }
+  }
+
+  // Add a query to the top of the history (dedup, newest first, max 10).
+  void _addToHistory(String query) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
+    final lowered = trimmed.toLowerCase();
+    final updated = <String>[
+      trimmed,
+      for (final h in _history) if (h.toLowerCase() != lowered) h,
+    ];
+    if (updated.length > _historyMax) {
+      updated.removeRange(_historyMax, updated.length);
+    }
+    if (!mounted) return;
+    setState(() => _history = updated);
+    _persistHistory(updated);
+  }
+
+  // Remove one history entry by value.
+  void _removeHistoryItem(String item) {
+    final updated = _history.where((h) => h != item).toList();
+    if (!mounted) return;
+    setState(() => _history = updated);
+    _persistHistory(updated);
+  }
+
+  // Clear all stored history entries.
+  void _clearHistory() {
+    if (!mounted) return;
+    setState(() => _history = []);
+    _persistHistory([]);
+  }
+
+  // Submit a query: fill the field, run the search, remember the history.
+  void _submitQuery(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return;
+    _debounce?.cancel();
+    _controller.text = trimmed;
+    _controller.selection = TextSelection.fromPosition(
+      TextPosition(offset: _controller.text.length),
+    );
+    if (!mounted) return;
+    setState(() {
+      _query = trimmed;
+      _visibleCount = _pageSize;
+      _multiSelectMode = false;
+      _selectedIds.clear();
+    });
+    _addToHistory(trimmed);
+  }
+
+  // Fill the field from a history chip and run the search.
+  void _useHistoryItem(String item) => _submitQuery(item);
 
   // Playlists are loaded lazily on first bulk action to keep startup cheap.
   bool _playlistsRequested = false;
@@ -331,6 +425,63 @@ class _SearchScreenState extends State<SearchScreen> {
             showCheckmark: false,
           );
         },
+      ),
+    );
+  }
+
+  // Recent queries as chips, shown only while the query is empty.
+  // Tap fills the field and searches, X or long-press removes one entry.
+  Widget _buildHistoryChips() {
+    if (_query.trim().isNotEmpty || _history.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  AppLocalizations.of(context)!.histRecent,
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _clearHistory,
+                child: Container(
+                  alignment: Alignment.centerRight,
+                  constraints: const BoxConstraints(minHeight: 40, minWidth: 48),
+                  child: Text(
+                      AppLocalizations.of(context)!.histClear,
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final item in _history)
+                GestureDetector(
+                  // Long-press removes the entry, same as the X button.
+                  onLongPress: () => _removeHistoryItem(item),
+                  child: InputChip(
+                    label: Text(item,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    onPressed: () => _useHistoryItem(item),
+                    onDeleted: () => _removeHistoryItem(item),
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -629,6 +780,8 @@ class _SearchScreenState extends State<SearchScreen> {
                       : null,
                 ),
                 onChanged: _onQueryChanged,
+                onSubmitted: _submitQuery,
+                textInputAction: TextInputAction.search,
               ),
         actions: [
           if (_multiSelectMode)
@@ -645,6 +798,7 @@ class _SearchScreenState extends State<SearchScreen> {
         children: [
           const SizedBox(height: 8),
           _buildFilterChips(),
+          _buildHistoryChips(),
           const SizedBox(height: 8),
           _buildMultiSelectBar(results),
           if (_query.isNotEmpty)

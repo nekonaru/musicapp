@@ -18,6 +18,11 @@ import 'screens/splash_screen.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Cap the in-memory image cache because the library can hold 2600 songs
+  // with artwork, so unbounded cached art can spike memory on scroll.
+  PaintingBinding.instance.imageCache.maximumSize = 200;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 32 << 20;
+
   final themeProvider = ThemeProvider();
   final languageProvider = LanguageProvider.instance;
 

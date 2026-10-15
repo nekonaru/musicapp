@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:path_provider/path_provider.dart';
+
 // Requires the `file_picker` package (to be added to pubspec.yaml
 // separately). Standard async picker pattern is used below.
 import 'package:file_picker/file_picker.dart';
@@ -183,5 +185,69 @@ class M3uService {
     final dot = base.lastIndexOf('.');
     if (dot <= 0) return base;
     return base.substring(0, dot);
+  }
+
+  // Build extended M3U text for [songs]: one #EXTM3U header followed
+  // by an #EXTINF line plus the file path per song. Duration is in
+  // whole seconds, or -1 when unknown. Pure function, never touches
+  // the file system.
+  static String buildM3uContent(List<Song> songs) {
+    final buf = StringBuffer()..writeln('#EXTM3U');
+    for (final song in songs) {
+      final seconds = song.durationMs > 0 ? song.durationMs ~/ 1000 : -1;
+      // Commas and newlines would break the EXTINF format, so flatten them.
+      final title = '${song.artist} - ${song.title}'
+          .replaceAll('\n', ' ')
+          .replaceAll('\r', ' ')
+          .replaceAll(',', ' ');
+      buf.writeln('#EXTINF:$seconds,$title');
+      buf.writeln(song.filePath);
+    }
+    return buf.toString();
+  }
+
+  // Write M3U [content] into the Downloads folder and return the file.
+  // Prefers getDownloadsDirectory, then getExternalStorageDirectory,
+  // then the temp dir as a last resort. Wraps any failure in a plain
+  // Exception so callers only need a generic catch.
+  static Future<File> saveM3uToDownloads(
+      String playlistName, String content) async {
+    try {
+      Directory? dir;
+      try {
+        dir = await getDownloadsDirectory();
+      } catch (_) {
+        dir = null;
+      }
+      if (dir == null) {
+        try {
+          dir = await getExternalStorageDirectory();
+        } catch (_) {
+          dir = null;
+        }
+      }
+      dir ??= await getTemporaryDirectory();
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      final safeName = _sanitizeFileName(playlistName);
+      final file = File('${dir.path}${Platform.pathSeparator}$safeName.m3u');
+      await file.writeAsString(content);
+      return file;
+    } catch (e) {
+      throw Exception('Failed to save M3U file: $e');
+    }
+  }
+
+  // Strip characters that are illegal in file names on common platforms.
+  // Falls back to a generic name when nothing usable remains.
+  static String _sanitizeFileName(String value) {
+    final cleaned = value
+        .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim()
+        .replaceAll(RegExp(r'\.+$'), '')
+        .trim();
+    return cleaned.isEmpty ? 'playlist' : cleaned;
   }
 }

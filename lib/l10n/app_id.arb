@@ -1533,5 +1533,56 @@
     "artMissingEntry":  "Cover hilang",
     "@artMissingEntry":  {
                               "description":  "Entry menu cover hilang"
-                          }
+                          },
+    "m3uExportEmpty":  "Export M3U: playlist kosong",
+    "@m3uExportEmpty":  {
+                             "description":  "Pesan export playlist kosong"
+                         },
+    "m3uExported":  "M3U diekspor ke {path}",
+    "@m3uExported":  {
+                          "description":  "Pesan sukses export",
+                          "placeholders":  {
+                                               "path":  {
+                                                            "type":  "String"
+                                                        }
+                                           }
+                      },
+    "m3uExportFailed":  "Export M3U gagal: {error}",
+    "@m3uExportFailed":  {
+                              "description":  "Pesan gagal export",
+                              "placeholders":  {
+                                                   "error":  {
+                                                                 "type":  "String"
+                                                             }
+                                               }
+                          },
+    "m3uExportMenu":  "Export M3U",
+    "@m3uExportMenu":  {
+                            "description":  "Menu dan tooltip Export M3U"
+                        },
+    "hourlyTitle":  "Jam dengar",
+    "@hourlyTitle":  {
+                          "description":  "Judul grafik per jam"
+                      },
+    "hourlyPeak":  "Puncak {hour}:00",
+    "@hourlyPeak":  {
+                         "description":  "Label jam puncak",
+                         "placeholders":  {
+                                              "hour":  {
+                                                           "type":  "String"
+                                                       }
+                                          }
+                     },
+    "hourlyEmpty":  "Belum ada data per jam",
+    "@hourlyEmpty":  {
+                          "description":  "Teks grafik per jam kosong"
+                      },
+    "histRecent":  "Pencarian terakhir",
+    "@histRecent":  {
+                         "description":  "Judul pencarian terakhir"
+                     },
+    "histClear":  "Bersihkan",
+    "@histClear":  {
+                        "description":  "Label bersihkan riwayat"
+                    }
 }

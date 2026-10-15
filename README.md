@@ -50,7 +50,7 @@
 | 🗂️ **Duplicate finder** | Find and remove duplicate songs, keep one per group |
 | 🖼️ **Missing covers** | List songs without art with one-tap refetch |
 | 📂 **Playlist folders** | Group playlists into folders |
-| 📥 **M3U import** | Import playlists from .m3u files, matched against your library |
+| 📥 **M3U import/export** | Import playlists from .m3u files, export them back out |
 | 📤 **Share songs** | Share the currently playing info plus audio file |
 | 🔥 **Listening streaks** | Day streak and top genre of the month on the dashboard |
 | 🔍 **Search** | Real-time search by title, artist, album, folder, or genre, with debounced input |

@@ -1500,4 +1500,37 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get artMissingEntry => 'Cover hilang';
+
+  @override
+  String get m3uExportEmpty => 'Export M3U: playlist kosong';
+
+  @override
+  String m3uExported(String path) {
+    return 'M3U diekspor ke $path';
+  }
+
+  @override
+  String m3uExportFailed(String error) {
+    return 'Export M3U gagal: $error';
+  }
+
+  @override
+  String get m3uExportMenu => 'Export M3U';
+
+  @override
+  String get hourlyTitle => 'Jam dengar';
+
+  @override
+  String hourlyPeak(String hour) {
+    return 'Puncak $hour:00';
+  }
+
+  @override
+  String get hourlyEmpty => 'Belum ada data per jam';
+
+  @override
+  String get histRecent => 'Pencarian terakhir';
+
+  @override
+  String get histClear => 'Bersihkan';
 }

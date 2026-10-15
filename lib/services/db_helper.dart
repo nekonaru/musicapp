@@ -409,6 +409,26 @@ class DBHelper {
     return {for (final r in rows) r['region'] as String: r['cnt'] as int};
   }
 
+  /// Total listening time (ms) per hour of day (0-23).
+  /// No schema change: groups listening_entries by strftime hour.
+  /// Missing hours are returned as 0.
+  Future<Map<int, int>> getHourlyDistribution() async {
+    final database = await db;
+    final rows = await database.rawQuery('''
+      SELECT CAST(strftime('%H', timestamp) AS INTEGER) as hour,
+             COALESCE(SUM(listenedMs), 0) as total
+      FROM listening_entries
+      GROUP BY hour
+    ''');
+    final result = <int, int>{for (int h = 0; h < 24; h++) h: 0};
+    for (final r in rows) {
+      final hour = (r['hour'] as num?)?.toInt();
+      if (hour == null || hour < 0 || hour > 23) continue;
+      result[hour] = (r['total'] as num?)?.toInt() ?? 0;
+    }
+    return result;
+  }
+
   // ---------- Playlists ----------
   Future<int> createPlaylist(String name) async {
     final database = await db;

@@ -44,6 +44,14 @@ class PlayerService extends ChangeNotifier {
   bool _sleepFadeActive = false;
   int _sleepFadeGeneration = 0;
   static const Duration sleepFadeDuration = Duration(seconds: 30);
+  // Manual pause/resume fade state. Short 300ms ramp used only around
+  // togglePlayPause, separate from the 30s sleep fade and crossfade.
+  // Generation guards against overlapping fades when toggle is pressed
+  // mid fade. Only the audible player is faded, never the standby one.
+  int _pauseFadeGeneration = 0;
+  bool _pauseFadeOutActive = false;
+  static const Duration pauseFadeDuration = Duration(milliseconds: 300);
+  static const int pauseFadeSteps = 4;
   // File path currently preloaded in the idle player (crossfade off only).
   // Best effort cache, never played directly from here.
   String? _preloadedFilePath;
@@ -257,6 +265,7 @@ class PlayerService extends ChangeNotifier {
   Future<void> setQueueAndPlay(List<Song> songs, int startIndex) async {
     _logListening();
     if (_sleepFadeActive) _cancelSleepFadeOut();
+    _cancelPauseFade();
     _crossfadeCancelled = true;
     _crossfadeTriggeredForCurrent = false;
     _usingCrossfadePlayer = false;
@@ -315,24 +324,107 @@ class PlayerService extends ChangeNotifier {
   }
 
   Future<void> togglePlayPause() async {
+    // Second press while a pause fade out is still running cancels the
+    // pause and keeps playback at full volume.
+    if (_pauseFadeOutActive) {
+      _pauseFadeGeneration++;
+      _pauseFadeOutActive = false;
+      try {
+        await _activePlayer.setVolume(1);
+      } catch (e) {
+        debugPrint('Pause fade cancel failed: $e');
+      }
+      notifyListeners();
+      return;
+    }
     if (player.playing) {
       // A manual pause during a sleep fade stops the fade so the volume
       // does not keep dropping in the background.
       if (_sleepFadeActive) _cancelSleepFadeOut();
+      // Cancel any in flight resume fade before starting the pause fade.
+      final generation = ++_pauseFadeGeneration;
+      _pauseFadeOutActive = true;
       _logListening();
-      await player.pause();
+      final target = _activePlayer;
+      try {
+        final stepDuration = pauseFadeDuration ~/ pauseFadeSteps;
+        for (int i = 1; i <= pauseFadeSteps; i++) {
+          await Future.delayed(stepDuration);
+          if (_disposed) return;
+          if (generation != _pauseFadeGeneration) return;
+          final v = (1 - i / pauseFadeSteps).clamp(0.0, 1.0);
+          try {
+            await target.setVolume(v);
+          } catch (e) {
+            debugPrint('Pause fade failed: $e');
+          }
+        }
+        if (_disposed) return;
+        if (generation != _pauseFadeGeneration) return;
+        await target.pause();
+        // Restore full volume so the next play starts loud.
+        try {
+          await target.setVolume(1);
+        } catch (e) {
+          debugPrint('Pause fade reset failed: $e');
+        }
+      } catch (e) {
+        debugPrint('Pause fade failed: $e');
+      } finally {
+        if (generation == _pauseFadeGeneration) {
+          _pauseFadeOutActive = false;
+        }
+      }
       // Stop position updates while paused to save battery.
       await _unsubscribePosition();
     } else {
       // A manual play during a sleep fade cancels the fade and restores
       // full volume before resuming.
       if (_sleepFadeActive) _cancelSleepFadeOut();
+      // Cancel any in flight pause fade before starting the resume fade.
+      final generation = ++_pauseFadeGeneration;
       _playStartedAt = DateTime.now();
-      await player.play();
+      final target = _activePlayer;
+      try {
+        await target.setVolume(0);
+      } catch (e) {
+        debugPrint('Resume fade failed: $e');
+      }
+      await target.play();
       // Resume position updates for crossfade triggers.
       await _subscribePosition();
+      try {
+        final stepDuration = pauseFadeDuration ~/ pauseFadeSteps;
+        for (int i = 1; i <= pauseFadeSteps; i++) {
+          await Future.delayed(stepDuration);
+          if (_disposed) return;
+          if (generation != _pauseFadeGeneration) return;
+          final v = (i / pauseFadeSteps).clamp(0.0, 1.0);
+          try {
+            await target.setVolume(v);
+          } catch (e) {
+            debugPrint('Resume fade failed: $e');
+          }
+        }
+        if (_disposed) return;
+        if (generation != _pauseFadeGeneration) return;
+        try {
+          await target.setVolume(1);
+        } catch (e) {
+          debugPrint('Resume fade failed: $e');
+        }
+      } catch (e) {
+        debugPrint('Resume fade failed: $e');
+      }
     }
     notifyListeners();
+  }
+
+  /// Cancel an in flight manual pause/resume fade without touching volume,
+  /// so track changes never fight the fade and never pause the new song late.
+  void _cancelPauseFade() {
+    _pauseFadeGeneration++;
+    _pauseFadeOutActive = false;
   }
 
   /// Next song FOLLOWING the queue order (_playOrder). When shuffle is on,
@@ -340,6 +432,7 @@ class PlayerService extends ChangeNotifier {
   Future<void> next() async {
     _logListening();
     if (_sleepFadeActive) _cancelSleepFadeOut();
+    _cancelPauseFade();
     _crossfadeCancelled = true;
     await _crossfadePlayer?.pause();
     _usingCrossfadePlayer = false;
@@ -360,6 +453,7 @@ class PlayerService extends ChangeNotifier {
   Future<void> previous() async {
     _logListening();
     if (_sleepFadeActive) _cancelSleepFadeOut();
+    _cancelPauseFade();
     _crossfadeCancelled = true;
     await _crossfadePlayer?.pause();
     _usingCrossfadePlayer = false;
@@ -397,6 +491,7 @@ class PlayerService extends ChangeNotifier {
     if (posInOrder < 0 || posInOrder >= _playOrder.length) return;
     _logListening();
     if (_sleepFadeActive) _cancelSleepFadeOut();
+    _cancelPauseFade();
     _crossfadeCancelled = true;
     await _crossfadePlayer?.pause();
     _usingCrossfadePlayer = false;
@@ -628,6 +723,7 @@ class PlayerService extends ChangeNotifier {
   /// Cancels silently when the generation changes (user cancel or play).
   Future<void> _startSleepFadeOut() async {
     if (_disposed) return;
+    _cancelPauseFade();
     final isPlaying =
         _player.playing || (_crossfadePlayer?.playing ?? false);
     if (!isPlaying) {
@@ -812,6 +908,8 @@ class PlayerService extends ChangeNotifier {
     _crossfadeCancelled = true;
     _sleepFadeGeneration++;
     _sleepFadeActive = false;
+    _pauseFadeGeneration++;
+    _pauseFadeOutActive = false;
     _preloadedFilePath = null;
     _logListening();
     _sleepTimer?.cancel();

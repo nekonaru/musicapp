@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/song.dart';
 import '../providers/playlist_provider.dart';
+import '../services/m3u_service.dart';
 import '../services/player_service.dart';
 import '../services/playlist_art_service.dart';
 import '../utils/format.dart';
@@ -136,6 +137,43 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     _scheduleArtRefresh();
   }
 
+  // Export the current playlist songs to an M3U file in Downloads.
+  // Shows the saved path on success or the error on failure.
+  Future<void> _exportM3u() async {
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      final songs = List<Song>.of(_songs);
+      if (songs.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            content: Text(l10n.m3uExportEmpty),
+          ),
+        );
+        return;
+      }
+      final content = M3uService.buildM3uContent(songs);
+      final file =
+          await M3uService.saveM3uToDownloads(widget.playlistName, content);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text(l10n.m3uExported(file.path)),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text(l10n.m3uExportFailed(e.toString())),
+        ),
+      );
+    }
+  }
+
   List<Song> get _displayed {
     List<Song> list;
     switch (_sortOption) {
@@ -189,6 +227,11 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       appBar: AppBar(
         title: Text(widget.playlistName),
         actions: [
+          IconButton(
+            tooltip: AppLocalizations.of(context)!.m3uExportMenu,
+            icon: const Icon(Icons.file_download_outlined),
+            onPressed: _exportM3u,
+          ),
           PopupMenuButton<_PlsSortOption>(
             icon: const Icon(Icons.sort),
             onSelected: (v) {

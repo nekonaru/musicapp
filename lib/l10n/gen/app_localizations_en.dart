@@ -1499,4 +1499,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get artMissingEntry => 'Missing covers';
+
+  @override
+  String get m3uExportEmpty => 'Export M3U: playlist is empty';
+
+  @override
+  String m3uExported(String path) {
+    return 'Exported M3U to $path';
+  }
+
+  @override
+  String m3uExportFailed(String error) {
+    return 'Export M3U failed: $error';
+  }
+
+  @override
+  String get m3uExportMenu => 'Export M3U';
+
+  @override
+  String get hourlyTitle => 'Listening hours';
+
+  @override
+  String hourlyPeak(String hour) {
+    return 'Peak $hour:00';
+  }
+
+  @override
+  String get hourlyEmpty => 'No hourly data yet';
+
+  @override
+  String get histRecent => 'Recent searches';
+
+  @override
+  String get histClear => 'Clear';
 }

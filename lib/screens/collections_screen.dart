@@ -457,6 +457,43 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
     }
   }
 
+  // Export one user playlist to an M3U file in Downloads.
+  // Songs are loaded through the existing provider API, then built
+  // and saved exactly like the detail screen flow. Shows the saved
+  // path on success or the error on failure.
+  Future<void> _exportM3uPlaylist(
+      PlaylistProvider prov, int playlistId, String playlistName) async {
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      final songs = await prov.songsIn(playlistId);
+      if (!mounted) return;
+      if (songs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.m3uExportEmpty),
+          ),
+        );
+        return;
+      }
+      final content = M3uService.buildM3uContent(songs);
+      final file =
+          await M3uService.saveM3uToDownloads(playlistName, content);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.m3uExported(file.path)),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.m3uExportFailed(e.toString())),
+        ),
+      );
+    }
+  }
+
   // Single playlist row. Shared by the auto list and every folder section
   // so behavior (tap, reshuffle, delete) stays identical everywhere.
   Widget _playlistTile(BuildContext context, PlaylistProvider playlists,
@@ -511,6 +548,9 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                 } else if (action == 'move_folder' && !isAuto) {
                   _movePlaylistToFolder(
                       context, playlists, p['id'] as int, _folderOf(p));
+                } else if (action == 'export_m3u' && !isAuto) {
+                  _exportM3uPlaylist(
+                      playlists, p['id'] as int, name);
                 }
               },
               itemBuilder: (_) => [
@@ -524,6 +564,11 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                       value: 'move_folder',
                       child: Text(AppLocalizations.of(context)!
                           .plFolderMoveTo)),
+                if (!isAuto)
+                  PopupMenuItem(
+                      value: 'export_m3u',
+                      child: Text(AppLocalizations.of(context)!
+                          .m3uExportMenu)),
                 PopupMenuItem(value: 'delete', child: Text(l.delete)),
               ],
             ),

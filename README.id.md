@@ -51,6 +51,7 @@
 | 🖼️ **Cover hilang** | Daftar lagu tanpa cover dengan fetch ulang sekali ketuk |
 | 📂 **Folder playlist** | Kelompokkan playlist ke dalam folder |
 | 📥 **Import M3U** | Import playlist dari file .m3u, dicocokkan ke library |
+| 📤 **Export M3U** | Export playlist ke file .m3u untuk pemutar lain |
 | 📤 **Bagikan lagu** | Bagikan info lagu plus file audio |
 | 🔥 **Streak mendengarkan** | Streak harian dan genre teratas bulan ini di dashboard |
 | 🔍 **Pencarian** | Cari real-time berdasarkan judul, artis, album, folder, atau genre |

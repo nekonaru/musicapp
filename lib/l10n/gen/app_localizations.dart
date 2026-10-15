@@ -2665,6 +2665,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Missing covers'**
   String get artMissingEntry;
+
+  /// Export empty playlist message
+  ///
+  /// In en, this message translates to:
+  /// **'Export M3U: playlist is empty'**
+  String get m3uExportEmpty;
+
+  /// Export success message
+  ///
+  /// In en, this message translates to:
+  /// **'Exported M3U to {path}'**
+  String m3uExported(String path);
+
+  /// Export failure message
+  ///
+  /// In en, this message translates to:
+  /// **'Export M3U failed: {error}'**
+  String m3uExportFailed(String error);
+
+  /// Export M3U menu and tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Export M3U'**
+  String get m3uExportMenu;
+
+  /// Hourly chart title
+  ///
+  /// In en, this message translates to:
+  /// **'Listening hours'**
+  String get hourlyTitle;
+
+  /// Peak hour label
+  ///
+  /// In en, this message translates to:
+  /// **'Peak {hour}:00'**
+  String hourlyPeak(String hour);
+
+  /// Empty hourly chart text
+  ///
+  /// In en, this message translates to:
+  /// **'No hourly data yet'**
+  String get hourlyEmpty;
+
+  /// Recent searches title
+  ///
+  /// In en, this message translates to:
+  /// **'Recent searches'**
+  String get histRecent;
+
+  /// Clear history label
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get histClear;
 }
 
 class _AppLocalizationsDelegate

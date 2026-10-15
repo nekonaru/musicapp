@@ -196,13 +196,13 @@ jobs:
           body: |
             # English
 
-            **Swara v2.2.0 - Real equalizer and library tools**
+            **Swara v2.3.0 - Export M3U and listening hours**
 
             ## ✨ New features
 
-            - Real working equalizer: 9 presets shaping actual playback sound (no longer visual-only).
-            - Duplicate finder with bulk cleanup, missing-covers list with batch refetch, playlist folders.
-            - Forgiving search: "faded alan walker" finds "faded - alan walker".
+            - Export playlists to .m3u files for other players.
+            - Listening-hours heatmap on the dashboard.
+            - Recent searches with one-tap reuse and clearing.
 
             ## 📦 Install / Update
 
@@ -216,13 +216,13 @@ jobs:
 
             # Bahasa Indonesia
 
-            **Swara v2.2.0 - Equalizer beneran dan perkakas library**
+            **Swara v2.3.0 - Export M3U dan jam dengar**
 
             ## ✨ Fitur baru
 
-            - Equalizer yang benar-benar berfungsi: 9 preset membentuk suara putar (tidak lagi sekadar visual).
-            - Pencari duplikat dengan bersih-bersih massal, daftar cover hilang dengan fetch ulang, folder playlist.
-            - Pencarian toleran: "faded alan walker" ketemu untuk "faded - alan walker".
+            - Export playlist ke file .m3u untuk pemutar lain.
+            - Heatmap jam dengar di dashboard.
+            - Pencarian terakhir dengan pakai ulang dan hapus sekali ketuk.
 
             ## 📦 Instalasi / Update
 

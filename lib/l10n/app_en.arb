@@ -1533,5 +1533,56 @@
     "artMissingEntry":  "Missing covers",
     "@artMissingEntry":  {
                               "description":  "Missing covers menu entry"
-                          }
+                          },
+    "m3uExportEmpty":  "Export M3U: playlist is empty",
+    "@m3uExportEmpty":  {
+                             "description":  "Export empty playlist message"
+                         },
+    "m3uExported":  "Exported M3U to {path}",
+    "@m3uExported":  {
+                          "description":  "Export success message",
+                          "placeholders":  {
+                                               "path":  {
+                                                            "type":  "String"
+                                                        }
+                                           }
+                      },
+    "m3uExportFailed":  "Export M3U failed: {error}",
+    "@m3uExportFailed":  {
+                              "description":  "Export failure message",
+                              "placeholders":  {
+                                                   "error":  {
+                                                                 "type":  "String"
+                                                             }
+                                               }
+                          },
+    "m3uExportMenu":  "Export M3U",
+    "@m3uExportMenu":  {
+                            "description":  "Export M3U menu and tooltip"
+                        },
+    "hourlyTitle":  "Listening hours",
+    "@hourlyTitle":  {
+                          "description":  "Hourly chart title"
+                      },
+    "hourlyPeak":  "Peak {hour}:00",
+    "@hourlyPeak":  {
+                         "description":  "Peak hour label",
+                         "placeholders":  {
+                                              "hour":  {
+                                                           "type":  "String"
+                                                       }
+                                          }
+                     },
+    "hourlyEmpty":  "No hourly data yet",
+    "@hourlyEmpty":  {
+                          "description":  "Empty hourly chart text"
+                      },
+    "histRecent":  "Recent searches",
+    "@histRecent":  {
+                         "description":  "Recent searches title"
+                     },
+    "histClear":  "Clear",
+    "@histClear":  {
+                        "description":  "Clear history label"
+                    }
 }
