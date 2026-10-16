@@ -165,7 +165,8 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
         final folders = existing.where((f) => f != current).toList();
         return AlertDialog(
           title: Text(AppLocalizations.of(c)!.plFolderMoveTo),
-          content: SingleChildScrollView(
+          content: SizedBox(
+            width: double.maxFinite,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -188,13 +189,27 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                     subtitle: Text(current),
                     onTap: () => Navigator.pop(c, ''),
                   ),
-                for (final f in folders)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.folder_outlined),
-                    title: Text(f),
-                    onTap: () => Navigator.pop(c, f),
+                // Bounded folder list so dozens of folders scroll
+                // inside the dialog instead of overflowing it.
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight:
+                        MediaQuery.of(c).size.height * 0.4,
                   ),
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
+                      for (final f in folders)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading:
+                              const Icon(Icons.folder_outlined),
+                          title: Text(f),
+                          onTap: () => Navigator.pop(c, f),
+                        ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),

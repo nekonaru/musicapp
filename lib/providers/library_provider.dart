@@ -20,24 +20,12 @@ enum SortOption {
   genre,
 }
 
-String sortOptionLabel(SortOption opt) {
-  switch (opt) {
-    case SortOption.titleAZ: return 'Judul \u2191';
-    case SortOption.titleZA: return 'Judul \u2193';
-    case SortOption.artistAZ: return 'Artis \u2191';
-    case SortOption.artistZA: return 'Artis \u2193';
-    case SortOption.albumAZ: return 'Album \u2191';
-    case SortOption.albumZA: return 'Album \u2193';
-    case SortOption.dateAddedNewest: return 'Tanggal \u2191';
-    case SortOption.dateAddedOldest: return 'Tanggal \u2193';
-    case SortOption.genre: return 'Genre \u2191';
-  }
-}
-
 class LibraryProvider extends ChangeNotifier {
   List<Song> songs = [];
   bool isScanning = false;
   bool isBulkScanningMetadata = false;
+  // Private mutex for bulkScanMetadata so overlapping calls return early.
+  bool _bulkScanning = false;
   int bulkScanProgress = 0;
   int bulkScanTotal = 0;
   String? scanError;
@@ -143,29 +131,37 @@ class LibraryProvider extends ChangeNotifier {
   }
 
   Future<void> bulkScanMetadata({bool onlyMissing = false}) async {
+    // Skip when a bulk scan is already running.
+    if (_bulkScanning) return;
     final targets = onlyMissing ? songs.where((s) => !s.metadataScanned).toList() : songs;
     if (targets.isEmpty) return;
 
+    _bulkScanning = true;
     isBulkScanningMetadata = true;
     bulkScanTotal = targets.length;
     bulkScanProgress = 0;
     notifyListeners();
 
-    const batchSize = 5;
-    for (int i = 0; i < targets.length; i += batchSize) {
-      final batch = targets.skip(i).take(batchSize).toList();
-      // Await the batch and stop at once on iTunes 429: leftovers keep
-      // metadataScanned false and are retried on a later scan.
-      // Single backoff window lives in MetadataService, no retry loop here.
-      final results =
-          await Future.wait(batch.map((song) => MetadataService.instance.enrichSong(song)));
-      bulkScanProgress += batch.length;
-      notifyListeners();
-      if (results.any((limited) => limited)) break;
-    }
+    try {
+      const batchSize = 5;
+      for (int i = 0; i < targets.length; i += batchSize) {
+        final batch = targets.skip(i).take(batchSize).toList();
+        // Await the batch and stop at once on iTunes 429: leftovers keep
+        // metadataScanned false and are retried on a later scan.
+        // Single backoff window lives in MetadataService, no retry loop here.
+        final results =
+            await Future.wait(batch.map((song) => MetadataService.instance.enrichSong(song)));
+        bulkScanProgress += batch.length;
+        notifyListeners();
+        if (results.any((limited) => limited)) break;
+      }
 
-    isBulkScanningMetadata = false;
-    await loadFromDb();
+      await loadFromDb();
+    } finally {
+      _bulkScanning = false;
+      isBulkScanningMetadata = false;
+      notifyListeners();
+    }
   }
 
   Future<void> rescanSingleMetadata(Song song) async {
@@ -350,18 +346,22 @@ class LibraryProvider extends ChangeNotifier {
   }
 
   Map<String, List<Song>> get groupedByGenre {
+    final unknown =
+        lookupAppLocalizations(LanguageProvider.instance.locale).unknown;
     final Map<String, List<Song>> map = {};
     for (final s in songs) {
-      final key = s.genre ?? 'Tidak diketahui';
+      final key = s.genre ?? unknown;
       map.putIfAbsent(key, () => []).add(s);
     }
     return map;
   }
 
   Map<String, List<Song>> get groupedByRegion {
+    final unknown =
+        lookupAppLocalizations(LanguageProvider.instance.locale).unknown;
     final Map<String, List<Song>> map = {};
     for (final s in songs) {
-      final key = s.region ?? 'Tidak diketahui';
+      final key = s.region ?? unknown;
       map.putIfAbsent(key, () => []).add(s);
     }
     return map;

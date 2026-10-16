@@ -19,6 +19,12 @@ class LibraryScanner {
     return storage.isGranted;
   }
 
+  // Returns true when the audio permission is permanently denied,
+  // so the caller can direct the user to the app settings.
+  Future<bool> isPermanentlyDenied() async {
+    return Permission.audio.isPermanentlyDenied;
+  }
+
   /// Scan every music file on the device, store new ones in the DB,
   /// then (optionally) run auto-fetch metadata ONLY for songs that
   /// were truly never scanned before (checked from the DB, not the transient object).

@@ -139,32 +139,41 @@ class DashboardScreenState extends State<DashboardScreen> {
       final useCache = cached != null;
 
       // Detail queries always run fresh so lists never go stale.
+      // Query order is fixed: details, then optional summary, then hourly.
       final nowForYear = DateTime.now();
       final yearStart =
           DateTime(nowForYear.year, 1, 1).toIso8601String();
+      // Named futures via a record, spread in order so indices never shift.
+      final (detailFutures, summaryFutures, hourlyFuture) = (
+        <Future>[
+          DBHelper.instance.getDailyListeningLast7Days(),
+          DBHelper.instance.getTopSongIds(limit: 5),
+          DBHelper.instance.getTopArtists(limit: 5),
+          DBHelper.instance.getGenreDistribution(),
+          DBHelper.instance.getAllSongs(),
+          DBHelper.instance.getNeverPlayedSongs(),
+          DBHelper.instance.getTopSongIdsSince(yearStart, limit: 5),
+          DBHelper.instance.getTopArtistsSince(yearStart, limit: 3),
+          DBHelper.instance.getListeningMsSince(yearStart),
+        ],
+        // Summary queries only run on a cache miss or forced refresh.
+        useCache
+            ? <Future>[]
+            : <Future>[
+                DBHelper.instance.getTotalListeningMs(),
+                DBHelper.instance.getThisMonthListeningMs(),
+                DBHelper.instance.getListeningStreak(),
+                DBHelper.instance.getTopGenreThisMonth(),
+              ],
+        // Hourly distribution always runs fresh with the detail queries.
+        // Appended last so the summary indices above never shift.
+        DBHelper.instance.getHourlyDistribution(),
+      );
       final futures = <Future>[
-        DBHelper.instance.getDailyListeningLast7Days(),
-        DBHelper.instance.getTopSongIds(limit: 5),
-        DBHelper.instance.getTopArtists(limit: 5),
-        DBHelper.instance.getGenreDistribution(),
-        DBHelper.instance.getAllSongs(),
-        DBHelper.instance.getNeverPlayedSongs(),
-        DBHelper.instance.getTopSongIdsSince(yearStart, limit: 5),
-        DBHelper.instance.getTopArtistsSince(yearStart, limit: 3),
-        DBHelper.instance.getListeningMsSince(yearStart),
+        ...detailFutures,
+        ...summaryFutures,
+        hourlyFuture,
       ];
-      // Summary queries only run on a cache miss or forced refresh.
-      if (!useCache) {
-        futures.addAll([
-          DBHelper.instance.getTotalListeningMs(),
-          DBHelper.instance.getThisMonthListeningMs(),
-          DBHelper.instance.getListeningStreak(),
-          DBHelper.instance.getTopGenreThisMonth(),
-        ]);
-      }
-      // Hourly distribution always runs fresh with the detail queries.
-      // Appended last so the summary indices above never shift.
-      futures.add(DBHelper.instance.getHourlyDistribution());
 
       final results = await Future.wait(futures);
       final daily = results[0] as Map<DateTime, int>;
@@ -176,8 +185,15 @@ class DashboardScreenState extends State<DashboardScreen> {
       final yearTopSongs = results[6] as List<MapEntry<int, int>>;
       final yearTopArtists = results[7] as List<MapEntry<String, int>>;
       final yearMs = results[8] as int;
+      // Named offsets into the conditional summary block.
+      final summaryStart = detailFutures.length;
+      final totalMsIndex = summaryStart;
+      final monthMsIndex = summaryStart + 1;
+      final streakIndex = summaryStart + 2;
+      final topGenreIndex = summaryStart + 3;
       // Hourly map is always the last future in the list.
-      final hourly = results.last as Map<int, int>;
+      final hourlyIndex = summaryStart + summaryFutures.length;
+      final hourly = results[hourlyIndex] as Map<int, int>;
 
       final int totalMs;
       final int monthMs;
@@ -190,10 +206,10 @@ class DashboardScreenState extends State<DashboardScreen> {
         final rawGenre = cached['topGenre'];
         topGenre = rawGenre is String && rawGenre.isNotEmpty ? rawGenre : null;
       } else {
-        totalMs = results[9] as int;
-        monthMs = results[10] as int;
-        streak = results[11] as int;
-        topGenre = results[12] as String?;
+        totalMs = results[totalMsIndex] as int;
+        monthMs = results[monthMsIndex] as int;
+        streak = results[streakIndex] as int;
+        topGenre = results[topGenreIndex] as String?;
         await _writeAggregateCache(
           totalSongs: allSongs.length,
           totalMs: totalMs,
@@ -726,7 +742,10 @@ class DashboardScreenState extends State<DashboardScreen> {
               Expanded(
                 child: Text(
                   // Label every 6 hours to avoid crowding, others blank.
-                  h % 6 == 0 ? '${h}h' : '',
+                  h % 6 == 0
+                      ? AppLocalizations.of(context)!
+                          .dashboardTooltipHours(h.toString())
+                      : '',
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.clip,

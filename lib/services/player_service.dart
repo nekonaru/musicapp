@@ -759,6 +759,14 @@ class PlayerService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Update whether the running time based timer waits for the current
+  /// song to finish instead of fading out at once.
+  /// TODO L10N: no user facing string added here, English only.
+  void setFinishCurrentSongOnSleep(bool value) {
+    _finishCurrentSongOnSleep = value;
+    notifyListeners();
+  }
+
   Duration? get sleepTimerRemaining {
     if (sleepTimerEndTime == null) return null;
     final remaining = sleepTimerEndTime!.difference(DateTime.now());

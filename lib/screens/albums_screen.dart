@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:swara/l10n/gen/app_localizations.dart';
 import '../models/song.dart';
 import '../providers/library_provider.dart';
-import '../services/player_service.dart';
 import '../services/art_cache_service.dart';
 import '../widgets/mini_player.dart';
 import '../widgets/sort_chip.dart';
@@ -328,11 +327,7 @@ class _AlbumSongsScreen extends StatelessWidget {
           SliverFixedExtentList(
             itemExtent: 72,
             delegate: SliverChildBuilderDelegate(
-              (context, i) => AnimatedBuilder(
-                animation: PlayerService.instance,
-                builder: (context, _) =>
-                    buildSongTile(context, songs[i], songs, i),
-              ),
+              (context, i) => buildSongTile(context, songs[i], songs, i),
               childCount: songs.length,
             ),
           ),

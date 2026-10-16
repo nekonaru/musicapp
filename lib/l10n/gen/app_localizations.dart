@@ -2743,6 +2743,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Repeat one'**
   String get playerRepeatOne;
+
+  /// Playlist not found message
+  ///
+  /// In en, this message translates to:
+  /// **'Could not find the new playlist. Please try again.'**
+  String get queueNotFound;
 }
 
 class _AppLocalizationsDelegate

@@ -52,9 +52,20 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
     _minCtrl  = FixedExtentScrollController(initialItem: _defaultMinuteIndex);
     _songCtrl = FixedExtentScrollController(initialItem: _defaultSongIndex);
 
-    // If a timer is already running, tick every second to update the countdown
+    // If a timer is already running, tick every second to update the countdown.
+    // The tick stops itself once no timer and no fade remain active.
     if (_isTimerActive) {
       _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+        final ps = PlayerService.instance;
+        final hasTimer = ps.sleepTimerRemaining != null ||
+            ps.sleepSongsRemaining != null;
+        final fading = ps.isSleepFadeOutActive;
+        if (!hasTimer && !fading) {
+          _ticker?.cancel();
+          _ticker = null;
+          if (mounted) setState(() {});
+          return;
+        }
         if (mounted) setState(() {});
       });
     }
@@ -275,11 +286,13 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
           const SizedBox(height: 6),
           Text(AppLocalizations.of(context)!.sleepRemaining, style: TextStyle(fontSize: 14, color: Colors.grey[500])),
           const SizedBox(height: 20),
-          // Finish-last-song checkbox
+          // Finish-last-song checkbox. Updates local state for the UI and
+          // forwards the value to the service so the running timer follows it.
           InkWell(
             onTap: () {
-              setState(() => _finishSong = !_finishSong);
-              // Update the PlayerService if there is a way to do so (optional)
+              final next = !_finishSong;
+              setState(() => _finishSong = next);
+              PlayerService.instance.setFinishCurrentSongOnSleep(next);
             },
             borderRadius: BorderRadius.circular(8),
             child: Padding(
@@ -290,7 +303,11 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                     width: 24, height: 24,
                     child: Checkbox(
                       value: _finishSong,
-                      onChanged: (v) => setState(() => _finishSong = v ?? false),
+                      onChanged: (v) {
+                        final next = v ?? false;
+                        setState(() => _finishSong = next);
+                        PlayerService.instance.setFinishCurrentSongOnSleep(next);
+                      },
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(4)),
                     ),

@@ -1600,5 +1600,9 @@
     "playerRepeatOne":  "Repeat one",
     "@playerRepeatOne":  {
                               "description":  "Repeat one tooltip"
-                          }
+                          },
+    "queueNotFound":  "Could not find the new playlist. Please try again.",
+    "@queueNotFound":  {
+                            "description":  "Playlist not found message"
+                        }
 }

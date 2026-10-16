@@ -100,32 +100,57 @@ class _QueueScreenState extends State<QueueScreen> {
       ),
     );
     controller.dispose();
+    if (!mounted) return;
     if (name == null || name.isEmpty) return;
 
+    final prov = context.read<PlaylistProvider>();
+    // Resolve a unique name up front by checking existing playlist names,
+    // same "(2)" suffix pattern as collections. This never depends on
+    // parsing a database error string.
+    var base = name.trim();
+    if (base.isEmpty) base = _defaultQueuePlaylistName();
+    final existingNames = <String>{
+      for (final p in prov.playlists) (p['name'] as String),
+    };
+    var finalName = base;
+    var suffix = 2;
+    while (existingNames.contains(finalName)) {
+      finalName = '$base ($suffix)';
+      suffix++;
+    }
+
     try {
-      final prov = context.read<PlaylistProvider>();
-      // Same duplicate name handling as collections: on a UNIQUE error
-      // retry with a numeric suffix until creation succeeds.
-      var base = name.trim();
-      if (base.isEmpty) base = _defaultQueuePlaylistName();
-      var finalName = base;
-      var suffix = 2;
-      var playlistId = -1;
-      while (playlistId < 0) {
-        try {
-          await prov.create(finalName);
-          if (!mounted) return;
-          final found = prov.playlists.firstWhere(
-            (p) => (p['name'] as String) == finalName,
-          );
-          playlistId = found['id'] as int;
-        } catch (e) {
-          // Retry with a suffix only on duplicate name errors.
-          if (!e.toString().contains('UNIQUE')) rethrow;
-          finalName = '$base ($suffix)';
-          suffix++;
-        }
+      await prov.create(finalName);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!
+              .queueSaveFailed(e.toString())),
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+    // Safe lookup: a missing entry shows a clear error instead of
+    // throwing a StateError from firstWhere without orElse.
+    Map<String, dynamic>? found;
+    for (final p in prov.playlists) {
+      if ((p['name'] as String) == finalName) {
+        found = p;
+        break;
       }
+    }
+    if (found == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.queueNotFound),
+        ),
+      );
+      return;
+    }
+    final playlistId = found['id'] as int;
+    try {
       // Add every queued song in order. Per-song failures (for example
       // duplicates) are skipped so the rest of the queue still saves.
       var added = 0;

@@ -135,22 +135,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l10n.dataImportTitle),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(l10n.dataImportPrompt),
-              const SizedBox(height: 8),
-              TextField(
-                controller: controller,
-                maxLines: 6,
-                decoration: InputDecoration(
-                  hintText: l10n.dataImportHint,
-                  border: const OutlineInputBorder(),
+        // Scrollable so the keyboard never causes overflow on small screens.
+        content: SingleChildScrollView(
+          child: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(l10n.dataImportPrompt),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: controller,
+                  maxLines: 6,
+                  decoration: InputDecoration(
+                    hintText: l10n.dataImportHint,
+                    border: const OutlineInputBorder(),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         actions: [

@@ -31,7 +31,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
   // True only when the vertical swipe started in the top art zone.
   // Keeps lyric scroll gestures below that zone from dismissing the screen.
   bool _verticalDismissArmed = false;
-  Timer? _countdownTicker;
 
   // Synced (LRC) lyrics state. Lines load once per song from the DB,
   // then a positionStream listener highlights the active line.
@@ -45,17 +44,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _syncedMode = true;
 
   @override
-  void initState() {
-    super.initState();
-    // Timer to refresh the sleep timer countdown display every second
-    _countdownTicker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (_player.sleepTimerEndTime != null && mounted) setState(() {});
-    });
-  }
-
-  @override
   void dispose() {
-    _countdownTicker?.cancel();
     _stopLrcFollow();
     _lrcScrollController.dispose();
     super.dispose();
@@ -261,22 +250,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
         alignment: 0.4,
       );
     });
-  }
-
-  /// Short label for the sleep timer countdown, shown directly in the
-  /// player (not only inside the timer sheet), null when the timer is inactive.
-  String? _sleepTimerLabel(BuildContext context) {
-    final remaining = _player.sleepTimerRemaining;
-    if (remaining != null) {
-      final m = remaining.inMinutes;
-      final s = remaining.inSeconds % 60;
-      return '$m:${s.toString().padLeft(2, '0')}';
-    }
-    final songsLeft = _player.sleepSongsRemaining;
-    if (songsLeft != null) {
-      return AppLocalizations.of(context)!.playerSongsRemaining(songsLeft);
-    }
-    return null;
   }
 
   Future<void> _addLyricsManually(Song song) async {
@@ -696,10 +669,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
               ),
               // ListenableBuilder so the "N more songs" label stays updated
               // whenever sleepSongsRemaining changes (without waiting for another rebuild).
+              // The time based countdown ticks inside _SleepCountdownLabel,
+              // so this screen never rebuilds every second.
               ListenableBuilder(
                 listenable: _player,
                 builder: (context, _) {
-                  final label = _sleepTimerLabel(context);
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -713,14 +687,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         tooltip: AppLocalizations.of(context)!.playerSleepTimer,
                         onPressed: _pickSleepTimer,
                       ),
-                      if (label != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Text(
-                            label,
-                            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.primary),
-                          ),
-                        ),
+                      const _SleepCountdownLabel(),
                     ],
                   );
                 },
@@ -786,5 +753,85 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final h = d.inHours;
     if (h > 0) return '$h:${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}';
     return '${d.inMinutes}:${two(d.inSeconds % 60)}';
+  }
+}
+
+/// Sleep timer countdown label with its own one second ticker, so the
+/// player screen itself never rebuilds every second while the timer runs.
+/// The ticker only runs while a time based timer is active and stops
+/// as soon as no timer is left. Song count mode needs no ticker because
+/// it only changes when the player notifies.
+class _SleepCountdownLabel extends StatefulWidget {
+  const _SleepCountdownLabel();
+
+  @override
+  State<_SleepCountdownLabel> createState() => _SleepCountdownLabelState();
+}
+
+class _SleepCountdownLabelState extends State<_SleepCountdownLabel> {
+  final _player = PlayerService.instance;
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _player.addListener(_onPlayerChanged);
+    _updateTicker();
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    _player.removeListener(_onPlayerChanged);
+    super.dispose();
+  }
+
+  // Refresh the label on player changes and start or stop the ticker
+  // so it only runs while a time based sleep timer is active.
+  void _onPlayerChanged() {
+    _updateTicker();
+    if (mounted) setState(() {});
+  }
+
+  void _updateTicker() {
+    final hasTimeTimer = _player.sleepTimerEndTime != null;
+    if (hasTimeTimer && _ticker == null) {
+      _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted) return;
+        if (_player.sleepTimerEndTime == null) {
+          _ticker?.cancel();
+          _ticker = null;
+        }
+        setState(() {});
+      });
+    } else if (!hasTimeTimer && _ticker != null) {
+      _ticker?.cancel();
+      _ticker = null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = _player.sleepTimerRemaining;
+    String? label;
+    if (remaining != null) {
+      final m = remaining.inMinutes;
+      final s = remaining.inSeconds % 60;
+      label = '$m:${s.toString().padLeft(2, '0')}';
+    } else {
+      final songsLeft = _player.sleepSongsRemaining;
+      if (songsLeft != null) {
+        label = AppLocalizations.of(context)!.playerSongsRemaining(songsLeft);
+      }
+    }
+    if (label == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        label,
+        style: TextStyle(
+            fontSize: 11, color: Theme.of(context).colorScheme.primary),
+      ),
+    );
   }
 }

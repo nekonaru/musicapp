@@ -11,7 +11,11 @@ class DBHelper {
 
   Future<Database> get db async {
     _db ??= await _init();
-    return _db!;
+    final database = _db;
+    if (database == null) {
+      throw StateError('Database failed to initialize.');
+    }
+    return database;
   }
 
   Future<Database> _init() async {
@@ -393,7 +397,7 @@ class DBHelper {
       if (ts == null) continue;
       final key = DateTime(ts.year, ts.month, ts.day);
       if (result.containsKey(key)) {
-        result[key] = result[key]! + ((r['listenedMs'] as num?)?.toInt() ?? 0);
+        result[key] = (result[key] ?? 0) + ((r['listenedMs'] as num?)?.toInt() ?? 0);
       }
     }
     return result;

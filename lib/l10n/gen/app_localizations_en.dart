@@ -1544,4 +1544,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get playerRepeatOne => 'Repeat one';
+
+  @override
+  String get queueNotFound =>
+      'Could not find the new playlist. Please try again.';
 }

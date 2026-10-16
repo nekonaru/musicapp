@@ -104,47 +104,43 @@ Widget buildSongTile(
   Widget? leading,
   bool showOptions = true,
 }) {
-  final current = PlayerService.instance.currentSong;
-  final isPlaying = current != null && current.id == song.id;
-  final cs = Theme.of(context).colorScheme;
-  // Isolate each tile so the mini player animation does not repaint the list.
-  return RepaintBoundary(
-    child: ListTile(
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-    tileColor: isPlaying ? cs.primaryContainer.withValues(alpha: 0.25) : null,
-    leading: leading ??
-        (isPlaying
-            ? Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: PlayingIndicator(
-                  isPlaying: PlayerService.instance.player.playing,
-                  color: cs.primary,
-                ),
-              )
-            : song.albumArtUrl != null
-                // Disk cached artwork with network fallback.
-                ? ClipOval(
-                    child: CachedArtImage(
-                      url: song.albumArtUrl!,
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.cover,
-                      // Decode thumbnail size only to save image memory.
-                      cacheWidth: 88,
-                      fallback: const CircleAvatar(
-                        child: Icon(Icons.music_note, size: 20),
-                      ),
-                    ),
-                  )
-                : const CircleAvatar(
-                    child: Icon(Icons.music_note, size: 20),
-                  )),
+  // Normal artwork shown when this row is not the current song.
+  final Widget artFallback = song.albumArtUrl != null
+      // Disk cached artwork with network fallback.
+      ? ClipOval(
+          child: CachedArtImage(
+            url: song.albumArtUrl!,
+            width: 40,
+            height: 40,
+            fit: BoxFit.cover,
+            // Decode thumbnail size only to save image memory.
+            cacheWidth: 88,
+            fallback: const CircleAvatar(
+              child: Icon(Icons.music_note, size: 20),
+            ),
+          ),
+        )
+      : const CircleAvatar(
+          child: Icon(Icons.music_note, size: 20),
+        );
+  // Provide the singleton locally so Selector works without
+  // touching the global provider setup in main.dart.
+  // Only this tile rebuilds when its own isCurrent flag flips.
+  // Play and pause only rebuild the small icon inside.
+  return ChangeNotifierProvider.value(
+    value: PlayerService.instance,
+    child: Selector<PlayerService, bool>(
+      selector: (_, ps) => ps.currentSong?.id == song.id,
+      builder: (context, isPlaying, _) {
+        final cs = Theme.of(context).colorScheme;
+        // Isolate each tile so the mini player animation does not repaint the list.
+        return RepaintBoundary(
+          child: ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+            tileColor:
+                isPlaying ? cs.primaryContainer.withValues(alpha: 0.25) : null,
+            leading: leading ?? _NowPlayingIcon(songId: song.id, fallback: artFallback),
     title: Text(
       song.title,
       maxLines: 1,
@@ -191,8 +187,46 @@ Widget buildSongTile(
           ),
       ],
     ),
+          ),
+        );
+      },
     ),
   );
+}
+
+// Small now playing icon that rebuilds only itself when the current
+// song or the play state changes. Used as the default leading widget
+// for buildSongTile so lists no longer rebuild on every notify.
+class _NowPlayingIcon extends StatelessWidget {
+  final int songId;
+  final Widget fallback;
+  const _NowPlayingIcon({required this.songId, required this.fallback});
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector<PlayerService, bool>(
+      selector: (_, ps) => ps.currentSong?.id == songId,
+      builder: (context, isCurrent, _) {
+        if (!isCurrent) return fallback;
+        final cs = Theme.of(context).colorScheme;
+        return Container(
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: cs.primary.withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+          ),
+          // Inner selector so play and pause only rebuild the bars.
+          child: Selector<PlayerService, bool>(
+            selector: (_, ps) => ps.player.playing,
+            builder: (context, playing, _) =>
+                PlayingIndicator(isPlaying: playing, color: cs.primary),
+          ),
+        );
+      },
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -467,6 +501,8 @@ class _FoldersScreenState extends State<FoldersScreen> {
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16),
+            // Fixed extent matches the two line tile height, no visual change.
+            itemExtent: 72,
             itemCount: visibleFolders.length,
             itemBuilder: (context, i) {
               final folder = visibleFolders[i];
@@ -767,28 +803,25 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
                   )
                 : Stack(
                     children: [
-                      AnimatedBuilder(
-                        animation: PlayerService.instance,
-                        builder: (context, _) => CustomScrollView(
-                          controller: _scrollController,
-                          slivers: [
-                            SliverToBoxAdapter(
-                              child: buildCollectionHeader(
-                                context: context,
-                                songCount: _localSongs.length,
-                                totalMs: totalMs,
-                                songs: displayed,
-                              ),
+                      CustomScrollView(
+                        controller: _scrollController,
+                        slivers: [
+                          SliverToBoxAdapter(
+                            child: buildCollectionHeader(
+                              context: context,
+                              songCount: _localSongs.length,
+                              totalMs: totalMs,
+                              songs: displayed,
                             ),
-                            SliverFixedExtentList(
-                              itemExtent: _itemHeight,
-                              delegate: SliverChildBuilderDelegate(
-                                (context, i) => buildSongTile(context, displayed[i], displayed, i),
-                                childCount: displayed.length,
-                              ),
+                          ),
+                          SliverFixedExtentList(
+                            itemExtent: _itemHeight,
+                            delegate: SliverChildBuilderDelegate(
+                              (context, i) => buildSongTile(context, displayed[i], displayed, i),
+                              childCount: displayed.length,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                       if (showAzBar)
                         Positioned(
@@ -894,6 +927,8 @@ class ArtistsScreen extends StatelessWidget {
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
+                // Fixed extent matches the two line tile height, no visual change.
+                itemExtent: 72,
                 itemCount: artists.length,
                 itemBuilder: (context, i) {
                   final artist = artists[i];
@@ -963,27 +998,24 @@ class _ArtistSongsScreen extends StatelessWidget {
     final totalMs = songs.fold(0, (sum, s) => sum + s.durationMs);
     return Scaffold(
       appBar: AppBar(title: Text(artist)),
-      body: AnimatedBuilder(
-        animation: PlayerService.instance,
-        builder: (context, _) => CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: buildCollectionHeader(
-                context: context,
-                songCount: songs.length,
-                totalMs: totalMs,
-                songs: songs,
-              ),
+      body: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: buildCollectionHeader(
+              context: context,
+              songCount: songs.length,
+              totalMs: totalMs,
+              songs: songs,
             ),
-            SliverFixedExtentList(
-              itemExtent: 72,
-              delegate: SliverChildBuilderDelegate(
-                (context, i) => buildSongTile(context, songs[i], songs, i),
-                childCount: songs.length,
-              ),
+          ),
+          SliverFixedExtentList(
+            itemExtent: 72,
+            delegate: SliverChildBuilderDelegate(
+              (context, i) => buildSongTile(context, songs[i], songs, i),
+              childCount: songs.length,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
       bottomNavigationBar: const MiniPlayer(),
     );
@@ -1032,6 +1064,8 @@ class GenresScreen extends StatelessWidget {
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
+                // Fixed extent matches the two line tile height, no visual change.
+                itemExtent: 72,
                 itemCount: genres.length,
                 itemBuilder: (context, i) {
                   final genre = genres[i];
@@ -1111,19 +1145,16 @@ class _GenreSongsScreen extends StatelessWidget {
               totalMs: totalMs,
               songs: songs),
           Expanded(
-            child: AnimatedBuilder(
-              animation: PlayerService.instance,
-              builder: (context, _) => CustomScrollView(
-                slivers: [
-                  SliverFixedExtentList(
-                    itemExtent: 72,
-                    delegate: SliverChildBuilderDelegate(
-                      (context, i) => buildSongTile(context, songs[i], songs, i),
-                      childCount: songs.length,
-                    ),
+            child: CustomScrollView(
+              slivers: [
+                SliverFixedExtentList(
+                  itemExtent: 72,
+                  delegate: SliverChildBuilderDelegate(
+                    (context, i) => buildSongTile(context, songs[i], songs, i),
+                    childCount: songs.length,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1845,6 +1876,8 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
+                // Fixed extent matches the single line tile height, no visual change.
+                itemExtent: 64,
                 itemCount: provider.playlists.length,
                 itemBuilder: (context, i) {
                   final p = provider.playlists[i];
@@ -1953,48 +1986,45 @@ class _RecentlyAddedScreenState extends State<RecentlyAddedScreen> {
     final totalMs = _songs.fold(0, (sum, s) => sum + s.durationMs);
     return RefreshIndicator(
       onRefresh: _load,
-      child: AnimatedBuilder(
-        animation: PlayerService.instance,
-        builder: (context, _) => CustomScrollView(
-          slivers: [
-            // Header play buttons - collapses on scroll
-            SliverToBoxAdapter(
-              child: buildCollectionHeader(
-                  context: context,
-                  songCount: _songs.length,
-                  totalMs: totalMs,
-                  songs: _songs),
-            ),
-            SliverFixedExtentList(
-              itemExtent: 72,
-              delegate: SliverChildBuilderDelegate(
-                (context, i) {
-                  final song = _songs[i];
-                  return buildSongTile(context, song, _songs, i,
-                      leading: song.albumArtUrl != null
-                          // Disk cached artwork with network fallback.
-                          ? ClipOval(
-                              child: CachedArtImage(
-                                url: song.albumArtUrl!,
-                                width: 40,
-                                height: 40,
-                                fit: BoxFit.cover,
-                                // Decode thumbnail size only to save image memory.
-                                cacheWidth: 88,
-                                fallback: const CircleAvatar(
-                                  child: Icon(Icons.music_note, size: 20),
-                                ),
+      child: CustomScrollView(
+        slivers: [
+          // Header play buttons - collapses on scroll
+          SliverToBoxAdapter(
+            child: buildCollectionHeader(
+                context: context,
+                songCount: _songs.length,
+                totalMs: totalMs,
+                songs: _songs),
+          ),
+          SliverFixedExtentList(
+            itemExtent: 72,
+            delegate: SliverChildBuilderDelegate(
+              (context, i) {
+                final song = _songs[i];
+                return buildSongTile(context, song, _songs, i,
+                    leading: song.albumArtUrl != null
+                        // Disk cached artwork with network fallback.
+                        ? ClipOval(
+                            child: CachedArtImage(
+                              url: song.albumArtUrl!,
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                              // Decode thumbnail size only to save image memory.
+                              cacheWidth: 88,
+                              fallback: const CircleAvatar(
+                                child: Icon(Icons.music_note, size: 20),
                               ),
-                            )
-                          : const CircleAvatar(
-                              child: Icon(Icons.music_note, size: 20),
-                            ));
-                },
-                childCount: _songs.length,
-              ),
+                            ),
+                          )
+                        : const CircleAvatar(
+                            child: Icon(Icons.music_note, size: 20),
+                          ));
+              },
+              childCount: _songs.length,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -2049,21 +2079,19 @@ class _MostPlayedScreenState extends State<MostPlayedScreen> {
     final totalMs = _songs.fold(0, (sum, s) => sum + s.durationMs);
     return RefreshIndicator(
       onRefresh: _load,
-      child: AnimatedBuilder(
-        animation: PlayerService.instance,
-        builder: (context, _) => CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: buildCollectionHeader(
-                  context: context,
-                  songCount: _songs.length,
-                  totalMs: totalMs,
-                  songs: _songs),
-            ),
-            SliverFixedExtentList(
-              itemExtent: 72,
-              delegate: SliverChildBuilderDelegate(
-                (context, i) => buildSongTile(
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: buildCollectionHeader(
+                context: context,
+                songCount: _songs.length,
+                totalMs: totalMs,
+                songs: _songs),
+          ),
+          SliverFixedExtentList(
+            itemExtent: 72,
+            delegate: SliverChildBuilderDelegate(
+              (context, i) => buildSongTile(
                   context, _songs[i], _songs, i,
                   leading: SizedBox(
                     width: 40, height: 40,
@@ -2121,7 +2149,6 @@ class _MostPlayedScreenState extends State<MostPlayedScreen> {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }

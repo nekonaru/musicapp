@@ -1600,5 +1600,9 @@
     "playerRepeatOne":  "Ulangi satu",
     "@playerRepeatOne":  {
                               "description":  "Tooltip ulangi satu"
-                          }
+                          },
+    "queueNotFound":  "Playlist baru tidak ketemu. Coba lagi.",
+    "@queueNotFound":  {
+                            "description":  "Pesan playlist tidak ketemu"
+                        }
 }

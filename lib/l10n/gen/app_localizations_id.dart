@@ -1545,4 +1545,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get playerRepeatOne => 'Ulangi satu';
+
+  @override
+  String get queueNotFound => 'Playlist baru tidak ketemu. Coba lagi.';
 }

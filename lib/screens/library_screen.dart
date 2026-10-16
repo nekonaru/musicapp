@@ -560,9 +560,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     await lib.forceScanDevice();
                     await _loadFirstPage(lib);
                   },
-                  child: AnimatedBuilder(
-                    animation: PlayerService.instance,
-                    builder: (context, _) => CustomScrollView(
+                  child: CustomScrollView(
                       controller: _scrollController,
                       slivers: [
                         // Header: sort + play buttons (hidden on scroll)
@@ -577,13 +575,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                               final song = songs[i];
                               final isSelected =
                                   _selectedIds.contains(song.id);
-                              final isPlaying =
-                                  PlayerService.instance.currentSong?.id ==
-                                      song.id;
                               return _SongTile(
                                 song: song,
                                 index: i,
-                                isPlaying: isPlaying,
                                 isSelected: isSelected,
                                 isMultiSelect: _multiSelectMode,
                                 onTap: () => _multiSelectMode
@@ -630,7 +624,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       ],
                     ),
                   ),
-                ),
                 if (showAz && !_multiSelectMode)
                   Positioned(
                     right: 0,
@@ -731,17 +724,55 @@ class _LibraryScreenState extends State<LibraryScreen> {
 // Song Tile
 // ─────────────────────────────────────────────────────────────
 
+// Small now playing icon that rebuilds only itself when the current
+// song or the play state changes. The rest of the tile and the list
+// stay untouched on PlayerService notifies.
+class _NowPlayingIcon extends StatelessWidget {
+  final int songId;
+  final Widget fallback;
+  const _NowPlayingIcon({required this.songId, required this.fallback});
+
+  @override
+  Widget build(BuildContext context) {
+    // Provide the singleton locally so Selector works without
+    // touching the global provider setup in main.dart.
+    return ChangeNotifierProvider.value(
+      value: PlayerService.instance,
+      child: Selector<PlayerService, bool>(
+        selector: (_, ps) => ps.currentSong?.id == songId,
+        builder: (context, isCurrent, _) {
+          if (!isCurrent) return fallback;
+          final cs = Theme.of(context).colorScheme;
+          return Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+                color: cs.primary.withValues(alpha: 0.15),
+                shape: BoxShape.circle),
+            // Inner selector so play and pause only rebuild the bars.
+            child: Selector<PlayerService, bool>(
+              selector: (_, ps) => ps.player.playing,
+              builder: (context, playing, _) =>
+                  PlayingIndicator(isPlaying: playing, color: cs.primary),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 class _SongTile extends StatelessWidget {
   final Song song;
   final int index;
-  final bool isPlaying, isSelected, isMultiSelect;
+  final bool isSelected, isMultiSelect;
   final VoidCallback onTap, onLongPress;
   final Future<void> Function(Song song)? onOptions;
 
   const _SongTile({
     required this.song,
     required this.index,
-    required this.isPlaying,
     required this.isSelected,
     required this.isMultiSelect,
     required this.onTap,
@@ -752,7 +783,32 @@ class _SongTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return InkWell(
+    // Normal artwork shown when this row is not the current song.
+    final Widget artFallback = song.albumArtUrl != null
+        // Disk cached artwork with network fallback.
+        ? ClipOval(
+            child: CachedArtImage(
+              url: song.albumArtUrl!,
+              width: 40,
+              height: 40,
+              fit: BoxFit.cover,
+              // Decode thumbnail size only to save image memory.
+              cacheWidth: 88,
+              fallback: const CircleAvatar(
+                child: Icon(Icons.music_note, size: 20),
+              ),
+            ),
+          )
+        : const CircleAvatar(child: Icon(Icons.music_note, size: 20));
+    // Provide the singleton locally so the Selector below works
+    // without touching the global provider setup in main.dart.
+    // Only this tile rebuilds when its own isCurrent flag flips.
+    // Play and pause only rebuild the small icon inside.
+    return ChangeNotifierProvider.value(
+      value: PlayerService.instance,
+      child: Selector<PlayerService, bool>(
+        selector: (_, ps) => ps.currentSong?.id == song.id,
+        builder: (context, isPlaying, _) => InkWell(
       onTap: onTap,
       onLongPress: onLongPress,
       child: Container(
@@ -775,37 +831,8 @@ class _SongTile extends StatelessWidget {
                   : Padding(
                       key: const ValueKey('av'),
                       padding: const EdgeInsets.only(left: 8),
-                      child: isPlaying
-                          ? Container(
-                              width: 40,
-                              height: 40,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                  color: cs.primary.withValues(alpha: 0.15),
-                                  shape: BoxShape.circle),
-                              child: PlayingIndicator(
-                                  isPlaying: PlayerService
-                                      .instance.player.playing,
-                                  color: cs.primary))
-                          : song.albumArtUrl != null
-                              // Disk cached artwork with network fallback.
-                              ? ClipOval(
-                                  child: CachedArtImage(
-                                    url: song.albumArtUrl!,
-                                    width: 40,
-                                    height: 40,
-                                    fit: BoxFit.cover,
-                                    // Decode thumbnail size only to save image memory.
-                                    cacheWidth: 88,
-                                    fallback: const CircleAvatar(
-                                      child:
-                                          Icon(Icons.music_note, size: 20),
-                                    ),
-                                  ),
-                                )
-                              : const CircleAvatar(
-                                  child:
-                                      Icon(Icons.music_note, size: 20)),
+                      child: _NowPlayingIcon(
+                          songId: song.id, fallback: artFallback),
                     ),
             ),
             const SizedBox(width: 12),
@@ -843,6 +870,8 @@ class _SongTile extends StatelessWidget {
                   onPressed: () => onOptions?.call(song) ??
                       showSongOptions(context, song)),
           ],
+        ),
+      ),
         ),
       ),
     );
