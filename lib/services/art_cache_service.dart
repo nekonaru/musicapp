@@ -198,6 +198,7 @@ class CachedArtImage extends StatefulWidget {
   final int? cacheWidth;
   final Widget fallback;
   final Widget? loading;
+  final bool gaplessPlayback;
 
   const CachedArtImage({
     super.key,
@@ -208,6 +209,7 @@ class CachedArtImage extends StatefulWidget {
     this.fit = BoxFit.cover,
     this.cacheWidth,
     this.loading,
+    this.gaplessPlayback = true,
   });
 
   @override
@@ -238,6 +240,7 @@ class _CachedArtImageState extends State<CachedArtImage> {
       height: widget.height,
       fit: widget.fit,
       cacheWidth: widget.cacheWidth,
+      gaplessPlayback: widget.gaplessPlayback,
       loadingBuilder: widget.loading == null
           ? null
           : (context, child, progress) {
@@ -259,6 +262,7 @@ class _CachedArtImageState extends State<CachedArtImage> {
         height: widget.height,
         fit: widget.fit,
         cacheWidth: widget.cacheWidth,
+        gaplessPlayback: widget.gaplessPlayback,
         errorBuilder: (_, __, ___) => _networkFallback(),
       );
     }
@@ -277,6 +281,7 @@ class _CachedArtImageState extends State<CachedArtImage> {
             height: widget.height,
             fit: widget.fit,
             cacheWidth: widget.cacheWidth,
+            gaplessPlayback: widget.gaplessPlayback,
             errorBuilder: (_, __, ___) => _networkFallback(),
           );
         }

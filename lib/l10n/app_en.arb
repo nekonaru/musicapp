@@ -1604,5 +1604,158 @@
     "queueNotFound":  "Could not find the new playlist. Please try again.",
     "@queueNotFound":  {
                             "description":  "Playlist not found message"
-                        }
+                        },
+    "abTitle":  "A-B repeat",
+    "@abTitle":  {
+                      "description":  "A-B dialog title"
+                  },
+    "abHintInvalid":  "A must be before B and inside the song",
+    "@abHintInvalid":  {
+                            "description":  "A-B invalid hint"
+                        },
+    "abSetA":  "Set A",
+    "@abSetA":  {
+                     "description":  "Set A button"
+                 },
+    "abSetB":  "Set B",
+    "@abSetB":  {
+                     "description":  "Set B button"
+                 },
+    "abClear":  "Clear",
+    "@abClear":  {
+                      "description":  "Clear A-B button"
+                  },
+    "abDone":  "Done",
+    "@abDone":  {
+                     "description":  "A-B done button"
+                 },
+    "abHintSetB":  "A set, now set B after A",
+    "@abHintSetB":  {
+                         "description":  "A-B hint set B"
+                     },
+    "abHintSetA":  "Set A first",
+    "@abHintSetA":  {
+                         "description":  "A-B hint set A"
+                     },
+    "abHintBAfterA":  "B must be after A",
+    "@abHintBAfterA":  {
+                            "description":  "A-B hint B after A"
+                        },
+    "abOn":  "A-B repeat on: {a} - {b}",
+    "@abOn":  {
+                   "description":  "A-B on confirmation",
+                   "placeholders":  {
+                                        "a":  {
+                                                  "type":  "String"
+                                              },
+                                        "b":  {
+                                                  "type":  "String"
+                                              }
+                                    }
+               },
+    "abOff":  "A-B repeat off",
+    "@abOff":  {
+                    "description":  "A-B off confirmation"
+                },
+    "abButton":  "A-B",
+    "@abButton":  {
+                       "description":  "A-B button label"
+                   },
+    "abTooltip":  "A-B repeat",
+    "@abTooltip":  {
+                        "description":  "A-B button tooltip"
+                    },
+    "abMarker":  "A-B {a} - {b}",
+    "@abMarker":  {
+                       "description":  "Active A-B segment marker",
+                       "placeholders":  {
+                                            "a":  {
+                                                      "type":  "String"
+                                                  },
+                                            "b":  {
+                                                      "type":  "String"
+                                                  }
+                                        }
+                   },
+    "bulkEditValidate":  "Fill Genre or Artist first.",
+    "@bulkEditValidate":  {
+                               "description":  "Bulk edit validation"
+                           },
+    "bulkEditSummary":  "Updated {ok} songs, {failed} failed.",
+    "@bulkEditSummary":  {
+                              "description":  "Bulk edit summary",
+                              "placeholders":  {
+                                                   "ok":  {
+                                                              "type":  "int"
+                                                          },
+                                                   "failed":  {
+                                                                  "type":  "int"
+                                                              }
+                                               }
+                          },
+    "bulkEditTitle":  "Bulk edit ({count} songs)",
+    "@bulkEditTitle":  {
+                            "description":  "Bulk edit title",
+                            "placeholders":  {
+                                                 "count":  {
+                                                               "type":  "int"
+                                                           }
+                                             }
+                        },
+    "bulkEditHint":  "Leave a field empty to keep its current value.",
+    "@bulkEditHint":  {
+                           "description":  "Bulk edit hint"
+                       },
+    "bulkEditGenre":  "Genre",
+    "@bulkEditGenre":  {
+                            "description":  "Bulk edit genre label"
+                        },
+    "bulkEditArtist":  "Artist",
+    "@bulkEditArtist":  {
+                             "description":  "Bulk edit artist label"
+                         },
+    "bulkEditApplying":  "Applying...",
+    "@bulkEditApplying":  {
+                               "description":  "Bulk edit applying"
+                           },
+    "bulkEditApply":  "Apply to all",
+    "@bulkEditApply":  {
+                            "description":  "Bulk edit apply button"
+                        },
+    "bulkEditAction":  "Bulk edit",
+    "@bulkEditAction":  {
+                             "description":  "Bulk edit action tooltip"
+                         },
+    "dispSection":  "Display",
+    "@dispSection":  {
+                          "description":  "Display settings section"
+                      },
+    "dispTextScale":  "Text scale",
+    "@dispTextScale":  {
+                            "description":  "Text scale label"
+                        },
+    "dispSmall":  "Small",
+    "@dispSmall":  {
+                        "description":  "Small text option"
+                    },
+    "dispNormal":  "Normal",
+    "@dispNormal":  {
+                         "description":  "Normal text option"
+                     },
+    "dispLarge":  "Large",
+    "@dispLarge":  {
+                        "description":  "Large text option"
+                    },
+    "dispExtraLarge":  "Extra large",
+    "@dispExtraLarge":  {
+                             "description":  "Extra large text option"
+                         },
+    "shortcutShuffle":  "Shuffle Favorites",
+    "@shortcutShuffle":  {
+                              "description":  "Shuffle favorites shortcut"
+                          },
+    "shortcutContinue":  "Continue Listening",
+    "@shortcutContinue":  {
+                               "description":  "Continue listening shortcut"
+                           }
 }

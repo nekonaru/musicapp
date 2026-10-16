@@ -97,6 +97,109 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (speed != null) await _player.setPlaybackSpeed(speed);
   }
 
+  /// Small A-B repeat dialog: capture A and B from the current position,
+  /// apply the loop when both are valid, or clear it.
+  Future<void> _showABRepeatDialog() async {
+    final l10n = AppLocalizations.of(context)!;
+    Duration? a = _player.abRepeatA;
+    Duration? b = _player.abRepeatB;
+    String? hint;
+    bool changed = false;
+    final applied = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final dl10n = AppLocalizations.of(ctx)!;
+          void tryApply() {
+            if (a != null && b != null) {
+              if (_player.setABRepeat(a!, b!)) {
+                hint = null;
+                changed = true;
+              } else {
+                hint = dl10n.abHintInvalid;
+              }
+            }
+          }
+
+          return AlertDialog(
+            title: Text(dl10n.abTitle),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('A: ${a == null ? '-' : _fmt(a!)}'),
+                Text('B: ${b == null ? '-' : _fmt(b!)}'),
+                if (hint != null) ...[
+                  const SizedBox(height: 8),
+                  Text(hint!,
+                      style: TextStyle(
+                          color: Theme.of(ctx).colorScheme.error)),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  _player.clearABRepeat();
+                  Navigator.pop(ctx, true);
+                },
+                child: Text(dl10n.abClear),
+              ),
+              TextButton(
+                onPressed: () {
+                  final pos = _player.player.position;
+                  setDialogState(() {
+                    a = pos;
+                    if (b != null && a! >= b!) {
+                      b = null;
+                      hint = dl10n.abHintSetB;
+                    } else {
+                      hint = null;
+                      tryApply();
+                    }
+                  });
+                },
+                child: Text(dl10n.abSetA),
+              ),
+              TextButton(
+                onPressed: () {
+                  final pos = _player.player.position;
+                  setDialogState(() {
+                    b = pos;
+                    if (a == null) {
+                      hint = dl10n.abHintSetA;
+                    } else if (a! >= b!) {
+                      hint = dl10n.abHintBAfterA;
+                    } else {
+                      hint = null;
+                      tryApply();
+                    }
+                  });
+                },
+                child: Text(dl10n.abSetB),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, changed),
+                child: Text(dl10n.abDone),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (!mounted || applied != true) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_player.hasABRepeat
+            ? l10n.abOn(
+                _fmt(_player.abRepeatA!), _fmt(_player.abRepeatB!))
+            : l10n.abOff),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   Future<void> _searchLyricsOnGoogle(Song song) async {
     final query = Uri.encodeComponent('${song.artist} ${song.title} lirik lyrics');
     final url = Uri.parse('https://www.google.com/search?q=$query');
@@ -611,6 +714,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
               );
             },
           ),
+          if (_player.hasABRepeat)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(
+                AppLocalizations.of(context)!.abMarker(
+                    _fmt(_player.abRepeatA!), _fmt(_player.abRepeatB!)),
+                style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.primary),
+              ),
+            ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -699,6 +811,27 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
                 tooltip: AppLocalizations.of(context)!.playerPlaybackSpeed,
                 onPressed: _pickPlaybackSpeed,
+              ),
+              // Small A-B repeat button. Active (looping) state uses the
+              // primary color, idle uses grey.
+              ListenableBuilder(
+                listenable: _player,
+                builder: (context, _) {
+                  final abActive = _player.hasABRepeat;
+                  return IconButton(
+                    icon: Text(
+                      AppLocalizations.of(context)!.abButton,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: abActive ? Theme.of(context).colorScheme.primary : Colors.grey,
+                      ),
+                    ),
+                    tooltip:
+                        AppLocalizations.of(context)!.abTooltip,
+                    onPressed: _showABRepeatDialog,
+                  );
+                },
               ),
               IconButton(
                 icon: const Icon(Icons.queue_music_outlined, size: 22, color: Colors.grey),

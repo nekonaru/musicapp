@@ -33,6 +33,13 @@ class PlayerService extends ChangeNotifier {
 
   bool _shuffle = false;
   SwaraRepeatMode _repeatMode = SwaraRepeatMode.off;
+  // A-B repeat state. When both are non null, playback loops the segment
+  // from _abRepeatA to _abRepeatB. Null means the feature is off.
+  // Reset on every track change. Independent of crossfade, sleep and speed.
+  Duration? _abRepeatA;
+  Duration? _abRepeatB;
+  // Tolerance for the B trigger, so a coarse position tick still loops.
+  static const Duration abRepeatTolerance = Duration(milliseconds: 200);
   bool crossfadeEnabled = false;
   static const Duration crossfadeDuration = Duration(seconds: 3);
 
@@ -105,7 +112,7 @@ class PlayerService extends ChangeNotifier {
     await _positionSub?.cancel();
     _positionSub = null;
     if (_disposed) return;
-    _positionSub = _activePlayer.positionStream.listen(_maybeStartCrossfade);
+    _positionSub = _activePlayer.positionStream.listen(_onPosition);
   }
 
   /// Stop listening to position updates to save battery while paused.
@@ -172,6 +179,9 @@ class PlayerService extends ChangeNotifier {
 
   bool get isShuffle => _shuffle;
   SwaraRepeatMode get repeatMode => _repeatMode;
+  Duration? get abRepeatA => _abRepeatA;
+  Duration? get abRepeatB => _abRepeatB;
+  bool get hasABRepeat => _abRepeatA != null && _abRepeatB != null;
 
   /// Queue in the actual playback order (used by the Queue page)
   List<Song> get queue => _playOrder.map((i) => _queue[i]).toList();
@@ -202,6 +212,29 @@ class PlayerService extends ChangeNotifier {
     // Subscribe only while playing so crossfade triggers keep working
     // without draining battery while paused.
     await _subscribePosition();
+  }
+
+  /// Shared position tick for the active player. A-B repeat is checked
+  /// first so the segment loops before the crossfade trigger near the
+  /// track end can fire.
+  void _onPosition(Duration position) {
+    if (_checkABRepeat(position)) return;
+    _maybeStartCrossfade(position);
+  }
+
+  /// Seek back to A once the position reaches B (with a small tolerance).
+  /// Returns true when a loop seek was issued, so crossfade stays out.
+  bool _checkABRepeat(Duration position) {
+    final a = _abRepeatA;
+    final b = _abRepeatB;
+    if (a == null || b == null) return false;
+    if (position + abRepeatTolerance >= b) {
+      _activePlayer.seek(a).catchError((Object e) {
+        debugPrint('A-B repeat seek failed: $e');
+      });
+      return true;
+    }
+    return false;
   }
 
   void _maybeStartCrossfade(Duration position) {
@@ -273,6 +306,7 @@ class PlayerService extends ChangeNotifier {
       // The outgoing player is left alone until its pause above.
       unawaited(EqualizerService.instance.attach(_activePlayer));
       _posInOrder = nextPos;
+      _clearABRepeatSilent(); // new track, drop any A-B segment
       _playStartedAt = DateTime.now();
       _accumulatedListenedMs = 0;
       _crossfadeActiveGeneration = -1;
@@ -323,6 +357,7 @@ class PlayerService extends ChangeNotifier {
     if (_sleepFadeActive) _cancelSleepFadeOut();
     _cancelPauseFade();
     _cancelCrossfade();
+    _clearABRepeatSilent(); // new track, drop any A-B segment
     _usingCrossfadePlayer = false;
     await _vol(() => _crossfadePlayer?.pause() ?? Future<void>.value());
     // Drop the standby player while crossfade is off so manual
@@ -484,6 +519,7 @@ class PlayerService extends ChangeNotifier {
     if (_sleepFadeActive) _cancelSleepFadeOut();
     _cancelPauseFade();
     _cancelCrossfade();
+    _clearABRepeatSilent(); // new track, drop any A-B segment
     await _vol(() => _crossfadePlayer?.pause() ?? Future<void>.value());
     _usingCrossfadePlayer = false;
     if (!crossfadeEnabled) _releaseCrossfadePlayer();
@@ -507,6 +543,7 @@ class PlayerService extends ChangeNotifier {
     if (_sleepFadeActive) _cancelSleepFadeOut();
     _cancelPauseFade();
     _cancelCrossfade();
+    _clearABRepeatSilent(); // new track, drop any A-B segment
     await _vol(() => _crossfadePlayer?.pause() ?? Future<void>.value());
     _usingCrossfadePlayer = false;
     if (!crossfadeEnabled) _releaseCrossfadePlayer();
@@ -547,6 +584,7 @@ class PlayerService extends ChangeNotifier {
     if (_sleepFadeActive) _cancelSleepFadeOut();
     _cancelPauseFade();
     _cancelCrossfade();
+    _clearABRepeatSilent(); // new track, drop any A-B segment
     await _vol(() => _crossfadePlayer?.pause() ?? Future<void>.value());
     _usingCrossfadePlayer = false;
     if (!crossfadeEnabled) _releaseCrossfadePlayer();
@@ -706,6 +744,34 @@ class PlayerService extends ChangeNotifier {
   void cycleRepeatMode() {
     _repeatMode = SwaraRepeatMode.values[(_repeatMode.index + 1) % SwaraRepeatMode.values.length];
     notifyListeners();
+  }
+
+  /// Set the A-B repeat segment. Returns false when invalid: A must be
+  /// before B, and both must fit inside the current track duration
+  /// (when the duration is known).
+  // TODO L10N: no user facing string added here, English only.
+  bool setABRepeat(Duration a, Duration b) {
+    if (a < Duration.zero || a >= b) return false;
+    final dur = _activePlayer.duration;
+    if (dur != null && (b > dur || a >= dur)) return false;
+    _abRepeatA = a;
+    _abRepeatB = b;
+    notifyListeners();
+    return true;
+  }
+
+  /// Turn A-B repeat off.
+  void clearABRepeat() {
+    if (_abRepeatA == null && _abRepeatB == null) return;
+    _clearABRepeatSilent();
+    notifyListeners();
+  }
+
+  /// Drop the A-B segment without notifying. Used on track changes where
+  /// the caller notifies anyway.
+  void _clearABRepeatSilent() {
+    _abRepeatA = null;
+    _abRepeatB = null;
   }
 
   void setCrossfadeEnabled(bool value) {

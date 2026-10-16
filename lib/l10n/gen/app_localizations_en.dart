@@ -1548,4 +1548,105 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get queueNotFound =>
       'Could not find the new playlist. Please try again.';
+
+  @override
+  String get abTitle => 'A-B repeat';
+
+  @override
+  String get abHintInvalid => 'A must be before B and inside the song';
+
+  @override
+  String get abSetA => 'Set A';
+
+  @override
+  String get abSetB => 'Set B';
+
+  @override
+  String get abClear => 'Clear';
+
+  @override
+  String get abDone => 'Done';
+
+  @override
+  String get abHintSetB => 'A set, now set B after A';
+
+  @override
+  String get abHintSetA => 'Set A first';
+
+  @override
+  String get abHintBAfterA => 'B must be after A';
+
+  @override
+  String abOn(String a, String b) {
+    return 'A-B repeat on: $a - $b';
+  }
+
+  @override
+  String get abOff => 'A-B repeat off';
+
+  @override
+  String get abButton => 'A-B';
+
+  @override
+  String get abTooltip => 'A-B repeat';
+
+  @override
+  String abMarker(String a, String b) {
+    return 'A-B $a - $b';
+  }
+
+  @override
+  String get bulkEditValidate => 'Fill Genre or Artist first.';
+
+  @override
+  String bulkEditSummary(int ok, int failed) {
+    return 'Updated $ok songs, $failed failed.';
+  }
+
+  @override
+  String bulkEditTitle(int count) {
+    return 'Bulk edit ($count songs)';
+  }
+
+  @override
+  String get bulkEditHint => 'Leave a field empty to keep its current value.';
+
+  @override
+  String get bulkEditGenre => 'Genre';
+
+  @override
+  String get bulkEditArtist => 'Artist';
+
+  @override
+  String get bulkEditApplying => 'Applying...';
+
+  @override
+  String get bulkEditApply => 'Apply to all';
+
+  @override
+  String get bulkEditAction => 'Bulk edit';
+
+  @override
+  String get dispSection => 'Display';
+
+  @override
+  String get dispTextScale => 'Text scale';
+
+  @override
+  String get dispSmall => 'Small';
+
+  @override
+  String get dispNormal => 'Normal';
+
+  @override
+  String get dispLarge => 'Large';
+
+  @override
+  String get dispExtraLarge => 'Extra large';
+
+  @override
+  String get shortcutShuffle => 'Shuffle Favorites';
+
+  @override
+  String get shortcutContinue => 'Continue Listening';
 }

@@ -1604,5 +1604,158 @@
     "queueNotFound":  "Playlist baru tidak ketemu. Coba lagi.",
     "@queueNotFound":  {
                             "description":  "Pesan playlist tidak ketemu"
-                        }
+                        },
+    "abTitle":  "Ulangi A-B",
+    "@abTitle":  {
+                      "description":  "Judul dialog A-B"
+                  },
+    "abHintInvalid":  "A harus sebelum B dan di dalam lagu",
+    "@abHintInvalid":  {
+                            "description":  "Hint A-B tidak valid"
+                        },
+    "abSetA":  "Set A",
+    "@abSetA":  {
+                     "description":  "Tombol Set A"
+                 },
+    "abSetB":  "Set B",
+    "@abSetB":  {
+                     "description":  "Tombol Set B"
+                 },
+    "abClear":  "Bersihkan",
+    "@abClear":  {
+                      "description":  "Tombol bersihkan A-B"
+                  },
+    "abDone":  "Selesai",
+    "@abDone":  {
+                     "description":  "Tombol selesai A-B"
+                 },
+    "abHintSetB":  "A diset, sekarang set B setelah A",
+    "@abHintSetB":  {
+                         "description":  "Hint A-B set B"
+                     },
+    "abHintSetA":  "Set A dulu",
+    "@abHintSetA":  {
+                         "description":  "Hint A-B set A"
+                     },
+    "abHintBAfterA":  "B harus setelah A",
+    "@abHintBAfterA":  {
+                            "description":  "Hint B setelah A"
+                        },
+    "abOn":  "Ulangi A-B nyala: {a} - {b}",
+    "@abOn":  {
+                   "description":  "Konfirmasi A-B nyala",
+                   "placeholders":  {
+                                        "a":  {
+                                                  "type":  "String"
+                                              },
+                                        "b":  {
+                                                  "type":  "String"
+                                              }
+                                    }
+               },
+    "abOff":  "Ulangi A-B mati",
+    "@abOff":  {
+                    "description":  "Konfirmasi A-B mati"
+                },
+    "abButton":  "A-B",
+    "@abButton":  {
+                       "description":  "Label tombol A-B"
+                   },
+    "abTooltip":  "Ulangi A-B",
+    "@abTooltip":  {
+                        "description":  "Tooltip tombol A-B"
+                    },
+    "abMarker":  "A-B {a} - {b}",
+    "@abMarker":  {
+                       "description":  "Penanda segmen A-B aktif",
+                       "placeholders":  {
+                                            "a":  {
+                                                      "type":  "String"
+                                                  },
+                                            "b":  {
+                                                      "type":  "String"
+                                                  }
+                                        }
+                   },
+    "bulkEditValidate":  "Isi Genre atau Artist dulu.",
+    "@bulkEditValidate":  {
+                               "description":  "Validasi bulk edit"
+                           },
+    "bulkEditSummary":  "Memperbarui {ok} lagu, {failed} gagal.",
+    "@bulkEditSummary":  {
+                              "description":  "Ringkasan bulk edit",
+                              "placeholders":  {
+                                                   "ok":  {
+                                                              "type":  "int"
+                                                          },
+                                                   "failed":  {
+                                                                  "type":  "int"
+                                                              }
+                                               }
+                          },
+    "bulkEditTitle":  "Edit massal ({count} lagu)",
+    "@bulkEditTitle":  {
+                            "description":  "Judul bulk edit",
+                            "placeholders":  {
+                                                 "count":  {
+                                                               "type":  "int"
+                                                           }
+                                             }
+                        },
+    "bulkEditHint":  "Kosongkan field untuk mempertahankan nilai saat ini.",
+    "@bulkEditHint":  {
+                           "description":  "Hint bulk edit"
+                       },
+    "bulkEditGenre":  "Genre",
+    "@bulkEditGenre":  {
+                            "description":  "Label genre bulk edit"
+                        },
+    "bulkEditArtist":  "Artist",
+    "@bulkEditArtist":  {
+                             "description":  "Label artist bulk edit"
+                         },
+    "bulkEditApplying":  "Menerapkan...",
+    "@bulkEditApplying":  {
+                               "description":  "Bulk edit menerapkan"
+                           },
+    "bulkEditApply":  "Terapkan ke semua",
+    "@bulkEditApply":  {
+                            "description":  "Tombol terapkan bulk edit"
+                        },
+    "bulkEditAction":  "Edit massal",
+    "@bulkEditAction":  {
+                             "description":  "Tooltip aksi bulk edit"
+                         },
+    "dispSection":  "Tampilan",
+    "@dispSection":  {
+                          "description":  "Section tampilan pengaturan"
+                      },
+    "dispTextScale":  "Skala teks",
+    "@dispTextScale":  {
+                            "description":  "Label skala teks"
+                        },
+    "dispSmall":  "Kecil",
+    "@dispSmall":  {
+                        "description":  "Opsi teks kecil"
+                    },
+    "dispNormal":  "Normal",
+    "@dispNormal":  {
+                         "description":  "Opsi teks normal"
+                     },
+    "dispLarge":  "Besar",
+    "@dispLarge":  {
+                        "description":  "Opsi teks besar"
+                    },
+    "dispExtraLarge":  "Sangat besar",
+    "@dispExtraLarge":  {
+                             "description":  "Opsi teks sangat besar"
+                         },
+    "shortcutShuffle":  "Acak Favorit",
+    "@shortcutShuffle":  {
+                              "description":  "Shortcut acak favorit"
+                          },
+    "shortcutContinue":  "Lanjutkan Mendengarkan",
+    "@shortcutContinue":  {
+                               "description":  "Shortcut lanjutkan mendengarkan"
+                           }
 }

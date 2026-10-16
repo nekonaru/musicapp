@@ -2749,6 +2749,192 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not find the new playlist. Please try again.'**
   String get queueNotFound;
+
+  /// A-B dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'A-B repeat'**
+  String get abTitle;
+
+  /// A-B invalid hint
+  ///
+  /// In en, this message translates to:
+  /// **'A must be before B and inside the song'**
+  String get abHintInvalid;
+
+  /// Set A button
+  ///
+  /// In en, this message translates to:
+  /// **'Set A'**
+  String get abSetA;
+
+  /// Set B button
+  ///
+  /// In en, this message translates to:
+  /// **'Set B'**
+  String get abSetB;
+
+  /// Clear A-B button
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get abClear;
+
+  /// A-B done button
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get abDone;
+
+  /// A-B hint set B
+  ///
+  /// In en, this message translates to:
+  /// **'A set, now set B after A'**
+  String get abHintSetB;
+
+  /// A-B hint set A
+  ///
+  /// In en, this message translates to:
+  /// **'Set A first'**
+  String get abHintSetA;
+
+  /// A-B hint B after A
+  ///
+  /// In en, this message translates to:
+  /// **'B must be after A'**
+  String get abHintBAfterA;
+
+  /// A-B on confirmation
+  ///
+  /// In en, this message translates to:
+  /// **'A-B repeat on: {a} - {b}'**
+  String abOn(String a, String b);
+
+  /// A-B off confirmation
+  ///
+  /// In en, this message translates to:
+  /// **'A-B repeat off'**
+  String get abOff;
+
+  /// A-B button label
+  ///
+  /// In en, this message translates to:
+  /// **'A-B'**
+  String get abButton;
+
+  /// A-B button tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'A-B repeat'**
+  String get abTooltip;
+
+  /// Active A-B segment marker
+  ///
+  /// In en, this message translates to:
+  /// **'A-B {a} - {b}'**
+  String abMarker(String a, String b);
+
+  /// Bulk edit validation
+  ///
+  /// In en, this message translates to:
+  /// **'Fill Genre or Artist first.'**
+  String get bulkEditValidate;
+
+  /// Bulk edit summary
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {ok} songs, {failed} failed.'**
+  String bulkEditSummary(int ok, int failed);
+
+  /// Bulk edit title
+  ///
+  /// In en, this message translates to:
+  /// **'Bulk edit ({count} songs)'**
+  String bulkEditTitle(int count);
+
+  /// Bulk edit hint
+  ///
+  /// In en, this message translates to:
+  /// **'Leave a field empty to keep its current value.'**
+  String get bulkEditHint;
+
+  /// Bulk edit genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Genre'**
+  String get bulkEditGenre;
+
+  /// Bulk edit artist label
+  ///
+  /// In en, this message translates to:
+  /// **'Artist'**
+  String get bulkEditArtist;
+
+  /// Bulk edit applying
+  ///
+  /// In en, this message translates to:
+  /// **'Applying...'**
+  String get bulkEditApplying;
+
+  /// Bulk edit apply button
+  ///
+  /// In en, this message translates to:
+  /// **'Apply to all'**
+  String get bulkEditApply;
+
+  /// Bulk edit action tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Bulk edit'**
+  String get bulkEditAction;
+
+  /// Display settings section
+  ///
+  /// In en, this message translates to:
+  /// **'Display'**
+  String get dispSection;
+
+  /// Text scale label
+  ///
+  /// In en, this message translates to:
+  /// **'Text scale'**
+  String get dispTextScale;
+
+  /// Small text option
+  ///
+  /// In en, this message translates to:
+  /// **'Small'**
+  String get dispSmall;
+
+  /// Normal text option
+  ///
+  /// In en, this message translates to:
+  /// **'Normal'**
+  String get dispNormal;
+
+  /// Large text option
+  ///
+  /// In en, this message translates to:
+  /// **'Large'**
+  String get dispLarge;
+
+  /// Extra large text option
+  ///
+  /// In en, this message translates to:
+  /// **'Extra large'**
+  String get dispExtraLarge;
+
+  /// Shuffle favorites shortcut
+  ///
+  /// In en, this message translates to:
+  /// **'Shuffle Favorites'**
+  String get shortcutShuffle;
+
+  /// Continue listening shortcut
+  ///
+  /// In en, this message translates to:
+  /// **'Continue Listening'**
+  String get shortcutContinue;
 }
 
 class _AppLocalizationsDelegate

@@ -1,5 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:quick_actions/quick_actions.dart';
 import 'package:swara/l10n/gen/app_localizations.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +9,7 @@ import 'providers/language_provider.dart';
 import 'providers/library_provider.dart';
 import 'providers/playlist_provider.dart';
 import 'providers/theme_provider.dart';
+import 'services/db_helper.dart';
 import 'services/equalizer_service.dart';
 import 'services/player_service.dart';
 import 'services/swara_audio_handler.dart';
@@ -38,6 +40,74 @@ void main() {
     languageProvider: languageProvider,
     bootFuture: bootFuture,
   ));
+
+  // Register dynamic launcher shortcuts (long press on the app icon).
+  // Best effort: a shortcut failure must never crash or block the app.
+  _setupDynamicShortcuts();
+}
+
+// Registers dynamic launcher shortcuts and handles their callbacks.
+// Needs the quick_actions package (see report). Uses only existing APIs:
+// DBHelper.getFavorites / getRecentlyPlayed for data and
+// PlayerService.setShuffle / setQueueAndPlay for playback.
+// NOTE: quick_actions API shape below follows the plugin standard
+// (QuickActions setShortcutItems + initialize callback) but is not
+// verified against a resolved version in this repo, so confirm on upgrade.
+// No native code or manifest change is needed for dynamic shortcuts.
+void _setupDynamicShortcuts() {
+  try {
+    const QuickActions quickActions = QuickActions();
+    quickActions.initialize((String shortcutType) {
+      _handleAppShortcut(shortcutType);
+    });
+    quickActions.setShortcutItems(<ShortcutItem>[
+      ShortcutItem(
+        type: 'shuffle_favorites',
+        localizedTitle:
+            lookupAppLocalizations(LanguageProvider.instance.locale)
+                .shortcutShuffle,
+        icon: 'ic_stat_swara',
+      ),
+      ShortcutItem(
+        type: 'continue_listening',
+        localizedTitle:
+            lookupAppLocalizations(LanguageProvider.instance.locale)
+                .shortcutContinue,
+        icon: 'ic_stat_swara',
+      ),
+    ]);
+  } catch (e) {
+    // Shortcuts are optional, so log and keep the app running normally.
+    debugPrint('App shortcuts setup failed: $e');
+  }
+}
+
+// Runs the action for a launcher shortcut type. Everything is best effort:
+// empty results are ignored and errors are only logged.
+Future<void> _handleAppShortcut(String shortcutType) async {
+  try {
+    // Make sure the player listeners exist (init is idempotent, so calling
+    // it again after a cold start via shortcut is safe).
+    await PlayerService.instance.init();
+    if (shortcutType == 'shuffle_favorites') {
+      final favs = await DBHelper.instance.getFavorites();
+      if (favs.isEmpty) return;
+      // Enable shuffle BEFORE building the queue so setQueueAndPlay
+      // creates a shuffled play order starting from the first song.
+      PlayerService.instance.setShuffle(true);
+      await PlayerService.instance.setQueueAndPlay(favs, 0);
+    } else if (shortcutType == 'continue_listening') {
+      final recent =
+          await DBHelper.instance.getRecentlyPlayed(limit: 20);
+      if (recent.isEmpty) return;
+      // Queue the history in recency order and start with the most
+      // recently played song (index 0).
+      PlayerService.instance.setShuffle(false);
+      await PlayerService.instance.setQueueAndPlay(recent, 0);
+    }
+  } catch (e) {
+    debugPrint('App shortcut "$shortcutType" failed: $e');
+  }
 }
 
 // Runs independent startup tasks concurrently. Each task guards its own
@@ -123,6 +193,17 @@ class MusicApp extends StatelessWidget {
           locale: lp.locale,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
+          // Apply the user text scale on top of the system setting.
+          builder: (context, child) {
+            final media = MediaQuery.of(context);
+            return MediaQuery(
+              data: media.copyWith(
+                textScaler:
+                    TextScaler.linear(tp.textScale),
+              ),
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
           themeMode: tp.themeMode,
           theme: ThemeData(
             colorSchemeSeed: tp.accentColor,

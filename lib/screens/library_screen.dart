@@ -13,6 +13,7 @@ import '../widgets/sort_chip.dart';
 import '../utils/song_options.dart';
 import '../utils/format.dart';
 import 'missing_art_screen.dart';
+import 'bulk_edit_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -375,6 +376,25 @@ class _LibraryScreenState extends State<LibraryScreen> {
               tooltip: l.libraryAddToPlaylist,
               onPressed:
                   selected.isEmpty ? null : () => _bulkAddToPlaylist(selected)),
+          IconButton(
+              constraints:
+                  const BoxConstraints(minWidth: 48, minHeight: 48),
+              icon: const Icon(Icons.edit),
+              tooltip:
+                  AppLocalizations.of(context)!.bulkEditAction,
+              onPressed: selected.isEmpty
+                  ? null
+                  : () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              BulkEditScreen(songs: selected),
+                        ),
+                      );
+                      if (!mounted) return;
+                      _exitMultiSelect();
+                    }),
           IconButton(
               constraints:
                   const BoxConstraints(minWidth: 48, minHeight: 48),

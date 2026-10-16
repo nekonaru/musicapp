@@ -54,6 +54,8 @@
 | 📂 **Folder playlist** | Kelompokkan playlist ke dalam folder |
 | 📥 **Import M3U** | Import playlist dari file .m3u, dicocokkan ke library |
 | 📤 **Export M3U** | Export playlist ke file .m3u untuk pemutar lain |
+| 🔁 **Ulangi A-B** | Ulangi segmen lagu untuk latihan |
+| ✏️ **Edit massal** | Edit genre dan artist banyak lagu sekaligus |
 | 📤 **Bagikan lagu** | Bagikan info lagu plus file audio |
 | 🔥 **Streak mendengarkan** | Streak harian dan genre teratas bulan ini di dashboard |
 | 🔍 **Pencarian** | Cari real-time berdasarkan judul, artis, album, folder, atau genre |

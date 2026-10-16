@@ -27,14 +27,20 @@ const List<String> kAccentColorNames = [
   'Hijau Muda',
 ];
 
+// Allowed app text scale factors shown in Settings.
+const List<double> kTextScales = [0.85, 1.0, 1.15, 1.3];
+
 class ThemeProvider extends ChangeNotifier {
   static const _prefsKey = 'themeMode';
   static const _accentKey = 'accentColorIndex';
   static const _equalizerPresetKey = 'equalizerPreset';
+  static const _textScaleKey = 'textScale';
 
   ThemeMode themeMode = ThemeMode.dark;
   int accentColorIndex = 0;
   String equalizerPreset = 'Flat';
+  // App text scale factor. Applied to MediaQuery by another workstream.
+  double textScale = 1.0;
 
   Color get accentColor => kAccentColors[accentColorIndex];
 
@@ -50,6 +56,9 @@ class ThemeProvider extends ChangeNotifier {
     accentColorIndex = (prefs.getInt(_accentKey) ?? 0)
         .clamp(0, kAccentColors.length - 1);
     equalizerPreset = prefs.getString(_equalizerPresetKey) ?? 'Flat';
+    // Fall back to 1.0 when nothing is stored or the stored value is unknown.
+    final savedScale = prefs.getDouble(_textScaleKey) ?? 1.0;
+    textScale = kTextScales.contains(savedScale) ? savedScale : 1.0;
     notifyListeners();
   }
 
@@ -72,5 +81,13 @@ class ThemeProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_equalizerPresetKey, preset);
+  }
+
+  // Persist the selected text scale and notify listeners at once.
+  Future<void> setTextScale(double scale) async {
+    textScale = scale;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_textScaleKey, scale);
   }
 }

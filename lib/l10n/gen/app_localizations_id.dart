@@ -1548,4 +1548,106 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get queueNotFound => 'Playlist baru tidak ketemu. Coba lagi.';
+
+  @override
+  String get abTitle => 'Ulangi A-B';
+
+  @override
+  String get abHintInvalid => 'A harus sebelum B dan di dalam lagu';
+
+  @override
+  String get abSetA => 'Set A';
+
+  @override
+  String get abSetB => 'Set B';
+
+  @override
+  String get abClear => 'Bersihkan';
+
+  @override
+  String get abDone => 'Selesai';
+
+  @override
+  String get abHintSetB => 'A diset, sekarang set B setelah A';
+
+  @override
+  String get abHintSetA => 'Set A dulu';
+
+  @override
+  String get abHintBAfterA => 'B harus setelah A';
+
+  @override
+  String abOn(String a, String b) {
+    return 'Ulangi A-B nyala: $a - $b';
+  }
+
+  @override
+  String get abOff => 'Ulangi A-B mati';
+
+  @override
+  String get abButton => 'A-B';
+
+  @override
+  String get abTooltip => 'Ulangi A-B';
+
+  @override
+  String abMarker(String a, String b) {
+    return 'A-B $a - $b';
+  }
+
+  @override
+  String get bulkEditValidate => 'Isi Genre atau Artist dulu.';
+
+  @override
+  String bulkEditSummary(int ok, int failed) {
+    return 'Memperbarui $ok lagu, $failed gagal.';
+  }
+
+  @override
+  String bulkEditTitle(int count) {
+    return 'Edit massal ($count lagu)';
+  }
+
+  @override
+  String get bulkEditHint =>
+      'Kosongkan field untuk mempertahankan nilai saat ini.';
+
+  @override
+  String get bulkEditGenre => 'Genre';
+
+  @override
+  String get bulkEditArtist => 'Artist';
+
+  @override
+  String get bulkEditApplying => 'Menerapkan...';
+
+  @override
+  String get bulkEditApply => 'Terapkan ke semua';
+
+  @override
+  String get bulkEditAction => 'Edit massal';
+
+  @override
+  String get dispSection => 'Tampilan';
+
+  @override
+  String get dispTextScale => 'Skala teks';
+
+  @override
+  String get dispSmall => 'Kecil';
+
+  @override
+  String get dispNormal => 'Normal';
+
+  @override
+  String get dispLarge => 'Besar';
+
+  @override
+  String get dispExtraLarge => 'Sangat besar';
+
+  @override
+  String get shortcutShuffle => 'Acak Favorit';
+
+  @override
+  String get shortcutContinue => 'Lanjutkan Mendengarkan';
 }

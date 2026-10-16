@@ -432,6 +432,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(),
 
+          _SectionHeader(AppLocalizations.of(context)!.dispSection),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(AppLocalizations.of(context)!.dispTextScale),
+                const SizedBox(height: 8),
+                SegmentedButton<double>(
+                  segments: [
+                    ButtonSegment(
+                        value: 0.85,
+                        label: Text(
+                            AppLocalizations.of(context)!.dispSmall)),
+                    ButtonSegment(
+                        value: 1.0,
+                        label: Text(
+                            AppLocalizations.of(context)!.dispNormal)),
+                    ButtonSegment(
+                        value: 1.15,
+                        label: Text(
+                            AppLocalizations.of(context)!.dispLarge)),
+                    ButtonSegment(
+                        value: 1.3,
+                        label: Text(
+                            AppLocalizations.of(context)!
+                                .dispExtraLarge)),
+                  ],
+                  // Keep single selection in sync with the provider value.
+                  selected: {themeProvider.textScale},
+                  onSelectionChanged: _savingPrefs
+                      ? null
+                      : (selection) => _savePrefs(
+                          () => themeProvider.setTextScale(selection.first)),
+                ),
+              ],
+            ),
+          ),
+          const Divider(),
+
           // -- PLAYBACK --
           _SectionHeader(l10n.settingsPlayback),
           SwitchListTile(

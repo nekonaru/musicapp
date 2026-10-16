@@ -53,6 +53,8 @@
 | 🖼️ **Missing covers** | List songs without art with one-tap refetch |
 | 📂 **Playlist folders** | Group playlists into folders |
 | 📥 **M3U import/export** | Import playlists from .m3u files, export them back out |
+| 🔁 **A-B repeat** | Loop any song segment for practice |
+| ✏️ **Bulk edit** | Edit genre and artist across many songs at once |
 | 📤 **Share songs** | Share the currently playing info plus audio file |
 | 🔥 **Listening streaks** | Day streak and top genre of the month on the dashboard |
 | 🔍 **Search** | Real-time search by title, artist, album, folder, or genre, with debounced input |

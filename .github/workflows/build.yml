@@ -216,18 +216,15 @@ jobs:
           body: |
             # English
 
-            **Swara v2.3.2 - Reliable equalizer and official logo**
+            **Swara v2.4.0 - Practice loops and quick actions**
 
             ## ✨ New features
 
-            - Official Swara launcher icons and splash logo.
-
-            ## 🐛 Bug fixes
-
-            - Equalizer preset changes can no longer lock up (plugin calls now time out instead of hanging).
-            - Pause then resume no longer goes silent (serialized volume operations).
-            - Notification queue stays correct with duplicate songs and reorders.
-            - Selective list rebuilds and isolated countdown for a smoother UI.
+            - A-B repeat: loop any song segment for practice.
+            - Bulk edit: change genre and artist across many songs at once.
+            - Launcher shortcuts: shuffle favorites and continue listening from the app icon.
+            - Text size setting (small to extra large).
+            - Smoother artwork with flicker-free image updates.
 
             ## 📦 Install / Update
 
@@ -241,18 +238,15 @@ jobs:
 
             # Bahasa Indonesia
 
-            **Swara v2.3.2 - Equalizer andal dan logo resmi**
+            **Swara v2.4.0 - Ulangi latihan dan aksi cepat**
 
             ## ✨ Fitur baru
 
-            - Ikon launcher dan logo splash Swara resmi.
-
-            ## 🐛 Perbaikan bug
-
-            - Ganti preset equalizer tidak lagi macet (call plugin kini timeout, bukan hang).
-            - Pause lalu resume tidak lagi bisu (operasi volume diserialisasi).
-            - Antrean notifikasi tetap benar dengan lagu duplikat dan reorder.
-            - Rebuild list selektif dan countdown terisolasi untuk UI lebih mulus.
+            - Ulangi A-B: ulangi segmen lagu untuk latihan.
+            - Edit massal: ubah genre dan artist banyak lagu sekaligus.
+            - Shortcut launcher: acak favorit dan lanjutkan mendengarkan dari ikon app.
+            - Pengaturan ukuran teks (kecil sampai sangat besar).
+            - Artwork lebih mulus tanpa kedip.
 
             ## 📦 Instalasi / Update
 
