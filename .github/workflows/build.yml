@@ -214,16 +214,18 @@ jobs:
           body: |
             # English
 
-            **Swara v2.3.1 - Deep stability fixes**
+            **Swara v2.3.2 - Reliable equalizer and official logo**
+
+            ## ✨ New features
+
+            - Official Swara launcher icons and splash logo.
 
             ## 🐛 Bug fixes
 
-            - Library rescans no longer wipe enriched metadata and manual edits.
-            - Sleep timer now works with crossfade on; repeat-one stays consistent.
-            - Rapid tapping can no longer play a different song than shown.
-            - Offline lyrics failures are retried instead of ignored for 90 days.
-            - Repeat button is a proper accessible button; mini player and sort chips have touch ripples.
-            - Startup no longer blocked by the notification permission dialog.
+            - Equalizer preset changes can no longer lock up (plugin calls now time out instead of hanging).
+            - Pause then resume no longer goes silent (serialized volume operations).
+            - Notification queue stays correct with duplicate songs and reorders.
+            - Selective list rebuilds and isolated countdown for a smoother UI.
 
             ## 📦 Install / Update
 
@@ -237,16 +239,18 @@ jobs:
 
             # Bahasa Indonesia
 
-            **Swara v2.3.1 - Perbaikan stabilitas mendalam**
+            **Swara v2.3.2 - Equalizer andal dan logo resmi**
+
+            ## ✨ Fitur baru
+
+            - Ikon launcher dan logo splash Swara resmi.
 
             ## 🐛 Perbaikan bug
 
-            - Scan ulang library tidak lagi menghapus metadata enrich dan edit manual.
-            - Sleep timer kini jalan dengan crossfade aktif; repeat-one konsisten.
-            - Ketuk cepat tidak lagi memutar lagu yang berbeda dari yang tampil.
-            - Gagal lirik saat offline di-retry, bukan diabaikan 90 hari.
-            - Tombol repeat jadi button aksesibel; mini player dan chip sort ada ripple-nya.
-            - Startup tidak lagi tertahan dialog izin notifikasi.
+            - Ganti preset equalizer tidak lagi macet (call plugin kini timeout, bukan hang).
+            - Pause lalu resume tidak lagi bisu (operasi volume diserialisasi).
+            - Antrean notifikasi tetap benar dengan lagu duplikat dan reorder.
+            - Rebuild list selektif dan countdown terisolasi untuk UI lebih mulus.
 
             ## 📦 Instalasi / Update
 
