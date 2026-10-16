@@ -35,12 +35,18 @@ class ThemeProvider extends ChangeNotifier {
   static const _accentKey = 'accentColorIndex';
   static const _equalizerPresetKey = 'equalizerPreset';
   static const _textScaleKey = 'textScale';
+  static const _customEqGainsKey = 'custom_eq_gains';
+  static const _amoledBlackKey = 'amoledBlack';
 
   ThemeMode themeMode = ThemeMode.dark;
   int accentColorIndex = 0;
   String equalizerPreset = 'Flat';
   // App text scale factor. Applied to MediaQuery by another workstream.
   double textScale = 1.0;
+  // Custom 5-band EQ gains (low to high). Used only with the Custom preset.
+  List<double> customEqGains = [0, 0, 0, 0, 0];
+  // Pitch black background for the dark theme. Wired in main by someone else.
+  bool amoledBlack = false;
 
   Color get accentColor => kAccentColors[accentColorIndex];
 
@@ -59,6 +65,8 @@ class ThemeProvider extends ChangeNotifier {
     // Fall back to 1.0 when nothing is stored or the stored value is unknown.
     final savedScale = prefs.getDouble(_textScaleKey) ?? 1.0;
     textScale = kTextScales.contains(savedScale) ? savedScale : 1.0;
+    customEqGains = _readCustomGains(prefs);
+    amoledBlack = prefs.getBool(_amoledBlackKey) ?? false;
     notifyListeners();
   }
 
@@ -89,5 +97,56 @@ class ThemeProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_textScaleKey, scale);
+  }
+
+  // Read the stored custom gains, falling back to flat on bad data.
+  static List<double> _readCustomGains(SharedPreferences prefs) {
+    const flat = [0.0, 0.0, 0.0, 0.0, 0.0];
+    final stored = prefs.getStringList(_customEqGainsKey);
+    if (stored == null || stored.length != 5) return List.of(flat);
+    try {
+      return stored.map(double.parse).toList();
+    } catch (_) {
+      return List.of(flat);
+    }
+  }
+
+  // Save the Custom preset slider values and notify listeners at once.
+  Future<void> setCustomEqGains(List<double> gains) async {
+    final fixed = List<double>.generate(
+        5, (i) => i < gains.length ? gains[i].clamp(-6.0, 6.0) : 0.0);
+    customEqGains = fixed;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+        _customEqGainsKey, fixed.map((g) => g.toString()).toList());
+  }
+
+  // Toggle the pitch black dark theme variant and persist it.
+  Future<void> setAmoledBlack(bool value) async {
+    amoledBlack = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_amoledBlackKey, value);
+  }
+
+  // Dark theme for main to use. Returns the plain dark theme normally,
+  // or a pitch black variant when amoledBlack is on. Same seed either way.
+  ThemeData buildDarkTheme() {
+    final base = ThemeData(
+      colorSchemeSeed: accentColor,
+      brightness: Brightness.dark,
+      useMaterial3: true,
+    );
+    if (!amoledBlack) return base;
+    final scheme = base.colorScheme.copyWith(
+      surface: Colors.black,
+    );
+    return base.copyWith(
+      scaffoldBackgroundColor: Colors.black,
+      canvasColor: Colors.black,
+      cardColor: Colors.black,
+      colorScheme: scheme,
+    );
   }
 }

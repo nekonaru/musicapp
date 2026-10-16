@@ -510,6 +510,98 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
     }
   }
 
+  // Merge songs from another playlist into [targetId].
+  // Only songs not already present are added (checked via songsIn),
+  // so the target never gets duplicates. Shows a summary snackbar.
+  Future<void> _mergePlaylist(
+      BuildContext ctx, PlaylistProvider prov, int targetId, String targetName) async {
+    try {
+      await prov.load();
+    } catch (_) {
+      // Fall through and use the cached list on load failure.
+    }
+    if (!ctx.mounted) return;
+    final others = prov.playlists.where((p) => (p['id'] as int) != targetId).toList();
+    if (others.isEmpty) {
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(ctx)!.mergeNoOthers),
+        ),
+      );
+      return;
+    }
+    // Simple source picker dialog: list other playlists by name.
+    final picked = await showDialog<Map<String, dynamic>>(
+      context: ctx,
+      builder: (c) => AlertDialog(
+        title: Text(AppLocalizations.of(c)!.mergeFrom),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (final p in others)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.queue_music),
+                  title: Text((p['name'] as String?) ?? ''),
+                  onTap: () => Navigator.pop(c, p),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: Text(AppLocalizations.of(c)!.cancel),
+          ),
+        ],
+      ),
+    );
+    if (picked == null || !ctx.mounted) return;
+    final sourceId = picked['id'] as int;
+    final sourceName = (picked['name'] as String?) ?? '';
+    try {
+      final current = await prov.songsIn(targetId);
+      final source = await prov.songsIn(sourceId);
+      if (!ctx.mounted) return;
+      final existingIds = current.map((s) => s.id).toSet();
+      var added = 0;
+      var skipped = 0;
+      for (final s in source) {
+        if (existingIds.contains(s.id)) {
+          skipped++;
+          continue;
+        }
+        try {
+          await prov.addSong(targetId, s.id);
+          existingIds.add(s.id);
+          added++;
+        } catch (_) {
+          // Per song failure (for example a race duplicate): count as skipped.
+          skipped++;
+        }
+      }
+      await prov.load();
+      _scheduleArtRefresh(prov, targetId);
+      if (!ctx.mounted) return;
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(ctx)!.mergeSummary(
+              added, sourceName, targetName, skipped)),
+        ),
+      );
+    } catch (e) {
+      if (!ctx.mounted) return;
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(ctx)!
+              .mergeFailed(e.toString())),
+        ),
+      );
+    }
+  }
+
   // Single playlist row. Shared by the auto list and every folder section
   // so behavior (tap, reshuffle, delete) stays identical everywhere.
   Widget _playlistTile(BuildContext context, PlaylistProvider playlists,
@@ -567,6 +659,9 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                 } else if (action == 'export_m3u' && !isAuto) {
                   _exportM3uPlaylist(
                       playlists, p['id'] as int, name);
+                } else if (action == 'merge' && !isAuto) {
+                  _mergePlaylist(
+                      context, playlists, p['id'] as int, name);
                 }
               },
               itemBuilder: (_) => [
@@ -585,6 +680,11 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                       value: 'export_m3u',
                       child: Text(AppLocalizations.of(context)!
                           .m3uExportMenu)),
+                if (!isAuto)
+                  PopupMenuItem(
+                      value: 'merge',
+                      child: Text(AppLocalizations.of(context)!
+                          .mergeMenu)),
                 PopupMenuItem(value: 'delete', child: Text(l.delete)),
               ],
             ),

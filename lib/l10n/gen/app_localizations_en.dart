@@ -1657,4 +1657,91 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shortcutContinue => 'Continue Listening';
+
+  @override
+  String get mergeNoOthers => 'No other playlists to merge from.';
+
+  @override
+  String get mergeFrom => 'Merge from...';
+
+  @override
+  String get mergeMenu => 'Merge...';
+
+  @override
+  String mergeSummary(int added, String source, String target, int skipped) {
+    return 'Merged $added songs from \"$source\" into \"$target\" ($skipped already present).';
+  }
+
+  @override
+  String mergeFailed(String error) {
+    return 'Merge failed: $error';
+  }
+
+  @override
+  String get queueClearTitle => 'Clear up next?';
+
+  @override
+  String queueClearMessage(int count) {
+    return 'Remove $count song(s) after the current song? The current song is kept.';
+  }
+
+  @override
+  String get queueClearAction => 'Clear';
+
+  @override
+  String queueCleared(int count) {
+    return 'Cleared $count song(s) from Up Next';
+  }
+
+  @override
+  String get queueClearTooltip => 'Clear up next';
+
+  @override
+  String xfDuration(int seconds) {
+    return 'Crossfade duration: ${seconds}s';
+  }
+
+  @override
+  String get amoledTitle => 'AMOLED black';
+
+  @override
+  String get amoledSubtitle => 'Pure black background for the dark theme';
+
+  @override
+  String get lyrRefreshed => 'Lyrics refreshed';
+
+  @override
+  String lyrRefreshFailed(String error) {
+    return 'Lyrics refresh failed: $error';
+  }
+
+  @override
+  String lyrFetchStopped(int done, int total) {
+    return 'Stopped early: rate limited ($done/$total)';
+  }
+
+  @override
+  String lyrFetchFinished(int done, int total) {
+    return 'Fetch finished ($done/$total)';
+  }
+
+  @override
+  String lyrFetchFailed(String error) {
+    return 'Lyrics fetch failed: $error';
+  }
+
+  @override
+  String get lyrMissingTitle => 'Missing lyrics';
+
+  @override
+  String get lyrFetchAll => 'Fetch all';
+
+  @override
+  String get lyrAllHave => 'All songs have lyrics';
+
+  @override
+  String get lyrRefetch => 'Refetch lyrics';
+
+  @override
+  String get missLyricsEntry => 'Missing lyrics';
 }

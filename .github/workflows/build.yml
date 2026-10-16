@@ -216,14 +216,15 @@ jobs:
           body: |
             # English
 
-            **Swara v2.4.1 - Pause fix and honest credits**
+            **Swara v2.5.0 - Merge, custom EQ, and AMOLED**
 
-            ## 🐛 Bug fixes
+            ## ✨ New features
 
-            - Pause then resume no longer goes silent (resume no longer dips through zero volume; failed play calls now report an error and retry).
-            - Equalizer now scales levels to real millibels, so presets are actually audible.
-            - Shuffle and play in All Songs now cover the whole library, not just rendered rows; A-Z jump loads pages as needed.
-            - About shows the real app version plus a proper developer credit with logo.
+            - Merge one playlist into another, skipping duplicates.
+            - Missing-lyrics list with batch refetch.
+            - Adjustable crossfade duration (0-12s) and custom 5-band equalizer.
+            - AMOLED pitch-black theme option.
+            - Launcher shortcuts and text-size setting.
 
             ## 📦 Install / Update
 
@@ -237,14 +238,15 @@ jobs:
 
             # Bahasa Indonesia
 
-            **Swara v2.4.1 - Perbaikan pause dan kredit jujur**
+            **Swara v2.5.0 - Gabung, EQ custom, dan AMOLED**
 
-            ## 🐛 Perbaikan bug
+            ## ✨ Fitur baru
 
-            - Pause lalu resume tidak lagi bisu (resume tanpa celup volume nol; play gagal lapor error dan retry).
-            - Equalizer kini skala millibel yang benar sehingga preset benar-benar terdengar.
-            - Shuffle dan putar di Semua Lagu mencakup seluruh library, bukan cuma baris ter-render; lompat A-Z memuat halaman bila perlu.
-            - About menampilkan versi asli plus kredit developer yang rapi dengan logo.
+            - Gabungkan satu playlist ke playlist lain, lewati yang duplikat.
+            - Daftar lirik hilang dengan fetch ulang massal.
+            - Durasi crossfade bisa diatur (0-12 dtk) dan equalizer custom 5-band.
+            - Opsi tema hitam pekat AMOLED.
+            - Shortcut launcher dan pengaturan ukuran teks.
 
             ## 📦 Instalasi / Update
 

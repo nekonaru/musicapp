@@ -13,6 +13,7 @@ import '../widgets/sort_chip.dart';
 import '../utils/song_options.dart';
 import '../utils/format.dart';
 import 'missing_art_screen.dart';
+import 'missing_lyrics_screen.dart';
 import 'bulk_edit_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -704,6 +705,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
       final url = (s.albumArtUrl ?? '').trim();
       return path.isEmpty && url.isEmpty;
     }).length;
+    // Count of songs with null or blank lyrics.
+    final missingLyricsCount = lib.songs.where((s) {
+      return (s.lyrics ?? '').trim().isEmpty;
+    }).length;
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
@@ -765,6 +770,28 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 context,
                 MaterialPageRoute(
                     builder: (_) => const MissingArtScreen()),
+              );
+            },
+          ),
+          // Entry to the screen listing songs without lyrics.
+          ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16),
+            leading: const Icon(Icons.lyrics_outlined),
+            title: Text(AppLocalizations.of(context)!.missLyricsEntry),
+            trailing: missingLyricsCount > 0
+                ? CircleAvatar(
+                    radius: 12,
+                    child: Text('$missingLyricsCount',
+                        style: const TextStyle(fontSize: 12)),
+                  )
+                : null,
+            onTap: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const MissingLyricsScreen()),
               );
             },
           ),

@@ -52,6 +52,10 @@
 | 🗂️ **Duplicate finder** | Find and remove duplicate songs, keep one per group |
 | 🖼️ **Missing covers** | List songs without art with one-tap refetch |
 | 📂 **Playlist folders** | Group playlists into folders |
+| 🔀 **Merge playlists** | Combine another playlist in, skipping duplicates |
+| 🖼️ **Missing lyrics** | List songs without lyrics with one-tap refetch |
+| 🎚️ **Crossfade control** | Adjustable 0-12s transition plus custom 5-band EQ |
+| 🌑 **AMOLED black** | Pure-black dark theme option |
 | 📥 **M3U import/export** | Import playlists from .m3u files, export them back out |
 | 🔁 **A-B repeat** | Loop any song segment for practice |
 | ✏️ **Bulk edit** | Edit genre and artist across many songs at once |

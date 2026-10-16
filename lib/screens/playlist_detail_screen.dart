@@ -174,6 +174,103 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     }
   }
 
+  // Merge songs from another playlist into this one.
+  // Only songs not already present are added (checked via songsIn),
+  // so the target never gets duplicates. Shows a summary snackbar.
+  Future<void> _mergeFromOther() async {
+    final prov = context.read<PlaylistProvider>();
+    try {
+      await prov.load();
+    } catch (_) {
+      // Fall through and use the cached list on load failure.
+    }
+    if (!mounted) return;
+    final others = prov.playlists
+        .where((p) => (p['id'] as int) != widget.playlistId)
+        .toList();
+    if (others.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text(AppLocalizations.of(context)!.mergeNoOthers),
+        ),
+      );
+      return;
+    }
+    // Simple source picker dialog: list other playlists by name.
+    final picked = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(AppLocalizations.of(c)!.mergeFrom),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (final p in others)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.queue_music),
+                  title: Text((p['name'] as String?) ?? ''),
+                  onTap: () => Navigator.pop(c, p),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: Text(AppLocalizations.of(c)!.cancel),
+          ),
+        ],
+      ),
+    );
+    if (picked == null || !mounted) return;
+    final sourceId = picked['id'] as int;
+    final sourceName = (picked['name'] as String?) ?? '';
+    try {
+      final current = await prov.songsIn(widget.playlistId);
+      final source = await prov.songsIn(sourceId);
+      if (!mounted) return;
+      final existingIds = current.map((s) => s.id).toSet();
+      var added = 0;
+      var skipped = 0;
+      for (final s in source) {
+        if (existingIds.contains(s.id)) {
+          skipped++;
+          continue;
+        }
+        try {
+          await prov.addSong(widget.playlistId, s.id);
+          existingIds.add(s.id);
+          added++;
+        } catch (_) {
+          // Per song failure (for example a race duplicate): count as skipped.
+          skipped++;
+        }
+      }
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text(AppLocalizations.of(context)!.mergeSummary(
+              added, sourceName, widget.playlistName, skipped)),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 5),
+          content: Text(AppLocalizations.of(context)!
+              .mergeFailed(e.toString())),
+        ),
+      );
+    }
+  }
+
   List<Song> get _displayed {
     List<Song> list;
     switch (_sortOption) {
@@ -243,6 +340,20 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
               _sortMenuItem(_PlsSortOption.titleAZ, l.playlistSortTitleAZ),
               _sortMenuItem(_PlsSortOption.titleZA, l.playlistSortTitleZA),
               _sortMenuItem(_PlsSortOption.artistAZ, l.playlistSortArtistAZ),
+            ],
+          ),
+          // Extra actions menu: merge another playlist into this one.
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (action) {
+              if (action == 'merge') _mergeFromOther();
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'merge',
+                child:
+                    Text(AppLocalizations.of(context)!.mergeMenu),
+              ),
             ],
           ),
         ],

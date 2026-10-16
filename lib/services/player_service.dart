@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:swara/l10n/gen/app_localizations.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:swara/providers/language_provider.dart';
@@ -41,7 +42,15 @@ class PlayerService extends ChangeNotifier {
   // Tolerance for the B trigger, so a coarse position tick still loops.
   static const Duration abRepeatTolerance = Duration(milliseconds: 200);
   bool crossfadeEnabled = false;
-  static const Duration crossfadeDuration = Duration(seconds: 3);
+  // Overlap between songs. 0 means no overlap (direct switch), max 12.
+  static const int crossfadeMinSeconds = 0;
+  static const int crossfadeMaxSeconds = 12;
+  static const int crossfadeDefaultSeconds = 3;
+  static const String _prefsCrossfadeSecondsKey = 'crossfadeSeconds';
+  Duration crossfadeDuration = const Duration(seconds: 3);
+
+  // Overlap length in whole seconds, clamped to the allowed range.
+  int get crossfadeSeconds => crossfadeDuration.inSeconds;
 
   // Public version counter for queue/order mutations. Incremented on every
   // queue or order change so UI can detect stale snapshots.
@@ -188,6 +197,17 @@ class PlayerService extends ChangeNotifier {
   int get currentIndex => _posInOrder;
 
   Future<void> init() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getInt(_prefsCrossfadeSecondsKey);
+      if (saved != null) {
+        final clamped =
+            saved.clamp(crossfadeMinSeconds, crossfadeMaxSeconds);
+        crossfadeDuration = Duration(seconds: clamped);
+      }
+    } catch (e) {
+      debugPrint('Crossfade duration load failed: $e');
+    }
     await _playerStateSub?.cancel();
     await _unsubscribePosition();
     _playerStateSub = _player.playerStateStream.listen((state) {
@@ -275,18 +295,25 @@ class PlayerService extends ChangeNotifier {
       await incoming.play();
       if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
 
-      const steps = 20;
-      final stepDuration = crossfadeDuration ~/ steps;
-      for (int i = 1; i <= steps; i++) {
-        await Future.delayed(stepDuration);
-        // Abort without side effects when a newer navigation took over.
+      // Zero duration means no overlap: cut straight to the next song
+      // at full volume instead of running a fade loop with no length.
+      if (crossfadeDuration <= Duration.zero) {
+        await _vol(() => incoming.setVolume(1));
         if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
-        final v = i / steps;
-        await _vol(() => incoming.setVolume(v));
+      } else {
+        const steps = 20;
+        final stepDuration = crossfadeDuration ~/ steps;
+        for (int i = 1; i <= steps; i++) {
+          await Future.delayed(stepDuration);
+          // Abort without side effects when a newer navigation took over.
+          if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
+          final v = i / steps;
+          await _vol(() => incoming.setVolume(v));
+          if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
+          await _vol(() => outgoing.setVolume(1 - v));
+        }
         if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
-        await _vol(() => outgoing.setVolume(1 - v));
       }
-      if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
 
       await _vol(() => outgoing.pause());
       if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
@@ -815,6 +842,28 @@ class PlayerService extends ChangeNotifier {
       _preloadedFilePath = null;
     }
     notifyListeners();
+  }
+
+  // Set the crossfade overlap, clamped to 0..12 seconds and persisted.
+  // 0 keeps crossfade on but switches directly with no overlap.
+  // TODO L10N: no user facing string added here, English only.
+  Future<void> setCrossfadeDuration(Duration duration) async {
+    final clamped = duration.inSeconds
+        .clamp(crossfadeMinSeconds, crossfadeMaxSeconds);
+    crossfadeDuration = Duration(seconds: clamped);
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_prefsCrossfadeSecondsKey, clamped);
+    } catch (e) {
+      debugPrint('Crossfade duration save failed: $e');
+    }
+  }
+
+  // Same as setCrossfadeDuration but takes whole seconds from a slider.
+  // TODO L10N: no user facing string added here, English only.
+  Future<void> setCrossfadeSeconds(int seconds) {
+    return setCrossfadeDuration(Duration(seconds: seconds));
   }
 
   /// Time-based sleep timer with a countdown.

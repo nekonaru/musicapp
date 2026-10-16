@@ -150,8 +150,14 @@ Future<void> _bootApp({
         await themeProvider.load();
         // Seed the equalizer with the saved preset so the first
         // attach already uses it (no session yet, just stored).
-        await EqualizerService.instance
-            .applyPreset(themeProvider.equalizerPreset);
+        // Custom gains ride along when the stored preset is Custom.
+        if (themeProvider.equalizerPreset == 'Custom') {
+          await EqualizerService.instance
+              .applyCustom(themeProvider.customEqGains);
+        } else {
+          await EqualizerService.instance
+              .applyPreset(themeProvider.equalizerPreset);
+        }
       } catch (e) {
         debugPrint('ThemeProvider failed to load: $e');
       }
@@ -209,11 +215,7 @@ class MusicApp extends StatelessWidget {
             colorSchemeSeed: tp.accentColor,
             useMaterial3: true,
           ),
-          darkTheme: ThemeData(
-            colorSchemeSeed: tp.accentColor,
-            brightness: Brightness.dark,
-            useMaterial3: true,
-          ),
+          darkTheme: tp.buildDarkTheme(),
           home: BootGate(bootFuture: bootFuture),
         ),
       ),

@@ -180,6 +180,44 @@ class _QueueScreenState extends State<QueueScreen> {
     }
   }
 
+  // Clear every song after the current one, keeping the current song.
+  // Removes from the back so live positions stay valid while deleting.
+  // Uses only the existing removeFromQueue API.
+  Future<void> _clearUpNext() async {
+    final count = _player.queue.length - _player.currentIndex - 1;
+    if (count <= 0) return;
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.queueClearTitle),
+        content: Text(l10n.queueClearMessage(count)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.queueClearAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    for (var i = _player.queue.length - 1;
+        i > _player.currentIndex;
+        i--) {
+      _player.removeFromQueue(i);
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.queueCleared(count)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -198,6 +236,15 @@ class _QueueScreenState extends State<QueueScreen> {
                     AppLocalizations.of(context)!.queueSaveTooltip,
                 icon: const Icon(Icons.playlist_add),
                 onPressed: queue.isEmpty ? null : _saveQueueAsPlaylist,
+              ),
+              IconButton(
+                tooltip:
+                    AppLocalizations.of(context)!.queueClearTooltip,
+                icon: const Icon(Icons.delete_sweep_outlined),
+                onPressed: (queue.isEmpty ||
+                        currentIndex >= queue.length - 1)
+                    ? null
+                    : _clearUpNext,
               ),
             ],
           ),

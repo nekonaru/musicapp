@@ -22,6 +22,7 @@ const List<String> kEqualizerPresets = [
   'Hip-Hop',
   'Bass Boost',
   'Vocal',
+  'Custom',
 ];
 
 // Simple per-preset EQ representation (relative gains, for UI reference).
@@ -36,6 +37,7 @@ const Map<String, List<double>> kPresetBands = {
   'Hip-Hop': [3, 2, 0, 0, 1],
   'Bass Boost': [4, 3, 0, 0, 0],
   'Vocal': [-1, 0, 2, 2, 0],
+  'Custom': [0, 0, 0, 0, 0],
 };
 
 const List<String> _bandLabels = ['60Hz', '250Hz', '1kHz', '4kHz', '16kHz'];
@@ -495,6 +497,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       : (selection) => _savePrefs(
                           () => themeProvider.setTextScale(selection.first)),
                 ),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  title: Text(AppLocalizations.of(context)!.amoledTitle),
+                  subtitle: Text(
+                      AppLocalizations.of(context)!.amoledSubtitle),
+                  secondary: const Icon(Icons.contrast_outlined),
+                  value: themeProvider.amoledBlack,
+                  onChanged: _savingPrefs
+                      ? null
+                      : (v) =>
+                          _savePrefs(() => themeProvider.setAmoledBlack(v)),
+                ),
               ],
             ),
           ),
@@ -509,6 +523,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: PlayerService.instance.crossfadeEnabled,
             onChanged: (v) =>
                 setState(() => PlayerService.instance.setCrossfadeEnabled(v)),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(AppLocalizations.of(context)!.xfDuration(
+                    PlayerService.instance.crossfadeSeconds)),
+                Slider(
+                  value: PlayerService.instance.crossfadeSeconds.toDouble(),
+                  min: 0,
+                  max: 12,
+                  divisions: 12,
+                  label: '${PlayerService.instance.crossfadeSeconds}s',
+                  onChanged: (v) => setState(() =>
+                      PlayerService.instance.crossfadeDuration =
+                          Duration(seconds: v.round())),
+                  onChangeEnd: (v) => PlayerService.instance
+                      .setCrossfadeSeconds(v.round()),
+                ),
+              ],
+            ),
           ),
           const Divider(),
 
@@ -536,17 +572,70 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ? null
                       : (_) => _savePrefs(() async {
                             await themeProvider.setEqualizerPreset(preset);
-                            await EqualizerService.instance
-                                .applyPreset(preset);
+                            if (preset == 'Custom') {
+                              await EqualizerService.instance.applyCustom(
+                                  themeProvider.customEqGains);
+                            } else {
+                              await EqualizerService.instance
+                                  .applyPreset(preset);
+                            }
                           }),
                 );
               }).toList(),
             ),
           ),
+          // Custom 5-band sliders, shown only for the Custom preset.
+          // Changes apply live to the DSP and persist to prefs.
+          // TODO L10N: English literals, localize after string freeze.
+          if (themeProvider.equalizerPreset == 'Custom')
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Column(
+                children: List.generate(5, (i) {
+                  final gains = themeProvider.customEqGains;
+                  return Row(
+                    children: [
+                      SizedBox(
+                        width: 52,
+                        child: Text(_bandLabels[i],
+                            style: const TextStyle(fontSize: 12)),
+                      ),
+                      Expanded(
+                        child: Slider(
+                          value: gains[i].clamp(-6.0, 6.0),
+                          min: -6,
+                          max: 6,
+                          divisions: 24,
+                          label: '${gains[i].toStringAsFixed(1)} dB',
+                          onChanged: (v) async {
+                            final updated = List.of(gains);
+                            updated[i] = v;
+                            await themeProvider.setCustomEqGains(updated);
+                            await EqualizerService.instance
+                                .applyCustom(updated);
+                          },
+                        ),
+                      ),
+                      SizedBox(
+                        width: 56,
+                        child: Text(
+                          '${gains[i].toStringAsFixed(1)} dB',
+                          textAlign: TextAlign.end,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ),
+            ),
           // EQ band visualizer
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: _EqVisualizer(preset: themeProvider.equalizerPreset),
+            child: _EqVisualizer(
+              preset: themeProvider.equalizerPreset,
+              customGains: themeProvider.customEqGains,
+            ),
           ),
           const Divider(),
 
@@ -725,11 +814,13 @@ class _SectionHeader extends StatelessWidget {
 // Simple EQ bar visualizer mirroring the selected preset curve.
 class _EqVisualizer extends StatelessWidget {
   final String preset;
-  const _EqVisualizer({required this.preset});
+  final List<double> customGains;
+  const _EqVisualizer({required this.preset, this.customGains = const [0.0, 0.0, 0.0, 0.0, 0.0]});
 
   @override
   Widget build(BuildContext context) {
-    final bands = kPresetBands[preset] ?? [0, 0, 0, 0, 0];
+    final bands =
+        preset == 'Custom' ? customGains : (kPresetBands[preset] ?? const [0.0, 0.0, 0.0, 0.0, 0.0]);
     final max = bands.map((b) => b.abs()).reduce((a, b) => a > b ? a : b);
     final normalizer = max < 1 ? 1.0 : max;
     final color = Theme.of(context).colorScheme.primary;

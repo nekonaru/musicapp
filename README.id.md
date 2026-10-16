@@ -52,6 +52,10 @@
 | 🗂️ **Pencari duplikat** | Temukan dan hapus lagu duplikat, sisakan satu per grup |
 | 🖼️ **Cover hilang** | Daftar lagu tanpa cover dengan fetch ulang sekali ketuk |
 | 📂 **Folder playlist** | Kelompokkan playlist ke dalam folder |
+| 🔀 **Gabung playlist** | Gabungkan playlist lain, lewati yang duplikat |
+| 🖼️ **Lirik hilang** | Daftar lagu tanpa lirik dengan fetch ulang sekali ketuk |
+| 🎚️ **Kontrol crossfade** | Transisi 0-12 dtk + EQ custom 5-band |
+| 🌑 **Hitam AMOLED** | Opsi tema gelap hitam pekat |
 | 📥 **Import M3U** | Import playlist dari file .m3u, dicocokkan ke library |
 | 📤 **Export M3U** | Export playlist ke file .m3u untuk pemutar lain |
 | 🔁 **Ulangi A-B** | Ulangi segmen lagu untuk latihan |

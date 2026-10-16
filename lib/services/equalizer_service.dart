@@ -35,6 +35,7 @@ const Map<String, List<double>> kEqCurves = {
   'Hip-Hop': [3, 2, 0, 0, 1],
   'Bass Boost': [4, 3, 0, 0, 0],
   'Vocal': [-1, 0, 2, 2, 0],
+  'Custom': [0, 0, 0, 0, 0],
 };
 
 /// Drives the Android system equalizer for the active audio session.
@@ -55,6 +56,8 @@ class EqualizerService {
   int? _sessionId;
   bool _ready = false;
   String _preset = 'Flat';
+  // Live gains for the Custom preset, set via applyCustom.
+  List<double> _customGains = [0, 0, 0, 0, 0];
 
   String get preset => _preset;
   bool get isReady => _ready;
@@ -110,13 +113,28 @@ class EqualizerService {
     await _applyBands();
   }
 
+  /// Apply user slider gains as the Custom preset. Always treated as a
+  /// non Flat preset (effect enabled, resampled, bands set).
+  Future<void> applyCustom(List<double> gains) async {
+    _preset = 'Custom';
+    _customGains = List<double>.generate(
+        5, (i) => i < gains.length ? gains[i] : 0.0);
+    if (!_ready) return;
+    await _applyBands();
+  }
+
   Future<void> _applyBands() async {
     if (_preset == 'Flat') {
       await _run(() => EqualizerFlutter.setEnabled(false), 'disable');
       return;
     }
     await _run(() => EqualizerFlutter.setEnabled(true), 'enable');
-    final curve = kEqCurves[_preset] ?? kEqCurves['Flat']!;
+    final List<double> curve;
+    if (_preset == 'Custom') {
+      curve = List.of(_customGains);
+    } else {
+      curve = kEqCurves[_preset] ?? kEqCurves['Flat']!;
+    }
     var bandCount = 5;
     var minMb = -1500;
     var maxMb = 1500;

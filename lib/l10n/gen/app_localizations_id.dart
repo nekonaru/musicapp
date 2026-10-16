@@ -1658,4 +1658,91 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get shortcutContinue => 'Lanjutkan Mendengarkan';
+
+  @override
+  String get mergeNoOthers => 'Tidak ada playlist lain untuk digabung.';
+
+  @override
+  String get mergeFrom => 'Gabung dari...';
+
+  @override
+  String get mergeMenu => 'Gabung...';
+
+  @override
+  String mergeSummary(int added, String source, String target, int skipped) {
+    return 'Menggabungkan $added lagu dari \"$source\" ke \"$target\" ($skipped sudah ada).';
+  }
+
+  @override
+  String mergeFailed(String error) {
+    return 'Gabung gagal: $error';
+  }
+
+  @override
+  String get queueClearTitle => 'Bersihkan antrean?';
+
+  @override
+  String queueClearMessage(int count) {
+    return 'Hapus $count lagu setelah lagu kini? Lagu kini dipertahankan.';
+  }
+
+  @override
+  String get queueClearAction => 'Bersihkan';
+
+  @override
+  String queueCleared(int count) {
+    return 'Membersihkan $count lagu dari Antrean';
+  }
+
+  @override
+  String get queueClearTooltip => 'Bersihkan antrean';
+
+  @override
+  String xfDuration(int seconds) {
+    return 'Durasi crossfade: $seconds dtk';
+  }
+
+  @override
+  String get amoledTitle => 'Hitam AMOLED';
+
+  @override
+  String get amoledSubtitle => 'Latar hitam pekat untuk tema gelap';
+
+  @override
+  String get lyrRefreshed => 'Lirik tersegarkan';
+
+  @override
+  String lyrRefreshFailed(String error) {
+    return 'Segarkan lirik gagal: $error';
+  }
+
+  @override
+  String lyrFetchStopped(int done, int total) {
+    return 'Berhenti dini: rate limited ($done/$total)';
+  }
+
+  @override
+  String lyrFetchFinished(int done, int total) {
+    return 'Fetch selesai ($done/$total)';
+  }
+
+  @override
+  String lyrFetchFailed(String error) {
+    return 'Fetch lirik gagal: $error';
+  }
+
+  @override
+  String get lyrMissingTitle => 'Lirik hilang';
+
+  @override
+  String get lyrFetchAll => 'Fetch semua';
+
+  @override
+  String get lyrAllHave => 'Semua lagu sudah berlirik';
+
+  @override
+  String get lyrRefetch => 'Fetch ulang lirik';
+
+  @override
+  String get missLyricsEntry => 'Lirik hilang';
 }

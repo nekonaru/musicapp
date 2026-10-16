@@ -2894,7 +2894,7 @@ abstract class AppLocalizations {
   /// **'Apply to all'**
   String get bulkEditApply;
 
-  /// Bulk edit action tooltip
+  /// Bulk edit tooltip
   ///
   /// In en, this message translates to:
   /// **'Bulk edit'**
@@ -2947,6 +2947,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Continue Listening'**
   String get shortcutContinue;
+
+  /// No merge source message
+  ///
+  /// In en, this message translates to:
+  /// **'No other playlists to merge from.'**
+  String get mergeNoOthers;
+
+  /// Merge source picker title
+  ///
+  /// In en, this message translates to:
+  /// **'Merge from...'**
+  String get mergeFrom;
+
+  /// Merge menu item
+  ///
+  /// In en, this message translates to:
+  /// **'Merge...'**
+  String get mergeMenu;
+
+  /// Merge summary message
+  ///
+  /// In en, this message translates to:
+  /// **'Merged {added} songs from \"{source}\" into \"{target}\" ({skipped} already present).'**
+  String mergeSummary(int added, String source, String target, int skipped);
+
+  /// Merge failure message
+  ///
+  /// In en, this message translates to:
+  /// **'Merge failed: {error}'**
+  String mergeFailed(String error);
+
+  /// Clear up next dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Clear up next?'**
+  String get queueClearTitle;
+
+  /// Clear up next message
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {count} song(s) after the current song? The current song is kept.'**
+  String queueClearMessage(int count);
+
+  /// Clear confirm button
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get queueClearAction;
+
+  /// Cleared up next message
+  ///
+  /// In en, this message translates to:
+  /// **'Cleared {count} song(s) from Up Next'**
+  String queueCleared(int count);
+
+  /// Clear up next tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Clear up next'**
+  String get queueClearTooltip;
+
+  /// Crossfade duration label
+  ///
+  /// In en, this message translates to:
+  /// **'Crossfade duration: {seconds}s'**
+  String xfDuration(int seconds);
+
+  /// AMOLED option title
+  ///
+  /// In en, this message translates to:
+  /// **'AMOLED black'**
+  String get amoledTitle;
+
+  /// AMOLED option subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Pure black background for the dark theme'**
+  String get amoledSubtitle;
+
+  /// Lyrics refreshed confirmation
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics refreshed'**
+  String get lyrRefreshed;
+
+  /// Lyrics refresh failure
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics refresh failed: {error}'**
+  String lyrRefreshFailed(String error);
+
+  /// Lyrics fetch stopped early
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped early: rate limited ({done}/{total})'**
+  String lyrFetchStopped(int done, int total);
+
+  /// Lyrics fetch finished
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch finished ({done}/{total})'**
+  String lyrFetchFinished(int done, int total);
+
+  /// Lyrics fetch failure
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics fetch failed: {error}'**
+  String lyrFetchFailed(String error);
+
+  /// Missing lyrics title
+  ///
+  /// In en, this message translates to:
+  /// **'Missing lyrics'**
+  String get lyrMissingTitle;
+
+  /// Fetch all button
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch all'**
+  String get lyrFetchAll;
+
+  /// All lyrics present empty state
+  ///
+  /// In en, this message translates to:
+  /// **'All songs have lyrics'**
+  String get lyrAllHave;
+
+  /// Refetch lyrics tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Refetch lyrics'**
+  String get lyrRefetch;
+
+  /// Missing lyrics menu entry
+  ///
+  /// In en, this message translates to:
+  /// **'Missing lyrics'**
+  String get missLyricsEntry;
 }
 
 class _AppLocalizationsDelegate

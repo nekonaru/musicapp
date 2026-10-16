@@ -1770,5 +1770,161 @@
     "shortcutContinue":  "Continue Listening",
     "@shortcutContinue":  {
                                "description":  "Continue listening shortcut"
-                           }
+                           },
+    "mergeNoOthers":  "No other playlists to merge from.",
+    "@mergeNoOthers":  {
+                            "description":  "No merge source message"
+                        },
+    "mergeFrom":  "Merge from...",
+    "@mergeFrom":  {
+                        "description":  "Merge source picker title"
+                    },
+    "mergeMenu":  "Merge...",
+    "@mergeMenu":  {
+                        "description":  "Merge menu item"
+                    },
+    "mergeSummary":  "Merged {added} songs from \"{source}\" into \"{target}\" ({skipped} already present).",
+    "@mergeSummary":  {
+                           "description":  "Merge summary message",
+                           "placeholders":  {
+                                                "added":  {
+                                                              "type":  "int"
+                                                          },
+                                                "source":  {
+                                                               "type":  "String"
+                                                           },
+                                                "target":  {
+                                                               "type":  "String"
+                                                           },
+                                                "skipped":  {
+                                                                "type":  "int"
+                                                            }
+                                            }
+                       },
+    "mergeFailed":  "Merge failed: {error}",
+    "@mergeFailed":  {
+                          "description":  "Merge failure message",
+                          "placeholders":  {
+                                               "error":  {
+                                                             "type":  "String"
+                                                         }
+                                           }
+                      },
+    "queueClearTitle":  "Clear up next?",
+    "@queueClearTitle":  {
+                              "description":  "Clear up next dialog title"
+                          },
+    "queueClearMessage":  "Remove {count} song(s) after the current song? The current song is kept.",
+    "@queueClearMessage":  {
+                                "description":  "Clear up next message",
+                                "placeholders":  {
+                                                     "count":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "queueClearAction":  "Clear",
+    "@queueClearAction":  {
+                               "description":  "Clear confirm button"
+                           },
+    "queueCleared":  "Cleared {count} song(s) from Up Next",
+    "@queueCleared":  {
+                           "description":  "Cleared up next message",
+                           "placeholders":  {
+                                                "count":  {
+                                                              "type":  "int"
+                                                          }
+                                            }
+                       },
+    "queueClearTooltip":  "Clear up next",
+    "@queueClearTooltip":  {
+                                "description":  "Clear up next tooltip"
+                            },
+    "xfDuration":  "Crossfade duration: {seconds}s",
+    "@xfDuration":  {
+                         "description":  "Crossfade duration label",
+                         "placeholders":  {
+                                              "seconds":  {
+                                                              "type":  "int"
+                                                          }
+                                          }
+                     },
+    "amoledTitle":  "AMOLED black",
+    "@amoledTitle":  {
+                          "description":  "AMOLED option title"
+                      },
+    "amoledSubtitle":  "Pure black background for the dark theme",
+    "@amoledSubtitle":  {
+                             "description":  "AMOLED option subtitle"
+                         },
+    "lyrRefreshed":  "Lyrics refreshed",
+    "@lyrRefreshed":  {
+                           "description":  "Lyrics refreshed confirmation"
+                       },
+    "lyrRefreshFailed":  "Lyrics refresh failed: {error}",
+    "@lyrRefreshFailed":  {
+                               "description":  "Lyrics refresh failure",
+                               "placeholders":  {
+                                                    "error":  {
+                                                                  "type":  "String"
+                                                              }
+                                                }
+                           },
+    "lyrFetchStopped":  "Stopped early: rate limited ({done}/{total})",
+    "@lyrFetchStopped":  {
+                              "description":  "Lyrics fetch stopped early",
+                              "placeholders":  {
+                                                   "done":  {
+                                                                "type":  "int"
+                                                            },
+                                                   "total":  {
+                                                                 "type":  "int"
+                                                             }
+                                               }
+                          },
+    "lyrFetchFinished":  "Fetch finished ({done}/{total})",
+    "@lyrFetchFinished":  {
+                               "description":  "Lyrics fetch finished",
+                               "placeholders":  {
+                                                    "done":  {
+                                                                 "type":  "int"
+                                                             },
+                                                    "total":  {
+                                                                  "type":  "int"
+                                                              }
+                                                }
+                           },
+    "lyrFetchFailed":  "Lyrics fetch failed: {error}",
+    "@lyrFetchFailed":  {
+                             "description":  "Lyrics fetch failure",
+                             "placeholders":  {
+                                                  "error":  {
+                                                                "type":  "String"
+                                                            }
+                                              }
+                         },
+    "lyrMissingTitle":  "Missing lyrics",
+    "@lyrMissingTitle":  {
+                              "description":  "Missing lyrics title"
+                          },
+    "lyrFetchAll":  "Fetch all",
+    "@lyrFetchAll":  {
+                          "description":  "Fetch all button"
+                      },
+    "lyrAllHave":  "All songs have lyrics",
+    "@lyrAllHave":  {
+                         "description":  "All lyrics present empty state"
+                     },
+    "lyrRefetch":  "Refetch lyrics",
+    "@lyrRefetch":  {
+                         "description":  "Refetch lyrics tooltip"
+                     },
+    "missLyricsEntry":  "Missing lyrics",
+    "@missLyricsEntry":  {
+                              "description":  "Missing lyrics menu entry"
+                          },
+    "bulkEditAction":  "Bulk edit",
+    "@bulkEditAction":  {
+                             "description":  "Bulk edit tooltip"
+                         }
 }

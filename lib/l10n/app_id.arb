@@ -1770,5 +1770,161 @@
     "shortcutContinue":  "Lanjutkan Mendengarkan",
     "@shortcutContinue":  {
                                "description":  "Shortcut lanjutkan mendengarkan"
-                           }
+                           },
+    "mergeNoOthers":  "Tidak ada playlist lain untuk digabung.",
+    "@mergeNoOthers":  {
+                            "description":  "Pesan tidak ada sumber merge"
+                        },
+    "mergeFrom":  "Gabung dari...",
+    "@mergeFrom":  {
+                        "description":  "Judul picker sumber merge"
+                    },
+    "mergeMenu":  "Gabung...",
+    "@mergeMenu":  {
+                        "description":  "Item menu gabung"
+                    },
+    "mergeSummary":  "Menggabungkan {added} lagu dari \"{source}\" ke \"{target}\" ({skipped} sudah ada).",
+    "@mergeSummary":  {
+                           "description":  "Pesan ringkasan merge",
+                           "placeholders":  {
+                                                "added":  {
+                                                              "type":  "int"
+                                                          },
+                                                "source":  {
+                                                               "type":  "String"
+                                                           },
+                                                "target":  {
+                                                               "type":  "String"
+                                                           },
+                                                "skipped":  {
+                                                                "type":  "int"
+                                                            }
+                                            }
+                       },
+    "mergeFailed":  "Gabung gagal: {error}",
+    "@mergeFailed":  {
+                          "description":  "Pesan gagal merge",
+                          "placeholders":  {
+                                               "error":  {
+                                                             "type":  "String"
+                                                         }
+                                           }
+                      },
+    "queueClearTitle":  "Bersihkan antrean?",
+    "@queueClearTitle":  {
+                              "description":  "Judul dialog bersihkan antrean"
+                          },
+    "queueClearMessage":  "Hapus {count} lagu setelah lagu kini? Lagu kini dipertahankan.",
+    "@queueClearMessage":  {
+                                "description":  "Pesan bersihkan antrean",
+                                "placeholders":  {
+                                                     "count":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "queueClearAction":  "Bersihkan",
+    "@queueClearAction":  {
+                               "description":  "Tombol konfirmasi bersihkan"
+                           },
+    "queueCleared":  "Membersihkan {count} lagu dari Antrean",
+    "@queueCleared":  {
+                           "description":  "Pesan antrean dibersihkan",
+                           "placeholders":  {
+                                                "count":  {
+                                                              "type":  "int"
+                                                          }
+                                            }
+                       },
+    "queueClearTooltip":  "Bersihkan antrean",
+    "@queueClearTooltip":  {
+                                "description":  "Tooltip bersihkan antrean"
+                            },
+    "xfDuration":  "Durasi crossfade: {seconds} dtk",
+    "@xfDuration":  {
+                         "description":  "Label durasi crossfade",
+                         "placeholders":  {
+                                              "seconds":  {
+                                                              "type":  "int"
+                                                          }
+                                          }
+                     },
+    "amoledTitle":  "Hitam AMOLED",
+    "@amoledTitle":  {
+                          "description":  "Judul opsi AMOLED"
+                      },
+    "amoledSubtitle":  "Latar hitam pekat untuk tema gelap",
+    "@amoledSubtitle":  {
+                             "description":  "Subjudul opsi AMOLED"
+                         },
+    "lyrRefreshed":  "Lirik tersegarkan",
+    "@lyrRefreshed":  {
+                           "description":  "Konfirmasi lirik tersegarkan"
+                       },
+    "lyrRefreshFailed":  "Segarkan lirik gagal: {error}",
+    "@lyrRefreshFailed":  {
+                               "description":  "Pesan gagal segarkan lirik",
+                               "placeholders":  {
+                                                    "error":  {
+                                                                  "type":  "String"
+                                                              }
+                                                }
+                           },
+    "lyrFetchStopped":  "Berhenti dini: rate limited ({done}/{total})",
+    "@lyrFetchStopped":  {
+                              "description":  "Fetch lirik berhenti dini",
+                              "placeholders":  {
+                                                   "done":  {
+                                                                "type":  "int"
+                                                            },
+                                                   "total":  {
+                                                                 "type":  "int"
+                                                             }
+                                               }
+                          },
+    "lyrFetchFinished":  "Fetch selesai ({done}/{total})",
+    "@lyrFetchFinished":  {
+                               "description":  "Fetch lirik selesai",
+                               "placeholders":  {
+                                                    "done":  {
+                                                                 "type":  "int"
+                                                             },
+                                                    "total":  {
+                                                                  "type":  "int"
+                                                              }
+                                                }
+                           },
+    "lyrFetchFailed":  "Fetch lirik gagal: {error}",
+    "@lyrFetchFailed":  {
+                             "description":  "Pesan gagal fetch lirik",
+                             "placeholders":  {
+                                                  "error":  {
+                                                                "type":  "String"
+                                                            }
+                                              }
+                         },
+    "lyrMissingTitle":  "Lirik hilang",
+    "@lyrMissingTitle":  {
+                              "description":  "Judul lirik hilang"
+                          },
+    "lyrFetchAll":  "Fetch semua",
+    "@lyrFetchAll":  {
+                          "description":  "Tombol fetch semua"
+                      },
+    "lyrAllHave":  "Semua lagu sudah berlirik",
+    "@lyrAllHave":  {
+                         "description":  "Empty state semua berlirik"
+                     },
+    "lyrRefetch":  "Fetch ulang lirik",
+    "@lyrRefetch":  {
+                         "description":  "Tooltip fetch ulang lirik"
+                     },
+    "missLyricsEntry":  "Lirik hilang",
+    "@missLyricsEntry":  {
+                              "description":  "Entry menu lirik hilang"
+                          },
+    "bulkEditAction":  "Edit massal",
+    "@bulkEditAction":  {
+                             "description":  "Tooltip bulk edit"
+                         }
 }

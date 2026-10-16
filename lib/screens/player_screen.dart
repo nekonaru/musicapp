@@ -440,7 +440,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   ),
                   Expanded(
                     child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
+                      duration: const Duration(milliseconds: 200),
                       switchInCurve: Curves.easeOut,
                       switchOutCurve: Curves.easeIn,
                       transitionBuilder: (child, anim) => FadeTransition(
@@ -612,50 +612,53 @@ class _PlayerScreenState extends State<PlayerScreen> {
               builder: (context, snapshot) {
                 final playing = snapshot.data?.playing ?? false;
                 return AnimatedScale(
-                  duration: const Duration(milliseconds: 350),
+                  duration: const Duration(milliseconds: 250),
                   curve: Curves.easeOutCubic,
                   scale: playing ? 1.0 : 0.92,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 350),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: playing
-                          ? [
-                              BoxShadow(
-                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.35),
-                                blurRadius: 28,
-                                spreadRadius: 2,
+                  // Isolate cover and glow repaints from the rest of the screen.
+                  child: RepaintBoundary(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: playing
+                            ? [
+                                BoxShadow(
+                                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.35),
+                                  blurRadius: 28,
+                                  spreadRadius: 2,
+                                )
+                              ]
+                            : [],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: song.albumArtUrl != null
+                            // Disk cached artwork with network fallback.
+                            ? CachedArtImage(
+                                url: song.albumArtUrl!,
+                                width: 260, height: 260, fit: BoxFit.cover,
+                                // Decode near display size to save image memory.
+                                cacheWidth: 520,
+                                loading: Container(
+                                  width: 260,
+                                  height: 260,
+                                  color: Colors.grey[300],
+                                  child: const Center(
+                                      child: CircularProgressIndicator()),
+                                ),
+                                fallback: Container(
+                                  width: 260, height: 260, color: Colors.grey[300],
+                                  child: const Icon(Icons.music_note, size: 80),
+                                ),
                               )
-                            ]
-                          : [],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: song.albumArtUrl != null
-                          // Disk cached artwork with network fallback.
-                          ? CachedArtImage(
-                              url: song.albumArtUrl!,
-                              width: 260, height: 260, fit: BoxFit.cover,
-                              // Decode near display size to save image memory.
-                              cacheWidth: 520,
-                              loading: Container(
+                            : Container(
                                 width: 260,
                                 height: 260,
                                 color: Colors.grey[300],
-                                child: const Center(
-                                    child: CircularProgressIndicator()),
-                              ),
-                              fallback: Container(
-                                width: 260, height: 260, color: Colors.grey[300],
                                 child: const Icon(Icons.music_note, size: 80),
                               ),
-                            )
-                          : Container(
-                              width: 260,
-                              height: 260,
-                              color: Colors.grey[300],
-                              child: const Icon(Icons.music_note, size: 80),
-                            ),
+                      ),
                     ),
                   ),
                 );
