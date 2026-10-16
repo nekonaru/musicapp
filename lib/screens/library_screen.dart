@@ -182,15 +182,34 @@ class _LibraryScreenState extends State<LibraryScreen> {
         }
       });
 
-  void _jumpToLetter(String letter, List<Song> songs) {
+  Future<void> _jumpToLetter(
+      String letter, List<Song> songs, LibraryProvider lib, bool usePaged) async {
     if (!_scrollController.hasClients) return;
-    final index = letter == '#'
-        ? songs.indexWhere((s) =>
+    int indexOf(List<Song> list) => letter == '#'
+        ? list.indexWhere((s) =>
             s.title.isEmpty || !RegExp(r'^[a-zA-Z]').hasMatch(s.title))
-        : songs.indexWhere((s) =>
+        : list.indexWhere((s) =>
             s.title.isNotEmpty &&
             s.title.toUpperCase().startsWith(letter));
-    if (index == -1) return;
+    var index = indexOf(songs);
+    // In paged mode the target may live beyond the loaded window:
+    // load DB pages until it is covered, then scroll to it.
+    if (index == -1 && usePaged) {
+      final all = lib.filteredSongs('');
+      index = indexOf(all);
+      if (index == -1) return;
+      while (_paged != null &&
+          _paged!.length <= index &&
+          _pagedHasMore &&
+          !_pagedLoading) {
+        await _loadNextPage(lib);
+      }
+      if (!mounted || !_scrollController.hasClients) return;
+      index = indexOf(_paged ?? songs);
+      if (index == -1) return;
+    } else if (index == -1) {
+      return;
+    }
     // Expand the rendered prefix so the jump target exists before scrolling.
     if (index >= _visibleCount) {
       setState(() {
@@ -217,6 +236,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
               behavior: SnackBarBehavior.floating,
               duration: const Duration(seconds: 5)));
     }
+  }
+
+  // Play a song from the FULL list by id (rendering may show only a
+  // paged window, but the queue must contain every song).
+  Future<void> _playSongInFullList(List<Song> allSongs, int songId) async {
+    var index = allSongs.indexWhere((s) => s.id == songId);
+    if (index < 0) index = 0;
+    if (allSongs.isEmpty) return;
+    await _playSong(allSongs, index);
   }
 
   void _showSortMenu(BuildContext context, LibraryProvider lib) {
@@ -543,6 +571,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
       }
       final usePaged = _paged != null;
       final songs = usePaged ? _paged! : lib.filteredSongs('');
+      // Queue actions (start, shuffle, tap to play) always use the FULL
+      // filtered list so every song is reachable. Only rendering stays
+      // paged for a fast first paint.
+      final allSongs = usePaged ? lib.filteredSongs('') : songs;
       // Reset the rendered prefix when sort changes. Direct assignment here
       // is safe because it runs before the rows below are built.
       if (_lastSortOption != lib.sortOption) {
@@ -557,7 +589,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           : visibleCount < songs.length;
       final showAz = lib.sortOption == SortOption.titleAZ;
       final available = <String>{
-        for (final s in songs)
+        for (final s in allSongs)
           RegExp(r'^[a-zA-Z]').hasMatch(s.title)
               ? safeInitial(s.title)
               : '#'
@@ -585,7 +617,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       slivers: [
                         // Header: sort + play buttons (hidden on scroll)
                         SliverToBoxAdapter(
-                            child: _buildSortHeader(lib, songs)),
+                            child: _buildSortHeader(lib, allSongs)),
 
                         // Song list (rendered prefix only)
                         SliverFixedExtentList(
@@ -602,7 +634,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                 isMultiSelect: _multiSelectMode,
                                 onTap: () => _multiSelectMode
                                     ? _toggleSelect(song.id)
-                                    : _playSong(songs, i),
+                                    : _playSongInFullList(
+                                        allSongs, song.id),
                                 onLongPress: () => setState(() {
                                   _multiSelectMode = true;
                                   _selectedIds.add(song.id);
@@ -651,7 +684,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     bottom: 0,
                     child: AzScrollbar(
                       availableLetters: available,
-                      onLetterSelected: (l) => _jumpToLetter(l, songs),
+                      onLetterSelected: (l) =>
+                          _jumpToLetter(l, songs, lib, usePaged),
                     ),
                   ),
               ],

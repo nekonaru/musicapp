@@ -216,15 +216,14 @@ jobs:
           body: |
             # English
 
-            **Swara v2.4.0 - Practice loops and quick actions**
+            **Swara v2.4.1 - Pause fix and honest credits**
 
-            ## ✨ New features
+            ## 🐛 Bug fixes
 
-            - A-B repeat: loop any song segment for practice.
-            - Bulk edit: change genre and artist across many songs at once.
-            - Launcher shortcuts: shuffle favorites and continue listening from the app icon.
-            - Text size setting (small to extra large).
-            - Smoother artwork with flicker-free image updates.
+            - Pause then resume no longer goes silent (resume no longer dips through zero volume; failed play calls now report an error and retry).
+            - Equalizer now scales levels to real millibels, so presets are actually audible.
+            - Shuffle and play in All Songs now cover the whole library, not just rendered rows; A-Z jump loads pages as needed.
+            - About shows the real app version plus a proper developer credit with logo.
 
             ## 📦 Install / Update
 
@@ -238,15 +237,14 @@ jobs:
 
             # Bahasa Indonesia
 
-            **Swara v2.4.0 - Ulangi latihan dan aksi cepat**
+            **Swara v2.4.1 - Perbaikan pause dan kredit jujur**
 
-            ## ✨ Fitur baru
+            ## 🐛 Perbaikan bug
 
-            - Ulangi A-B: ulangi segmen lagu untuk latihan.
-            - Edit massal: ubah genre dan artist banyak lagu sekaligus.
-            - Shortcut launcher: acak favorit dan lanjutkan mendengarkan dari ikon app.
-            - Pengaturan ukuran teks (kecil sampai sangat besar).
-            - Artwork lebih mulus tanpa kedip.
+            - Pause lalu resume tidak lagi bisu (resume tanpa celup volume nol; play gagal lapor error dan retry).
+            - Equalizer kini skala millibel yang benar sehingga preset benar-benar terdengar.
+            - Shuffle dan putar di Semua Lagu mencakup seluruh library, bukan cuma baris ter-render; lompat A-Z memuat halaman bila perlu.
+            - About menampilkan versi asli plus kredit developer yang rapi dengan logo.
 
             ## 📦 Instalasi / Update
 

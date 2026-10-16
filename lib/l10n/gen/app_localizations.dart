@@ -278,11 +278,23 @@ abstract class AppLocalizations {
   /// **'About'**
   String get settingsAbout;
 
-  /// App version and author credit
+  /// App version label
   ///
   /// In en, this message translates to:
-  /// **'v1.6.0 · by Niko'**
-  String get settingsAboutVersion;
+  /// **'v{version}'**
+  String settingsAboutVersion(String version);
+
+  /// Developer row title
+  ///
+  /// In en, this message translates to:
+  /// **'Developer'**
+  String get settingsDeveloper;
+
+  /// Developer name
+  ///
+  /// In en, this message translates to:
+  /// **'Nicolas Dwi Dharma'**
+  String get settingsDeveloperName;
 
   /// Confirmation dialog title for rescan all
   ///

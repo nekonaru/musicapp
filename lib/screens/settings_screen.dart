@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:swara/l10n/gen/app_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/language_provider.dart';
 import '../providers/playlist_provider.dart';
 import '../providers/theme_provider.dart';
@@ -53,11 +55,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _busyData = false;
   bool _loadingArt = false;
   ArtCacheUsage? _artUsage;
+  // App version shown in About, loaded once from package info.
+  String _appVersion = '';
 
   @override
   void initState() {
     super.initState();
     _refreshArtCache();
+    _loadAppVersion();
+  }
+
+  // Read the real version once so About never shows a stale hardcode.
+  Future<void> _loadAppVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() => _appVersion = info.version);
+    } catch (_) {
+      // Leave blank when package info is unavailable.
+    }
+  }
+
+  // Open the developer GitHub profile in an external browser.
+  Future<void> _openDeveloperPage() async {
+    final url = Uri.parse('https://github.com/nekonaru');
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {
+      // Best effort link, never block settings.
+    }
   }
 
   // Short snackbar helper with a mounted guard.
@@ -626,9 +654,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // -- ABOUT --
           _SectionHeader(l10n.settingsAbout),
           ListTile(
-            leading: const Icon(Icons.music_note_outlined),
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.asset(
+                'assets/swara-mark.png',
+                width: 40,
+                height: 40,
+                errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.music_note_outlined),
+              ),
+            ),
             title: const Text('Swara'),
-            subtitle: Text(l10n.settingsAboutVersion),
+            subtitle: Text(_appVersion.isEmpty
+                ? 'v…'
+                : l10n.settingsAboutVersion(_appVersion)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.person_outline),
+            title: Text(l10n.settingsDeveloper),
+            subtitle: Text(l10n.settingsDeveloperName),
+            trailing: const Icon(Icons.open_in_new, size: 18),
+            onTap: _openDeveloperPage,
           ),
           const SizedBox(height: 32),
         ],

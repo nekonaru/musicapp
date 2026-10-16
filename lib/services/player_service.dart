@@ -404,7 +404,15 @@ class PlayerService extends ChangeNotifier {
       return;
     }
     if (playGen != _playGeneration || _disposed) return;
-    await _player.play();
+    try {
+      await _player.play();
+    } catch (e) {
+      if (playGen != _playGeneration || _disposed) return;
+      debugPrint('Play failed: $e');
+      lastError = '${lookupAppLocalizations(LanguageProvider.instance.locale).corePlayFailed} "${song.title}": $e';
+      notifyListeners();
+      return;
+    }
     if (playGen != _playGeneration || _disposed) return;
     _playStartedAt = DateTime.now();
     _accumulatedListenedMs = 0;
@@ -468,37 +476,53 @@ class PlayerService extends ChangeNotifier {
       // Stop position updates while paused to save battery.
       await _unsubscribePosition();
     } else {
-      // A manual play during a sleep fade cancels the fade and restores
-      // full volume before resuming.
+      // Resume path: NO volume dip. A previous resume fade left players
+      // stuck silent on some devices (0 volume + aborted ramp), so resume
+      // always restores full volume first, then plays. The pause fade-out
+      // above keeps the audible nicety; fade-in is not worth the risk.
       if (_sleepFadeActive) _cancelSleepFadeOut();
-      // Cancel any in flight pause fade before starting the resume fade.
+      // Cancel any in flight pause fade before resuming.
       final generation = ++_pauseFadeGeneration;
+      _pauseFadeOutActive = false;
       _playStartedAt = DateTime.now();
       final target = _activePlayer;
-      await _vol(() => target.setVolume(0));
-      await target.play();
+      await _vol(() => target.setVolume(1));
+      if (_disposed) return;
+      if (generation != _pauseFadeGeneration) return;
+      try {
+        await target.play();
+      } catch (e) {
+        debugPrint('Resume play failed: $e');
+        lastError =
+            '${lookupAppLocalizations(LanguageProvider.instance.locale).corePlayFailed}: $e';
+        notifyListeners();
+        return;
+      }
       // Resume position updates for crossfade triggers.
       await _subscribePosition();
-      try {
-        final stepDuration = pauseFadeDuration ~/ pauseFadeSteps;
-        for (int i = 1; i <= pauseFadeSteps; i++) {
-          await Future.delayed(stepDuration);
-          if (_disposed) return;
-          if (generation != _pauseFadeGeneration) return;
-          final v = (i / pauseFadeSteps).clamp(0.0, 1.0);
-          await _vol(() => target.setVolume(v));
-        }
+      // Watchdog: some devices report playing while staying silent or
+      // drop the play call. If we are not audible shortly after resume
+      // with no newer command, retry once instead of staying quiet.
+      final watchGen = generation;
+      Future.delayed(const Duration(milliseconds: 600), () async {
         if (_disposed) return;
-        if (generation != _pauseFadeGeneration) return;
-        await _vol(() => target.setVolume(1));
-      } catch (e) {
-        debugPrint('Resume fade failed: $e');
-      }
+        if (watchGen != _pauseFadeGeneration) return;
+        if (watchGen != _playGeneration) return;
+        try {
+          if (!target.playing) {
+            await target.play();
+            await _vol(() => target.setVolume(1));
+            notifyListeners();
+          }
+        } catch (e) {
+          debugPrint('Resume watchdog failed: $e');
+        }
+      });
     }
     notifyListeners();
   }
 
-  /// Cancel an in flight manual pause/resume fade. Restores go through the
+  /// Cancel an in flight manual pause fade. Restores go through the
   /// volume chain so they can never land before a stale fade step.
   void _cancelPauseFade() {
     _pauseFadeGeneration++;

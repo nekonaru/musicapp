@@ -130,10 +130,23 @@
     "@settingsAbout":  {
                            "description":  "Section header for about info"
                        },
-    "settingsAboutVersion":  "v1.6.0 · by Niko",
+    "settingsAboutVersion":  "v{version}",
     "@settingsAboutVersion":  {
-                                  "description":  "App version and author credit"
-                              },
+                                   "description":  "Label versi aplikasi",
+                                   "placeholders":  {
+                                                        "version":  {
+                                                                        "type":  "String"
+                                                                    }
+                                                    }
+                               },
+    "settingsDeveloper":  "Developer",
+    "@settingsDeveloper":  {
+                                "description":  "Judul baris developer"
+                            },
+    "settingsDeveloperName":  "Nicolas Dwi Dharma",
+    "@settingsDeveloperName":  {
+                                    "description":  "Nama developer"
+                                },
     "settingsRescanTitle":  "Scan Ulang Semua",
     "@settingsRescanTitle":  {
                                  "description":  "Confirmation dialog title for rescan all"

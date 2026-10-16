@@ -131,8 +131,11 @@ class EqualizerService {
     if (freqs != null && freqs.isNotEmpty) bandCount = freqs.length;
     final gains = resampleCurve(curve, bandCount);
     for (int i = 0; i < bandCount; i++) {
-      // Curve values are relative dB, device levels are millibels.
-      final mb = (gains[i] * 300).round().clamp(minMb, maxMb);
+      // Curve values are relative dB. NOTE: this old plugin divides the
+      // Android millibel range by 100 on read, but setBandLevel still
+      // takes raw millibels, so scale both sides back up here.
+      final mb =
+          (gains[i] * 100).round().clamp(minMb * 100, maxMb * 100);
       await _run(() => EqualizerFlutter.setBandLevel(i, mb), 'band $i');
     }
   }

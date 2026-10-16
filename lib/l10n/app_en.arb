@@ -130,10 +130,23 @@
     "@settingsAbout":  {
                            "description":  "Section header for about info"
                        },
-    "settingsAboutVersion":  "v1.6.0 · by Niko",
+    "settingsAboutVersion":  "v{version}",
     "@settingsAboutVersion":  {
-                                  "description":  "App version and author credit"
-                              },
+                                   "description":  "App version label",
+                                   "placeholders":  {
+                                                        "version":  {
+                                                                        "type":  "String"
+                                                                    }
+                                                    }
+                               },
+    "settingsDeveloper":  "Developer",
+    "@settingsDeveloper":  {
+                                "description":  "Developer row title"
+                            },
+    "settingsDeveloperName":  "Nicolas Dwi Dharma",
+    "@settingsDeveloperName":  {
+                                    "description":  "Developer name"
+                                },
     "settingsRescanTitle":  "Rescan all",
     "@settingsRescanTitle":  {
                                  "description":  "Confirmation dialog title for rescan all"

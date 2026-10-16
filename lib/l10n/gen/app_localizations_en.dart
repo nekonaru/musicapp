@@ -106,7 +106,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAbout => 'About';
 
   @override
-  String get settingsAboutVersion => 'v1.6.0 · by Niko';
+  String settingsAboutVersion(String version) {
+    return 'v$version';
+  }
+
+  @override
+  String get settingsDeveloper => 'Developer';
+
+  @override
+  String get settingsDeveloperName => 'Nicolas Dwi Dharma';
 
   @override
   String get settingsRescanTitle => 'Rescan all';
