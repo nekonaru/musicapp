@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:offline_music_player/services/equalizer_service.dart';
+import 'package:swara/services/equalizer_service.dart';
 
 void main() {
   group('resampleCurve', () {

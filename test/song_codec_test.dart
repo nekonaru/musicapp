@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:offline_music_player/models/song.dart';
+import 'package:swara/models/song.dart';
 
 // Tests for the transparent gzip codec used for the lyrics DB column.
 // These tests use only pure dart:convert logic, so they run on any host.

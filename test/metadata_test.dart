@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:offline_music_player/services/metadata_service.dart';
+import 'package:swara/services/metadata_service.dart';
 
 // Unit tests for the pure filename parser in MetadataService.
 // parseFromFilename does not touch platform channels, so it is safe to test

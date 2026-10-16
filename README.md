@@ -5,11 +5,11 @@
 **Play the music on your phone without internet, with automatic metadata and lyrics, plus an analytics dashboard of your listening habits.**
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.47-02569B?style=flat-square&logo=flutter&logoColor=white)
-![Release](https://img.shields.io/github/v/release/nekonaru/musicapp?style=flat-square&color=blue)
+![Release](https://img.shields.io/github/v/release/nekonaru/swara?style=flat-square&color=blue)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 ![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?style=flat-square&logo=android&logoColor=white)
 ![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=flat-square)
-![CI](https://github.com/nekonaru/musicapp/actions/workflows/build-apk.yml/badge.svg)
+![CI](https://github.com/nekonaru/swara/actions/workflows/build-apk.yml/badge.svg)
 
 </div>
 
@@ -80,7 +80,7 @@
 
 ### Option A: Download the APK (easiest)
 
-1. Open the [Releases](https://github.com/nekonaru/musicapp/releases) page
+1. Open the [Releases](https://github.com/nekonaru/swara/releases) page
 2. Download the APK matching your device (`app-arm64-v8a-release.apk` for most modern phones, `app-armeabi-v7a-release.apk` for older 32-bit ones)
 3. Open it on your phone, allow installs from unknown sources if asked
 4. Allow audio access when the app first opens
@@ -93,8 +93,8 @@
 <summary><b>I have Git installed</b></summary>
 
 ```bash
-git clone https://github.com/nekonaru/musicapp.git
-cd musicapp
+git clone https://github.com/nekonaru/swara.git
+cd swara
 ```
 
 </details>
@@ -108,7 +108,7 @@ cd musicapp
 4. In the terminal, go into the extracted folder, for example:
 
 ```bash
-cd Downloads/musicapp-main
+cd Downloads/swara-main
 ```
 
 </details>
@@ -155,7 +155,7 @@ The app UI (menus, buttons, messages, and settings) is available in **English** 
 ## 🗂️ Project Structure
 
 ```
-musicapp/
+swara/
 ├── lib/
 │   ├── main.dart                 # entry point, providers, MaterialApp + locale
 │   ├── l10n/

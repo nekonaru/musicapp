@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:offline_music_player/l10n/gen/app_localizations.dart';
+import 'package:swara/l10n/gen/app_localizations.dart';
 import '../models/song.dart';
 import '../services/db_helper.dart';
 import '../services/player_service.dart';

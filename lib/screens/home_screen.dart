@@ -9,7 +9,7 @@ import 'collections_screen.dart';
 import 'dashboard_screen.dart';
 import 'settings_screen.dart';
 import 'search_screen.dart';
-import 'package:offline_music_player/l10n/gen/app_localizations.dart';
+import 'package:swara/l10n/gen/app_localizations.dart';
 import '../providers/library_provider.dart';
 import '../widgets/mini_player.dart';
 

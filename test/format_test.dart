@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:offline_music_player/utils/format.dart';
+import 'package:swara/utils/format.dart';
 
 // Unit tests for pure formatting and sorting helpers in lib/utils/format.dart.
 // No platform channels are used here, so these tests run on any host.

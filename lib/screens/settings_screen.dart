@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:offline_music_player/l10n/gen/app_localizations.dart';
+import 'package:swara/l10n/gen/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../providers/language_provider.dart';
 import '../providers/playlist_provider.dart';

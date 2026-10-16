@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:offline_music_player/utils/lrc.dart';
+import 'package:swara/utils/lrc.dart';
 
 // Unit tests for the pure LRC parser in lib/utils/lrc.dart.
 // parseLrc touches no platform channels, DB, or network, so these run

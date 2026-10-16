@@ -1,5 +1,5 @@
-import 'package:offline_music_player/l10n/gen/app_localizations.dart';
-import 'package:offline_music_player/providers/language_provider.dart';
+import 'package:swara/l10n/gen/app_localizations.dart';
+import 'package:swara/providers/language_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
 import '../models/song.dart';

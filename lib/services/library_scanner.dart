@@ -1,5 +1,5 @@
-import 'package:offline_music_player/l10n/gen/app_localizations.dart';
-import 'package:offline_music_player/providers/language_provider.dart';
+import 'package:swara/l10n/gen/app_localizations.dart';
+import 'package:swara/providers/language_provider.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sqflite/sqflite.dart';

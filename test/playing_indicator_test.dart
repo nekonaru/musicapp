@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:offline_music_player/widgets/playing_indicator.dart';
+import 'package:swara/widgets/playing_indicator.dart';
 
 // Helper to build the widget inside a MaterialApp wrapper.
 Widget buildIndicator({required bool isPlaying}) {

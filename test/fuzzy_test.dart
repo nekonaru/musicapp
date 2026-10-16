@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:offline_music_player/utils/fuzzy.dart';
+import 'package:swara/utils/fuzzy.dart';
 
 // Unit tests for the tolerant search helpers in lib/utils/fuzzy.dart.
 void main() {

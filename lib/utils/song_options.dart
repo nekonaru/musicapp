@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:offline_music_player/l10n/gen/app_localizations.dart';
+import 'package:swara/l10n/gen/app_localizations.dart';
 import 'package:provider/provider.dart';
 // Requires adding share_plus to pubspec dependencies to compile.
 // Standard API used below: Share.shareXFiles([XFile(path)], text: ...)

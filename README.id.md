@@ -5,11 +5,11 @@
 **Putar musik di HP tanpa internet, dengan metadata dan lirik otomatis, plus dashboard analitik kebiasaan mendengarkanmu.**
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.47-02569B?style=flat-square&logo=flutter&logoColor=white)
-![Release](https://img.shields.io/github/v/release/nekonaru/musicapp?style=flat-square&color=blue)
+![Release](https://img.shields.io/github/v/release/nekonaru/swara?style=flat-square&color=blue)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 ![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?style=flat-square&logo=android&logoColor=white)
 ![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=flat-square)
-![CI](https://github.com/nekonaru/musicapp/actions/workflows/build-apk.yml/badge.svg)
+![CI](https://github.com/nekonaru/swara/actions/workflows/build-apk.yml/badge.svg)
 
 </div>
 
@@ -81,7 +81,7 @@
 
 ### Cara A: Download APK (paling gampang)
 
-1. Buka halaman [Releases](https://github.com/nekonaru/musicapp/releases)
+1. Buka halaman [Releases](https://github.com/nekonaru/swara/releases)
 2. Download APK yang cocok dengan HP (`app-arm64-v8a-release.apk` untuk kebanyakan HP modern, `app-armeabi-v7a-release.apk` untuk yang 32-bit lama)
 3. Buka di HP, izinkan instalasi dari sumber tidak dikenal bila diminta
 4. Izinkan akses audio saat aplikasi pertama dibuka
@@ -94,8 +94,8 @@
 <summary><b>Punya Git terinstall</b></summary>
 
 ```bash
-git clone https://github.com/nekonaru/musicapp.git
-cd musicapp
+git clone https://github.com/nekonaru/swara.git
+cd swara
 ```
 
 </details>
@@ -109,7 +109,7 @@ cd musicapp
 4. Di terminal, masuk ke folder hasil ekstrak, contoh:
 
 ```bash
-cd Downloads/musicapp-main
+cd Downloads/swara-main
 ```
 
 </details>
@@ -156,7 +156,7 @@ UI aplikasi (menu, tombol, pesan, dan pengaturan) tersedia dalam **English** (de
 ## 🗂️ Struktur Project
 
 ```
-musicapp/
+swara/
 ├── lib/
 │   ├── main.dart                 # entry point, provider, MaterialApp + locale
 │   ├── l10n/
