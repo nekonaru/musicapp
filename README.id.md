@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/swara-mark.png" width="120" alt="Logo Swara">
+
 # 🎵 Swara: Pemutar Musik Offline
 
 **Putar musik di HP tanpa internet, dengan metadata dan lirik otomatis, plus dashboard analitik kebiasaan mendengarkanmu.**

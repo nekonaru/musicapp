@@ -83,6 +83,14 @@ jobs:
           cp android_res_extra/ic_notif_repeat_one.xml android/app/src/main/res/drawable/ic_notif_repeat_one.xml
           echo "=== drawable folder contents after copy ==="
           ls -la android/app/src/main/res/drawable/
+          echo "=== install launcher icons (mipmap + adaptive) ==="
+          for d in android_res_extra/launcher/mipmap-*; do
+            mkdir -p "android/app/src/main/res/$(basename $d)"
+            cp "$d"/*.png "android/app/src/main/res/$(basename $d)/"
+          done
+          mkdir -p android/app/src/main/res/values
+          cp android_res_extra/launcher/values/*.xml android/app/src/main/res/values/
+          find android/app/src/main/res/mipmap-* android/app/src/main/res/values/ic_launcher_background.xml
 
       - name: Keep custom icons from R8 resource shrinker
         # This is the actual root cause of the "Invalid notification (no valid small icon)" crash.

@@ -13,18 +13,23 @@ class SplashScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Simple branded mark without image assets for fast first paint.
-            Container(
-              width: 88,
-              height: 88,
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Icon(
-                Icons.music_note,
-                size: 48,
-                color: colorScheme.onPrimaryContainer,
+            // Brand mark asset (transparent, theme independent).
+            Image.asset(
+              'assets/swara-mark.png',
+              width: 96,
+              height: 96,
+              errorBuilder: (context, _, __) => Container(
+                width: 88,
+                height: 88,
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Icon(
+                  Icons.music_note,
+                  size: 48,
+                  color: colorScheme.onPrimaryContainer,
+                ),
               ),
             ),
             const SizedBox(height: 16),

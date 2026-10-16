@@ -39,12 +39,18 @@ const Map<String, List<double>> kEqCurves = {
 
 /// Drives the Android system equalizer for the active audio session.
 ///
-/// The effect is real DSP on the output mix, not a visualizer. Every
-/// platform call is guarded so devices without an equalizer simply
-/// keep playing with a flat response.
+/// The effect is real DSP on the output mix, not a visualizer. The
+/// underlying plugin is old and can hang on some devices, so EVERY
+/// platform call goes through [_guard] with a timeout: a stuck call
+/// degrades to flat sound instead of freezing the settings screen.
 class EqualizerService {
   EqualizerService._();
   static final EqualizerService instance = EqualizerService._();
+
+  /// A plugin call taking longer than this is treated as failed.
+  /// Without this, one stuck method-channel call freezes preset
+  /// switching until the settings screen is reopened.
+  static const Duration _pluginTimeout = Duration(milliseconds: 2500);
 
   int? _sessionId;
   bool _ready = false;
@@ -53,29 +59,48 @@ class EqualizerService {
   String get preset => _preset;
   bool get isReady => _ready;
 
+  Future<bool> _run(Future<void> Function() op, String what) async {
+    try {
+      await op().timeout(_pluginTimeout);
+      return true;
+    } catch (e) {
+      debugPrint('Equalizer $what failed: $e');
+      return false;
+    }
+  }
+
+  Future<List<int>?> _getList(
+      Future<List<int>> Function() op, String what) async {
+    try {
+      return await op().timeout(_pluginTimeout);
+    } catch (e) {
+      debugPrint('Equalizer $what failed: $e');
+      return null;
+    }
+  }
+
   /// Attach the effect to [player]'s audio session. Call after the
   /// player has a source (session id is null before that).
   /// Returns true when the effect is attached.
   Future<bool> attach(AudioPlayer player) async {
-    try {
-      final sessionId = player.androidAudioSessionId;
-      if (sessionId == null) return false;
-      if (_ready && sessionId == _sessionId) {
-        await _applyBands();
-        return true;
-      }
-      await release();
-      EqualizerFlutter.init(sessionId);
-      _sessionId = sessionId;
-      _ready = true;
+    final sessionId = player.androidAudioSessionId;
+    if (sessionId == null) return false;
+    if (_ready && sessionId == _sessionId) {
       await _applyBands();
       return true;
-    } catch (e) {
-      debugPrint('Equalizer attach failed: $e');
+    }
+    await release();
+    final attached =
+        await _run(() => EqualizerFlutter.init(sessionId), 'init');
+    if (!attached) {
       _ready = false;
       _sessionId = null;
       return false;
     }
+    _sessionId = sessionId;
+    _ready = true;
+    await _applyBands();
+    return true;
   }
 
   /// Switch preset (persisted separately by ThemeProvider).
@@ -86,49 +111,35 @@ class EqualizerService {
   }
 
   Future<void> _applyBands() async {
-    try {
-      if (_preset == 'Flat') {
-        await EqualizerFlutter.setEnabled(false);
-        return;
-      }
-      await EqualizerFlutter.setEnabled(true);
-      final curve = kEqCurves[_preset] ?? kEqCurves['Flat']!;
-      var bandCount = 5;
-      var minMb = -1500;
-      var maxMb = 1500;
-      try {
-        final range = await EqualizerFlutter.getBandLevelRange();
-        if (range.length >= 2) {
-          minMb = range[0];
-          maxMb = range[1];
-        }
-      } catch (_) {
-        // Keep safe defaults when the device hides the range.
-      }
-      try {
-        final freqs = await EqualizerFlutter.getCenterBandFreqs();
-        if (freqs.isNotEmpty) bandCount = freqs.length;
-      } catch (_) {
-        // Keep the 5-band default.
-      }
-      final gains = resampleCurve(curve, bandCount);
-      for (int i = 0; i < bandCount; i++) {
-        // Curve values are relative dB, device levels are millibels.
-        final mb = (gains[i] * 300).round().clamp(minMb, maxMb);
-        await EqualizerFlutter.setBandLevel(i, mb);
-      }
-    } catch (e) {
-      debugPrint('Equalizer apply failed: $e');
+    if (_preset == 'Flat') {
+      await _run(() => EqualizerFlutter.setEnabled(false), 'disable');
+      return;
+    }
+    await _run(() => EqualizerFlutter.setEnabled(true), 'enable');
+    final curve = kEqCurves[_preset] ?? kEqCurves['Flat']!;
+    var bandCount = 5;
+    var minMb = -1500;
+    var maxMb = 1500;
+    final range =
+        await _getList(() => EqualizerFlutter.getBandLevelRange(), 'range');
+    if (range != null && range.length >= 2) {
+      minMb = range[0];
+      maxMb = range[1];
+    }
+    final freqs = await _getList(
+        () => EqualizerFlutter.getCenterBandFreqs(), 'freqs');
+    if (freqs != null && freqs.isNotEmpty) bandCount = freqs.length;
+    final gains = resampleCurve(curve, bandCount);
+    for (int i = 0; i < bandCount; i++) {
+      // Curve values are relative dB, device levels are millibels.
+      final mb = (gains[i] * 300).round().clamp(minMb, maxMb);
+      await _run(() => EqualizerFlutter.setBandLevel(i, mb), 'band $i');
     }
   }
 
   Future<void> release() async {
     if (!_ready) return;
-    try {
-      await EqualizerFlutter.release();
-    } catch (e) {
-      debugPrint('Equalizer release failed: $e');
-    }
+    await _run(() => EqualizerFlutter.release(), 'release');
     _ready = false;
     _sessionId = null;
   }

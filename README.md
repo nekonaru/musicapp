@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/swara-mark.png" width="120" alt="Swara logo">
+
 # 🎵 Swara: Offline Music Player
 
 **Play the music on your phone without internet, with automatic metadata and lyrics, plus an analytics dashboard of your listening habits.**
