@@ -84,10 +84,12 @@ jobs:
           echo "=== drawable folder contents after copy ==="
           ls -la android/app/src/main/res/drawable/
           echo "=== install launcher icons (mipmap + adaptive) ==="
-          for d in android_res_extra/launcher/mipmap-*; do
+          for d in android_res_extra/launcher/mipmap-mdpi android_res_extra/launcher/mipmap-hdpi android_res_extra/launcher/mipmap-xhdpi android_res_extra/launcher/mipmap-xxhdpi android_res_extra/launcher/mipmap-xxxhdpi; do
             mkdir -p "android/app/src/main/res/$(basename $d)"
             cp "$d"/*.png "android/app/src/main/res/$(basename $d)/"
           done
+          mkdir -p android/app/src/main/res/mipmap-anydpi-v26
+          cp android_res_extra/launcher/mipmap-anydpi-v26/*.xml android/app/src/main/res/mipmap-anydpi-v26/
           mkdir -p android/app/src/main/res/values
           cp android_res_extra/launcher/values/*.xml android/app/src/main/res/values/
           find android/app/src/main/res/mipmap-* android/app/src/main/res/values/ic_launcher_background.xml
