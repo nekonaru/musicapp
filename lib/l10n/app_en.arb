@@ -1978,5 +1978,79 @@
     "editLyricsSearchOpenFailed":  "Could not open the browser",
     "@editLyricsSearchOpenFailed":  {
                                        "description":  "Web search failure message"
-                                   }
+                                   },
+    "librarySelectAllTooMany":  "Too many songs to select all at once. Select up to {limit} songs.",
+    "@librarySelectAllTooMany":  {
+                                  "description":  "Select all limit message",
+                                  "placeholders":  {
+                                                       "limit":  {
+                                                                    "type":  "int"
+                                                                }
+                                                   }
+                              },
+    "libraryPartialAddedToPlaylist":  "Added {added} of {total} songs to {name}, {failed} failed.",
+    "@libraryPartialAddedToPlaylist":  {
+                                         "description":  "Partial playlist add message",
+                                         "placeholders":  {
+                                                              "added":  {
+                                                                        "type":  "int"
+                                                                    },
+                                                              "total":  {
+                                                                        "type":  "int"
+                                                                    },
+                                                              "name":  {
+                                                                       "type":  "String"
+                                                                   },
+                                                              "failed":  {
+                                                                         "type":  "int"
+                                                                     }
+                                                  }
+                                     },
+    "libraryFavoritesAdded":  "{count} songs added to favorites",
+    "@libraryFavoritesAdded":  {
+                               "description":  "Bulk favorites added message",
+                               "placeholders":  {
+                                                    "count":  {
+                                                              "type":  "int"
+                                                          }
+                                                }
+                           },
+    "historyCleanupTitle":  "Clean up listening history",
+    "@historyCleanupTitle":  {
+                               "description":  "History cleanup option title"
+                           },
+    "historyCleanupSubtitle":  "Delete old listening history older than 12 months and cap the total rows",
+    "@historyCleanupSubtitle":  {
+                                  "description":  "History cleanup subtitle"
+                              },
+    "historyCleanupDialogTitle":  "Delete old listening history?",
+    "@historyCleanupDialogTitle":  {
+                                     "description":  "History cleanup dialog title"
+                                 },
+    "historyCleanupMessage":  "Listening history older than 12 months will be deleted, and the oldest rows will be removed until at most 200,000 rows remain. Dashboard totals such as Total listened and Top songs are based on this history, so those numbers will go down.",
+    "@historyCleanupMessage":  {
+                                "description":  "History cleanup dialog message"
+                            },
+    "historyCleanupAction":  "Delete",
+    "@historyCleanupAction":  {
+                              "description":  "History cleanup confirm button"
+                          },
+    "historyCleanupDone":  "Deleted {count} history rows",
+    "@historyCleanupDone":  {
+                             "description":  "History cleanup result",
+                             "placeholders":  {
+                                                  "count":  {
+                                                            "type":  "int"
+                                                        }
+                                              }
+                         },
+    "historyCleanupFailed":  "History cleanup failed: {error}",
+    "@historyCleanupFailed":  {
+                                "description":  "History cleanup failure",
+                                "placeholders":  {
+                                                     "error":  {
+                                                               "type":  "String"
+                                                           }
+                                                 }
+                            }
 }

@@ -1787,4 +1787,47 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get editLyricsSearchOpenFailed => 'Tidak bisa membuka browser';
+
+  @override
+  String librarySelectAllTooMany(int limit) {
+    return 'Terlalu banyak lagu untuk dipilih semua sekaligus. Pilih maksimal $limit lagu.';
+  }
+
+  @override
+  String libraryPartialAddedToPlaylist(
+      int added, int total, String name, int failed) {
+    return 'Menambahkan $added dari $total lagu ke $name, $failed gagal.';
+  }
+
+  @override
+  String libraryFavoritesAdded(int count) {
+    return '$count lagu ditambahkan ke favorit';
+  }
+
+  @override
+  String get historyCleanupTitle => 'Bersihkan riwayat pendengaran';
+
+  @override
+  String get historyCleanupSubtitle =>
+      'Hapus riwayat pendengaran lebih dari 12 bulan dan batasi jumlah baris';
+
+  @override
+  String get historyCleanupDialogTitle => 'Hapus riwayat lama?';
+
+  @override
+  String get historyCleanupMessage =>
+      'Riwayat pendengaran lebih dari 12 bulan akan dihapus, dan baris tertua dihapus sampai tersisa maksimal 200.000 baris. Angka dashboard seperti Total listened dan Top songs dihitung dari riwayat ini, jadi angkanya akan turun.';
+
+  @override
+  String get historyCleanupAction => 'Hapus';
+
+  @override
+  String historyCleanupDone(int count) {
+    return 'Menghapus $count baris riwayat';
+  }
+
+  @override
+  String historyCleanupFailed(String error) {
+    return 'Bersihkan riwayat gagal: $error';
+  }
 }

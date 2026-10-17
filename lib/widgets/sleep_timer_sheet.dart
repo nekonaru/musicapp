@@ -52,23 +52,18 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
     _minCtrl  = FixedExtentScrollController(initialItem: _defaultMinuteIndex);
     _songCtrl = FixedExtentScrollController(initialItem: _defaultSongIndex);
 
-    // If a timer is already running, tick every second to update the countdown.
-    // The tick stops itself once no timer and no fade remain active.
-    if (_isTimerActive) {
-      _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-        final ps = PlayerService.instance;
-        final hasTimer = ps.sleepTimerRemaining != null ||
-            ps.sleepSongsRemaining != null;
-        final fading = ps.isSleepFadeOutActive;
-        if (!hasTimer && !fading) {
-          _ticker?.cancel();
-          _ticker = null;
-          if (mounted) setState(() {});
-          return;
-        }
-        if (mounted) setState(() {});
-      });
-    }
+    // Seed the checkbox from the service, so an already running session never
+    // shows a value the service is not actually using.
+    _finishSong = PlayerService.instance.finishCurrentSongOnSleep;
+
+    // One second ticker for the countdown, started unconditionally while the
+    // sheet is open. It deliberately never cancels itself: a timer can start
+    // after the sheet was built (for example the daily schedule firing at
+    // 22:00 while the sheet stays open), and the build method below listens to
+    // the service, so the ticker must still be running when that happens.
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
     _loadBedtime();
     // Refresh the bedtime countdown text while the sheet is open.
     _bedtimeTicker = Timer.periodic(const Duration(seconds: 30), (_) {
@@ -211,6 +206,16 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    // Listen to the service for the whole sheet: a timer can start, end or
+    // change mode from anywhere (including the daily schedule) while this
+    // sheet stays open, and the view must always match the service state.
+    return AnimatedBuilder(
+      animation: PlayerService.instance,
+      builder: (context, _) => _buildSheet(context),
+    );
+  }
+
+  Widget _buildSheet(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final ps = PlayerService.instance;
     final isActive = _isTimerActive;

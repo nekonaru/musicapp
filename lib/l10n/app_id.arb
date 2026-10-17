@@ -1978,5 +1978,79 @@
     "editLyricsSearchOpenFailed":  "Tidak bisa membuka browser",
     "@editLyricsSearchOpenFailed":  {
                                        "description":  "Pesan gagal buka pencarian web"
-                                   }
+                                   },
+    "librarySelectAllTooMany":  "Terlalu banyak lagu untuk dipilih semua sekaligus. Pilih maksimal {limit} lagu.",
+    "@librarySelectAllTooMany":  {
+                                  "description":  "Pesan batas pilih semua",
+                                  "placeholders":  {
+                                                       "limit":  {
+                                                                    "type":  "int"
+                                                                }
+                                                   }
+                              },
+    "libraryPartialAddedToPlaylist":  "Menambahkan {added} dari {total} lagu ke {name}, {failed} gagal.",
+    "@libraryPartialAddedToPlaylist":  {
+                                         "description":  "Pesan penambahan playlist sebagian",
+                                         "placeholders":  {
+                                                              "added":  {
+                                                                        "type":  "int"
+                                                                    },
+                                                              "total":  {
+                                                                        "type":  "int"
+                                                                    },
+                                                              "name":  {
+                                                                       "type":  "String"
+                                                                   },
+                                                              "failed":  {
+                                                                         "type":  "int"
+                                                                     }
+                                                  }
+                                     },
+    "libraryFavoritesAdded":  "{count} lagu ditambahkan ke favorit",
+    "@libraryFavoritesAdded":  {
+                               "description":  "Pesan favorit massal",
+                               "placeholders":  {
+                                                    "count":  {
+                                                              "type":  "int"
+                                                          }
+                                                }
+                           },
+    "historyCleanupTitle":  "Bersihkan riwayat pendengaran",
+    "@historyCleanupTitle":  {
+                               "description":  "Judul opsi bersihkan riwayat"
+                           },
+    "historyCleanupSubtitle":  "Hapus riwayat pendengaran lebih dari 12 bulan dan batasi jumlah baris",
+    "@historyCleanupSubtitle":  {
+                                  "description":  "Subjudul bersihkan riwayat"
+                              },
+    "historyCleanupDialogTitle":  "Hapus riwayat lama?",
+    "@historyCleanupDialogTitle":  {
+                                     "description":  "Judul dialog bersihkan riwayat"
+                                 },
+    "historyCleanupMessage":  "Riwayat pendengaran lebih dari 12 bulan akan dihapus, dan baris tertua dihapus sampai tersisa maksimal 200.000 baris. Angka dashboard seperti Total listened dan Top songs dihitung dari riwayat ini, jadi angkanya akan turun.",
+    "@historyCleanupMessage":  {
+                                "description":  "Pesan dialog bersihkan riwayat"
+                            },
+    "historyCleanupAction":  "Hapus",
+    "@historyCleanupAction":  {
+                              "description":  "Tombol konfirmasi bersihkan riwayat"
+                          },
+    "historyCleanupDone":  "Menghapus {count} baris riwayat",
+    "@historyCleanupDone":  {
+                             "description":  "Hasil bersihkan riwayat",
+                             "placeholders":  {
+                                                  "count":  {
+                                                            "type":  "int"
+                                                        }
+                                              }
+                         },
+    "historyCleanupFailed":  "Bersihkan riwayat gagal: {error}",
+    "@historyCleanupFailed":  {
+                                "description":  "Gagal bersihkan riwayat",
+                                "placeholders":  {
+                                                     "error":  {
+                                                               "type":  "String"
+                                                           }
+                                                 }
+                            }
 }

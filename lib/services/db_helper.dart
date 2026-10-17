@@ -1,5 +1,4 @@
-import 'dart:async';
-
+import 'package:flutter/foundation.dart';
 import 'package:swara/l10n/gen/app_localizations.dart';
 import 'package:swara/providers/language_provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -26,8 +25,18 @@ class DBHelper {
     return openDatabase(
       path,
       version: 9,
-      onCreate: (db, version) async {
+      onConfigure: (db) async {
+        // sqflite calls onConfigure before it opens the migration transaction,
+        // which is the only window where the journal mode can still be
+        // switched. See _applyPragmas.
         await _applyPragmas(db);
+      },
+      onOpen: (db) async {
+        // onOpen runs after the transaction is committed, so the tables are
+        // guaranteed to exist. This is where the indexes are created.
+        await _ensureIndexes(db);
+      },
+      onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE songs(
             id INTEGER PRIMARY KEY,
@@ -78,22 +87,11 @@ class DBHelper {
             includeInLibrary INTEGER DEFAULT 1
           )
         ''');
-        // Index so ORDER BY / dashboard filters never full-scan.
-        await db.execute('CREATE INDEX idx_songs_title ON songs(title)');
-        await db.execute(
-            'CREATE INDEX idx_songs_lastPlayedAt ON songs(lastPlayedAt)');
-        await db.execute(
-            'CREATE INDEX idx_listening_song_ts ON listening_entries(songId, timestamp)');
-        await db.execute(
-            'CREATE INDEX idx_playlist_songs_pid_pos ON playlist_songs(playlistId, position)');
-        // Covering indexes for the artist / album / case insensitive title
-        // sorts and for the timestamp range scan done by the prune job.
-        await db.execute('CREATE INDEX idx_songs_artist ON songs(artist)');
-        await db.execute('CREATE INDEX idx_songs_album ON songs(album)');
-        await db.execute(
-            'CREATE INDEX idx_songs_title_nocase ON songs(title COLLATE NOCASE)');
-        await db.execute(
-            'CREATE INDEX idx_listening_ts ON listening_entries(timestamp)');
+        // Indexes are deliberately NOT created here: onCreate runs inside the
+        // migration transaction, and an index that fails to be created there
+        // (for example because the device ran out of space during an upgrade)
+        // would stay missing. _ensureIndexes retries them on every open.
+        //
         // Disk cache for iTunes search responses so reinstalls do not
         // refetch songs that were already looked up (hits and misses).
         await db.execute('''
@@ -111,12 +109,16 @@ class DBHelper {
             fetchedAt TEXT
           )
         ''');
-        // Fire and forget, never awaited: history pruning must not delay the
-        // first load. A brand new DB has no rows, so this is a no-op here.
-        unawaited(_pruneSafely(db));
+        // No automatic prune of listening_entries here. The dashboard reads it
+        // with all time queries that have no date filter (getTotalListeningMs,
+        // getHourlyDistribution, getTopSongIds, getMostPlayedSongs), so
+        // dropping rows by age would silently change numbers that are still
+        // on screen. Pruning is user confirmed only, see pruneListeningEntries.
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        await _applyPragmas(db);
+        // No pragma tuning here: this callback runs inside the migration
+        // transaction, where SQLite refuses to change the journal mode.
+        // Indexes are created in onOpen as well, see _ensureIndexes.
         if (oldVersion < 2) {
           // Add the position column for the playlist reorder feature
           try {
@@ -148,16 +150,6 @@ class DBHelper {
           } catch (_) {
             // Column may already exist, ignore
           }
-          // Index for old DBs (v1-v3) that do not have them yet.
-          try {
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_songs_title ON songs(title)');
-            await db.execute(
-                'CREATE INDEX IF NOT EXISTS idx_songs_lastPlayedAt ON songs(lastPlayedAt)');
-            await db.execute(
-                'CREATE INDEX IF NOT EXISTS idx_listening_song_ts ON listening_entries(songId, timestamp)');
-            await db.execute(
-                'CREATE INDEX IF NOT EXISTS idx_playlist_songs_pid_pos ON playlist_songs(playlistId, position)');
-          } catch (_) {}
         }
         if (oldVersion < 5) {
           // Disk cache for iTunes responses (hits and miss markers).
@@ -232,112 +224,205 @@ class DBHelper {
           }
         }
         if (oldVersion < 9) {
-          // Extra indexes for the library sorts (artist, album, case
-          // insensitive title) and for the timestamp range scan that the
-          // listening history prune relies on. IF NOT EXISTS keeps this safe
-          // for DBs that already got them.
+          // The v9 indexes for artist and album were created on the bare
+          // columns, so they use the BINARY collation, while
+          // _sanitizeSongsOrderBy always sorts artist and album COLLATE
+          // NOCASE. SQLite refuses to use such an index for a COLLATE NOCASE
+          // sort, so the sort still full scans. Drop them and let
+          // _ensureIndexes create the matching NOCASE ones on every open.
+          // Only installs that still upgrade through v9 run this, devices that
+          // already reached v9 keep the unused indexes until reinstall.
           try {
-            await db.execute(
-                'CREATE INDEX IF NOT EXISTS idx_songs_artist ON songs(artist)');
-            await db.execute(
-                'CREATE INDEX IF NOT EXISTS idx_songs_album ON songs(album)');
-            await db.execute(
-                'CREATE INDEX IF NOT EXISTS idx_songs_title_nocase ON songs(title COLLATE NOCASE)');
-            await db.execute(
-                'CREATE INDEX IF NOT EXISTS idx_listening_ts ON listening_entries(timestamp)');
-          } catch (_) {
-            // Index creation is best effort, queries still work without it.
+            await db.execute('DROP INDEX IF EXISTS idx_songs_artist');
+            await db.execute('DROP INDEX IF EXISTS idx_songs_album');
+          } catch (e) {
+            debugPrint('DBHelper: dropping the unused v9 indexes failed: $e');
           }
         }
-        // Fire and forget, never awaited: the prune must not block the open.
-        // The dashboard only reads 12 months back, so nothing it needs is
-        // touched here.
-        unawaited(_pruneSafely(db));
+        // No automatic prune of listening_entries here. Besides deleting
+        // numbers the dashboard still shows (see the note in onCreate), any
+        // statement issued while the migration transaction is open joins that
+        // transaction, so a DELETE sent from this callback would block
+        // openDatabase() until it finished. Pruning is user confirmed only,
+        // see pruneListeningEntries.
       },
     );
   }
 
   // ---------- SQLite tuning ----------
-  /// Best effort performance pragmas, applied on create and on every upgrade.
-  /// Each pragma runs in its own try/catch: some are unsupported on some
-  /// platforms (for example pragma balancing is not available on Android),
-  /// and one failing pragma must never abort the rest or the whole open.
+  /// Apply the SQLite pragmas on every open.
+  ///
+  /// Called from onConfigure, which sqflite runs before it opens the
+  /// migration transaction. That placement is required for journal_mode:
+  /// SQLite cannot switch journal mode while a transaction is active, so
+  /// running this from onCreate or onUpgrade (both inside the exclusive
+  /// transaction) always failed and left the database in DELETE mode.
+  ///
+  /// Nothing is trusted blindly: journal_mode is read back and the real mode
+  /// is logged when it is not WAL, and every other failing pragma is logged
+  /// too instead of being swallowed.
   static Future<void> _applyPragmas(Database db) async {
+    try {
+      // setJournalMode hides the Android quirk where the pragma only takes
+      // effect through rawQuery when WAL is not enabled in the manifest.
+      await db.setJournalMode('wal');
+    } catch (e) {
+      debugPrint('DBHelper: setJournalMode(wal) failed: $e');
+    }
+    try {
+      final rows = await db.rawQuery('PRAGMA journal_mode');
+      final actual =
+          rows.isEmpty ? null : rows.first.values.first?.toString().toLowerCase();
+      if (actual != 'wal') {
+        debugPrint('DBHelper: journal_mode is "$actual" instead of "wal" '
+            'after configuring the database.');
+      }
+    } catch (e) {
+      debugPrint('DBHelper: could not read back PRAGMA journal_mode: $e');
+    }
+
     const pragmas = <String>[
-      'PRAGMA journal_mode=WAL',
       'PRAGMA synchronous=NORMAL',
       'PRAGMA cache_size=-8000', // 8 MB page cache
       'PRAGMA temp_store=MEMORY',
-      'PRAGMA mmap_size=134217728', // 128 MB memory mapped reads
     ];
     for (final sql in pragmas) {
       try {
         await db.execute(sql);
-      } catch (_) {
-        // Unsupported on this build, ignore and keep the other pragmas.
+      } catch (e) {
+        debugPrint('DBHelper: "$sql" failed: $e');
+      }
+    }
+
+    // mmap_size answers with a row, so it needs rawQuery instead of execute.
+    try {
+      await db.rawQuery('PRAGMA mmap_size=134217728'); // 128 MB
+    } catch (e) {
+      debugPrint('DBHelper: PRAGMA mmap_size failed: $e');
+    }
+  }
+
+  /// Index name to CREATE statement for every index the app relies on.
+  ///
+  /// The NOCASE variants exist because _sanitizeSongsOrderBy sorts title,
+  /// artist and album with COLLATE NOCASE. An index on the bare column keeps
+  /// the BINARY collation of that column and SQLite will not use it to
+  /// satisfy a COLLATE NOCASE sort, so the sort would still full scan.
+  /// idx_songs_title stays BINARY because getAllSongs, getFavorites and
+  /// getNeverPlayedSongs sort title without COLLATE.
+  static const Map<String, String> _indexStatements = <String, String>{
+    'idx_songs_title':
+        'CREATE INDEX IF NOT EXISTS idx_songs_title ON songs(title)',
+    'idx_songs_lastPlayedAt': 'CREATE INDEX IF NOT EXISTS '
+        'idx_songs_lastPlayedAt ON songs(lastPlayedAt)',
+    'idx_songs_addedAt':
+        'CREATE INDEX IF NOT EXISTS idx_songs_addedAt ON songs(addedAt)',
+    'idx_songs_title_nocase': 'CREATE INDEX IF NOT EXISTS '
+        'idx_songs_title_nocase ON songs(title COLLATE NOCASE)',
+    'idx_songs_artist_nocase': 'CREATE INDEX IF NOT EXISTS '
+        'idx_songs_artist_nocase ON songs(artist COLLATE NOCASE)',
+    'idx_songs_album_nocase': 'CREATE INDEX IF NOT EXISTS '
+        'idx_songs_album_nocase ON songs(album COLLATE NOCASE)',
+    'idx_listening_song_ts': 'CREATE INDEX IF NOT EXISTS '
+        'idx_listening_song_ts ON listening_entries(songId, timestamp)',
+    'idx_listening_ts': 'CREATE INDEX IF NOT EXISTS '
+        'idx_listening_ts ON listening_entries(timestamp)',
+    'idx_playlist_songs_pid_pos': 'CREATE INDEX IF NOT EXISTS '
+        'idx_playlist_songs_pid_pos ON playlist_songs(playlistId, position)',
+  };
+
+  /// Make sure every index exists. Called from onOpen, which sqflite runs after
+  /// the migration transaction is committed, so the tables are guaranteed to
+  /// exist by then (a fresh install creates them in onCreate first).
+  ///
+  /// CREATE INDEX IF NOT EXISTS is idempotent and cheap, so this also repairs
+  /// an upgrade that failed halfway, for example because the device ran out
+  /// of storage: the missing indexes are created on the next open. There is no
+  /// heavy await here, only one statement per missing index, so it does not
+  /// hold up startup.
+  static Future<void> _ensureIndexes(Database db) async {
+    for (final entry in _indexStatements.entries) {
+      try {
+        await db.execute(entry.value);
+      } catch (e) {
+        debugPrint('DBHelper: index ${entry.key} could not be created: $e');
       }
     }
   }
 
-  /// Fire and forget wrapper for the history prune, used from onCreate and
-  /// onUpgrade. [db] is the handle passed to the callback: going through the
-  /// lazy `db` getter there would re-enter _init while the database is still
-  /// opening. Errors are swallowed on purpose.
-  static Future<void> _pruneSafely(Database db) async {
-    try {
-      await _pruneListeningEntriesOn(db);
-    } catch (_) {
-      // Best effort only, older rows simply stay.
-    }
-  }
-
-  /// Drop listening history rows that are no longer needed.
+  /// Drop listening history rows, never called automatically.
   ///
-  /// Two passes: first every row older than [keepDays], then, when the table
-  /// is still bigger than [keepMaxRows], the oldest rows until the row count
-  /// fits. Returns the total number of deleted rows.
+  /// The dashboard reads listening_entries with all time queries that have no
+  /// date filter (getTotalListeningMs, getHourlyDistribution,
+  /// getTopSongIds, getMostPlayedSongs), so deleting rows by age would remove
+  /// numbers that are still shown to the user. This runs only when the user
+  /// explicitly confirmed it, through pruneListeningEntries.
   ///
-  /// listening_entries columns are id / songId / timestamp / listenedMs, and
-  /// timestamp is stored as an ISO8601 TEXT value (see ListeningEntry.toMap),
-  /// so the cutoff is compared as an ISO string. For that format the
-  /// lexicographic order equals the chronological order, which also lets
-  /// idx_listening_ts serve both the range delete and the ORDER BY.
+  /// Three passes: corrupt timestamps first, then rows older than [keepDays],
+  /// then, when the table is still bigger than [keepMaxRows], the oldest rows
+  /// until the row count fits. Returns the total number of deleted rows.
   static Future<int> _pruneListeningEntriesOn(
     Database database, {
     int keepDays = 365,
     int keepMaxRows = 200000,
   }) async {
-    final safeDays = keepDays < 0 ? 0 : keepDays;
-    final safeMaxRows = keepMaxRows < 1 ? 1 : keepMaxRows;
-    final cutoffMs = DateTime.now()
-        .millisecondsSinceEpoch -
-        safeDays * Duration.millisecondsPerDay;
-    final cutoff = DateTime.fromMillisecondsSinceEpoch(cutoffMs).toIso8601String();
+    var deleted = 0;
 
-    var deleted = await database.delete(
+    // Pass 1: corrupt rows on their own. A NULL or empty timestamp cannot be
+    // ordered or age compared, so it would otherwise survive and still take
+    // up part of the row budget below.
+    deleted += await database.delete(
       'listening_entries',
-      where: 'timestamp < ?',
-      whereArgs: [cutoff],
+      where: 'timestamp IS NULL OR TRIM(timestamp) = ?',
+      whereArgs: [''],
     );
 
-    final count = Sqflite.firstIntValue(await database
+    // Pass 2: age. The comparison goes through julianday() and never through
+    // a raw string compare, because backup_service stores the timestamp string
+    // exactly as it appears in the backup: short forms (2024-01-02) or
+    // timezone offsets (...+07:00) sit in the table next to full local
+    // ISO8601 strings, and a lexicographic compare would drop the wrong rows.
+    // julianday() is not indexable, so this pass scans the table; that is why
+    // it must stay off the startup path.
+    final safeDays = keepDays < 0 ? 0 : keepDays;
+    final cutoff = DateTime.now().subtract(Duration(days: safeDays));
+    deleted += await database.rawDelete(
+      'DELETE FROM listening_entries WHERE julianday(timestamp) < julianday(?)',
+      [cutoff.toIso8601String()],
+    );
+
+    // Pass 3: row cap, in chunks so no single statement has to materialize
+    // hundreds of thousands of ids at once. ORDER BY timestamp ASC, id ASC
+    // keeps the selection deterministic across chunks, and the yield between
+    // chunks stops one long run from holding the write lock throughout.
+    final safeMaxRows = keepMaxRows < 1 ? 1 : keepMaxRows;
+    const chunkSize = 20000;
+    final total = Sqflite.firstIntValue(await database
             .rawQuery('SELECT COUNT(*) FROM listening_entries')) ??
         0;
-    final overflow = count - safeMaxRows;
-    if (overflow <= 0) return deleted;
-
-    final trimmed = await database.rawDelete(
-      'DELETE FROM listening_entries WHERE id IN ('
-      'SELECT id FROM listening_entries ORDER BY timestamp ASC LIMIT ?)',
-      [overflow],
-    );
-    deleted += trimmed;
+    var overflow = total - safeMaxRows;
+    while (overflow > 0) {
+      final chunk = overflow < chunkSize ? overflow : chunkSize;
+      deleted += await database.rawDelete(
+        'DELETE FROM listening_entries WHERE id IN ('
+        'SELECT id FROM listening_entries ORDER BY timestamp ASC, id ASC LIMIT ?)',
+        [chunk],
+      );
+      overflow -= chunk;
+      if (overflow > 0) {
+        await Future<void>.delayed(Duration.zero);
+      }
+    }
     return deleted;
   }
 
   /// Public entry point: prune [listening_entries] to [keepDays] of history
   /// and at most [keepMaxRows] rows. Returns the number of deleted rows.
-  /// The dashboard only needs 12 months back, so the defaults keep it intact.
+  ///
+  /// Never called on startup or during a migration: several dashboard queries
+  /// read listening_entries without a date filter, so rows deleted here change
+  /// totals the user can still see. Only call this from UI code, after the
+  /// user explicitly confirmed the deletion.
   Future<int> pruneListeningEntries({
     int keepDays = 365,
     int keepMaxRows = 200000,

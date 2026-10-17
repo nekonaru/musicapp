@@ -60,8 +60,24 @@ class PlayerService extends ChangeNotifier {
   static const double speedMax = 2.0;
   static const double pitchMin = 0.5;
   static const double pitchMax = 2.0;
+  // Persisted with the same pattern as the crossfade seconds key, so the
+  // chosen rate survives an app restart instead of resetting to 1.0.
+  static const String _prefsSpeedKey = 'playbackSpeed';
+  static const String _prefsPitchKey = 'playbackPitch';
   double _speed = 1.0;
   double _pitch = 1.0;
+  // Minimum gap between two real platform speed/pitch calls. A slider drag
+  // fires dozens of events per second, each one a platform channel round
+  // trip and a full screen rebuild, so the apply is throttled here and the
+  // final value is always applied by the trailing call.
+  static const Duration speedPitchThrottleInterval =
+      Duration(milliseconds: 120);
+  DateTime? _lastSpeedPitchApply;
+  Timer? _speedPitchApplyTimer;
+  // Prefs writes are deferred the same way, so a drag never touches disk
+  // more than once.
+  static const Duration speedPitchPersistDelay = Duration(milliseconds: 400);
+  Timer? _speedPitchPersistTimer;
 
   // In-memory smart shuffle statistics. Play counts come from the listening
   // history table and the last played stamp is kept locally, updated whenever
@@ -263,6 +279,17 @@ class PlayerService extends ChangeNotifier {
       if (minute != null && minute >= 0 && minute <= 59) {
         _sleepScheduleMinute = minute;
       }
+      // Playback speed and pitch. Clamped on read as well, so a corrupted or
+      // out of range stored value can never produce an unplayable rate.
+      // TODO L10N: no user facing string added here, English only.
+      final savedSpeed = prefs.getDouble(_prefsSpeedKey);
+      if (savedSpeed != null && savedSpeed.isFinite) {
+        _speed = savedSpeed.clamp(speedMin, speedMax).toDouble();
+      }
+      final savedPitch = prefs.getDouble(_prefsPitchKey);
+      if (savedPitch != null && savedPitch.isFinite) {
+        _pitch = savedPitch.clamp(pitchMin, pitchMax).toDouble();
+      }
     } catch (e) {
       debugPrint('Crossfade duration load failed: $e');
     }
@@ -300,6 +327,10 @@ class PlayerService extends ChangeNotifier {
     // Subscribe only while playing so crossfade triggers keep working
     // without draining battery while paused.
     await _subscribePosition();
+    // Everything is loaded now. Notify once so any UI built before init
+    // finished (crossfade seconds, smart shuffle, sleep schedule, speed and
+    // pitch) shows the persisted values instead of the defaults.
+    if (!_disposed) notifyListeners();
   }
 
   /// Shared position tick for the active player. A-B repeat is checked
@@ -454,6 +485,10 @@ class PlayerService extends ChangeNotifier {
     _cancelPauseFade();
     _cancelCrossfade();
     _clearABRepeatSilent(); // new track, drop any A-B segment
+    // Manual navigation means the user took over, so a pending "stop after
+    // this song" sleep flag must not survive. The natural end path clears it
+    // inside _onNaturalTrackEnd before it ever reaches these methods.
+    _pendingSleepStop = false;
     _usingCrossfadePlayer = false;
     await _vol(() => _crossfadePlayer?.pause() ?? Future<void>.value());
     // Drop the standby player while crossfade is off so manual
@@ -686,6 +721,10 @@ class PlayerService extends ChangeNotifier {
     _cancelPauseFade();
     _cancelCrossfade();
     _clearABRepeatSilent(); // new track, drop any A-B segment
+    // Manual navigation means the user took over, so a pending "stop after
+    // this song" sleep flag must not survive. The natural end path clears it
+    // inside _onNaturalTrackEnd before it ever reaches these methods.
+    _pendingSleepStop = false;
     await _vol(() => _crossfadePlayer?.pause() ?? Future<void>.value());
     _usingCrossfadePlayer = false;
     if (!crossfadeEnabled) _releaseCrossfadePlayer();
@@ -710,6 +749,10 @@ class PlayerService extends ChangeNotifier {
     _cancelPauseFade();
     _cancelCrossfade();
     _clearABRepeatSilent(); // new track, drop any A-B segment
+    // Manual navigation means the user took over, so a pending "stop after
+    // this song" sleep flag must not survive. The natural end path clears it
+    // inside _onNaturalTrackEnd before it ever reaches these methods.
+    _pendingSleepStop = false;
     await _vol(() => _crossfadePlayer?.pause() ?? Future<void>.value());
     _usingCrossfadePlayer = false;
     if (!crossfadeEnabled) _releaseCrossfadePlayer();
@@ -751,6 +794,10 @@ class PlayerService extends ChangeNotifier {
     _cancelPauseFade();
     _cancelCrossfade();
     _clearABRepeatSilent(); // new track, drop any A-B segment
+    // Manual navigation means the user took over, so a pending "stop after
+    // this song" sleep flag must not survive. The natural end path clears it
+    // inside _onNaturalTrackEnd before it ever reaches these methods.
+    _pendingSleepStop = false;
     await _vol(() => _crossfadePlayer?.pause() ?? Future<void>.value());
     _usingCrossfadePlayer = false;
     if (!crossfadeEnabled) _releaseCrossfadePlayer();
@@ -869,12 +916,17 @@ class PlayerService extends ChangeNotifier {
   /// Set the playback speed, clamped to speedMin..speedMax and applied to
   /// every player that exists right now (the standby player is only touched
   /// when it already exists, it is never created just for this).
+  /// The platform call is throttled, so a slider drag stays cheap, and the
+  /// new value is persisted (debounced) for the next app run.
   // TODO L10N: no user facing string added here, English only.
   Future<void> setPlaybackSpeed(double speed) async {
     if (_disposed) return;
-    _speed = speed.clamp(speedMin, speedMax).toDouble();
-    await _applySpeedPitch();
+    final clamped = speed.clamp(speedMin, speedMax).toDouble();
+    if (clamped == _speed) return; // no real change, no notify and no apply
+    _speed = clamped;
     notifyListeners();
+    _scheduleSpeedPitchApply();
+    _scheduleSpeedPitchPersist();
   }
 
   /// Set the pitch, clamped to pitchMin..pitchMax. Pitch is independent from
@@ -882,9 +934,12 @@ class PlayerService extends ChangeNotifier {
   // TODO L10N: no user facing string added here, English only.
   Future<void> setPlaybackPitch(double pitch) async {
     if (_disposed) return;
-    _pitch = pitch.clamp(pitchMin, pitchMax).toDouble();
-    await _applySpeedPitch();
+    final clamped = pitch.clamp(pitchMin, pitchMax).toDouble();
+    if (clamped == _pitch) return; // no real change, no notify and no apply
+    _pitch = clamped;
     notifyListeners();
+    _scheduleSpeedPitchApply();
+    _scheduleSpeedPitchPersist();
   }
 
   /// Restore both speed and pitch to 1.0 in one call.
@@ -893,8 +948,57 @@ class PlayerService extends ChangeNotifier {
     if (_disposed) return;
     _speed = 1.0;
     _pitch = 1.0;
-    await _applySpeedPitch();
     notifyListeners();
+    _scheduleSpeedPitchApply();
+    _scheduleSpeedPitchPersist();
+  }
+
+  /// Apply the current values now when the throttle window has passed, else
+  /// queue exactly one trailing apply. That trailing call guarantees the last
+  /// value always reaches the platform, while a drag stays limited to about
+  /// one platform call per [speedPitchThrottleInterval].
+  void _scheduleSpeedPitchApply() {
+    if (_disposed) return;
+    final last = _lastSpeedPitchApply;
+    final since = last == null
+        ? speedPitchThrottleInterval
+        : DateTime.now().difference(last);
+    if (_speedPitchApplyTimer != null) {
+      // A trailing apply is already queued, it will pick up the newest value.
+      return;
+    }
+    if (since >= speedPitchThrottleInterval) {
+      _applySpeedPitchThrottled();
+      return;
+    }
+    _speedPitchApplyTimer = Timer(speedPitchThrottleInterval - since, () {
+      _speedPitchApplyTimer = null;
+      _applySpeedPitchThrottled();
+    });
+  }
+
+  Future<void> _applySpeedPitchThrottled() async {
+    if (_disposed) return;
+    _lastSpeedPitchApply = DateTime.now();
+    await _applySpeedPitch();
+  }
+
+  /// Defer the prefs write so a slider drag never writes to disk more than
+  /// once per [speedPitchPersistDelay].
+  void _scheduleSpeedPitchPersist() {
+    _speedPitchPersistTimer?.cancel();
+    _speedPitchPersistTimer = Timer(
+        speedPitchPersistDelay, _persistSpeedPitch);
+  }
+
+  Future<void> _persistSpeedPitch() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_prefsSpeedKey, _speed);
+      await prefs.setDouble(_prefsPitchKey, _pitch);
+    } catch (e) {
+      debugPrint('Speed/pitch save failed: $e');
+    }
   }
 
   /// Push the current speed and pitch to every player in the service.
@@ -1081,6 +1185,11 @@ class PlayerService extends ChangeNotifier {
     _sleepTimer?.cancel();
     _cancelSleepFadeOut();
     sleepSongsRemaining = null; // time mode and song-count mode are mutually exclusive
+    // A pending stop belongs to the timer that armed it. Starting a new
+    // timer must clear it, otherwise a stale flag from an earlier session
+    // (for example one that ended while the user navigated manually) would
+    // stop the next session after a single song.
+    _pendingSleepStop = false;
     sleepTimerEndTime = DateTime.now().add(duration);
     _finishCurrentSongOnSleep = finishCurrentSong;
     _sleepTimer = Timer(duration, () async {
@@ -1102,15 +1211,26 @@ class PlayerService extends ChangeNotifier {
     _sleepTimer?.cancel();
     _cancelSleepFadeOut();
     sleepTimerEndTime = null; // time mode and song-count mode are mutually exclusive
+    // Song count mode has its own stop decision, so no pending time based
+    // stop may survive the switch.
+    _pendingSleepStop = false;
     sleepSongsRemaining = songCount;
     notifyListeners();
   }
+
+  /// True while the running time based timer waits for the current song to
+  /// finish instead of stopping at once. Lets the UI seed its checkbox from
+  /// the service instead of a stale local default.
+  bool get finishCurrentSongOnSleep => _finishCurrentSongOnSleep;
 
   /// Update whether the running time based timer waits for the current
   /// song to finish instead of fading out at once.
   /// TODO L10N: no user facing string added here, English only.
   void setFinishCurrentSongOnSleep(bool value) {
     _finishCurrentSongOnSleep = value;
+    // Turning the option off must also cancel an already armed pending stop,
+    // otherwise the session still ends with the current song.
+    if (!value) _pendingSleepStop = false;
     notifyListeners();
   }
 
@@ -1434,7 +1554,9 @@ class PlayerService extends ChangeNotifier {
 
   @override
   void dispose() {
-    _disposed = true;
+    // NOTE: _disposed is set at the very END of this method on purpose.
+    // _logListening() bails out when _disposed is true, so flagging it first
+    // would silently drop the final listening history flush.
     _cancelCrossfade();
     _sleepFadeGeneration++;
     _sleepFadeActive = false;
@@ -1449,6 +1571,14 @@ class PlayerService extends ChangeNotifier {
     _crossfadeStateSub?.cancel();
     _sleepScheduleTicker?.cancel();
     _sleepScheduleTicker = null;
+    _speedPitchApplyTimer?.cancel();
+    _speedPitchApplyTimer = null;
+    // A pending speed/pitch write must still reach disk.
+    if (_speedPitchPersistTimer?.isActive ?? false) {
+      _speedPitchPersistTimer!.cancel();
+      unawaited(_persistSpeedPitch());
+    }
+    _speedPitchPersistTimer = null;
     // ChangeNotifier.dispose() is sync void, never turn it into a Future.
     // Players are disposed fire and forget because the singleton lives for the whole app run.
     _player.dispose().catchError((e) {
@@ -1459,6 +1589,9 @@ class PlayerService extends ChangeNotifier {
     });
     _crossfadePlayer = null;
     unawaited(EqualizerService.instance.release());
+    // Everything above needed _disposed to be false. Set it last, right
+    // before super.dispose(), so no async callback can slip in afterwards.
+    _disposed = true;
     super.dispose();
   }
 }

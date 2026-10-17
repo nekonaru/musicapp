@@ -31,6 +31,12 @@ class LibraryProvider extends ChangeNotifier {
   String? scanError;
   SortOption sortOption = SortOption.titleAZ;
 
+  // Monotonic counter bumped every time the song list is replaced, reordered
+  // or has a row removed. Consumers use it to invalidate derived caches (A-Z
+  // map, id to row index, groupings) with a cheap int compare instead of
+  // deep comparing thousands of songs.
+  int _songsVersion = 0;
+
   static const _kSortOption = 'lib_sort_option';
   static const _kLastDeviceScan = 'last_device_scan_ms';
   // Auto scan only when more than 30 minutes have passed
@@ -80,6 +86,9 @@ class LibraryProvider extends ChangeNotifier {
             return !excluded.contains(folder);
           }).toList();
     _applySort();
+    // Content may have changed while the length stayed the same (metadata
+    // edits, one file removed and one added), so bump the version.
+    _songsVersion++;
     _lastFullLoadAt = DateTime.now();
     notifyListeners();
   }
@@ -172,9 +181,14 @@ class LibraryProvider extends ChangeNotifier {
   void setSortOption(SortOption option) {
     sortOption = option;
     _applySort();
+    // Same rows, different order: derived indexes must be rebuilt.
+    _songsVersion++;
     _savePrefs();
     notifyListeners();
   }
+
+  /// Cheap change token for the current [songs] list, content and order.
+  int get songsVersion => _songsVersion;
 
   /// ORDER BY key matching DBHelper.querySongsPage whitelist for [opt].
   /// Keeps DB paging order consistent with the in memory [_applySort].
@@ -326,6 +340,7 @@ class LibraryProvider extends ChangeNotifier {
   Future<void> deleteSong(Song song) async {
     await DBHelper.instance.deleteSong(song.id);
     songs.removeWhere((s) => s.id == song.id);
+    _songsVersion++;
     notifyListeners();
   }
 

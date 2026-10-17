@@ -1786,4 +1786,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editLyricsSearchOpenFailed => 'Could not open the browser';
+
+  @override
+  String librarySelectAllTooMany(int limit) {
+    return 'Too many songs to select all at once. Select up to $limit songs.';
+  }
+
+  @override
+  String libraryPartialAddedToPlaylist(
+      int added, int total, String name, int failed) {
+    return 'Added $added of $total songs to $name, $failed failed.';
+  }
+
+  @override
+  String libraryFavoritesAdded(int count) {
+    return '$count songs added to favorites';
+  }
+
+  @override
+  String get historyCleanupTitle => 'Clean up listening history';
+
+  @override
+  String get historyCleanupSubtitle =>
+      'Delete old listening history older than 12 months and cap the total rows';
+
+  @override
+  String get historyCleanupDialogTitle => 'Delete old listening history?';
+
+  @override
+  String get historyCleanupMessage =>
+      'Listening history older than 12 months will be deleted, and the oldest rows will be removed until at most 200,000 rows remain. Dashboard totals such as Total listened and Top songs are based on this history, so those numbers will go down.';
+
+  @override
+  String get historyCleanupAction => 'Delete';
+
+  @override
+  String historyCleanupDone(int count) {
+    return 'Deleted $count history rows';
+  }
+
+  @override
+  String historyCleanupFailed(String error) {
+    return 'History cleanup failed: $error';
+  }
 }

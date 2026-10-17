@@ -225,29 +225,26 @@ jobs:
           body: |
             # English
 
-            **Swara v2.6.0 - Full lists, speed control, and smart shuffle**
-
-            ## ✨ New features
-
-            - Every list now shows all items at once with no Load more button, while scrolling stays smooth on huge libraries.
-            - A-Z jump is instant via an in-memory letter index, and shuffle or play always covers every song.
-            - Jump-to-playing-song button appears when the current track is off screen.
-            - Select all rows from the multi-select bar.
-            - Playback speed 0.5x to 2.0x and pitch control with live apply and reset, from a chip in the player.
-            - Smart shuffle that favors rarely played and long unplayed songs.
-            - Daily sleep schedule: a 30 minute sleep timer that starts by itself at your chosen time.
-            - Play all and Shuffle buttons on the Albums, Artists, and Genres screens.
-
-            ## ⚡ Performance
-
-            - SQLite WAL mode, tuned pragmas, memory mapped reads, and new indexes on artist, album, title, and play timestamp.
-            - Listening history is pruned automatically (12 months, with a row cap) so the database stays small.
-            - Search no longer pages: results render lazily with a 250 ms debounce and a stale-result guard.
-            - Cover thumbnails are decoded at a small size in every list, which cuts memory and jank.
+            **Swara v2.6.1 - Audit fixes for v2.6.0**
 
             ## 🐛 Bug fixes
 
-            - Search lyrics on Google (and the developer link) now open the browser again. The app could not see any browser on Android 11 or newer without a package visibility declaration, and it no longer relies on a canLaunch check that always failed there.
+            - **Listening history is no longer deleted behind your back.** v2.6.0 pruned rows older than 12 months automatically during the database upgrade. The dashboard totals are computed from that history with no date filter, so Total listened, Top songs, Top artists and the listening hours chart could silently shrink. Cleanup is now an action you trigger yourself in Settings, and the dialog says plainly that those numbers will go down.
+            - **Database tuning now actually applies.** WAL and the other pragmas were being set from inside the migration transaction, where SQLite refuses to change journal mode, and the failures were swallowed. They now run before the transaction and the result is verified.
+            - **The upgrade no longer stalls on startup.** The prune ran inside the migration transaction despite a comment saying it was fire and forget, which delayed the database open.
+            - **History cleanup compares dates correctly**, so entries restored from a backup with a timezone offset are no longer at risk.
+            - **Indexes match the sort order.** Artist and album indexes used a different collation than the queries, so SQLite ignored them and every sort stayed a full scan. Indexes are also retried on every open, so a failed index now heals itself.
+            - **A-Z jump and search results can no longer go stale** when metadata changes without changing the song count, for example after a metadata scan.
+            - **Sleep schedule is reliable again.** A leftover flag could stop playback after the first song, and the sheet did not update when a scheduled session started while it was open.
+            - **Speed and pitch are remembered** across restarts, and dragging the slider no longer rebuilds the whole player screen on every frame.
+            - **Select all is safe on large libraries.** It is capped, bulk writes are batched, and the result message now reports what really happened instead of the requested count.
+            - **List rows no longer overflow** when the text size setting is increased.
+            - **Search results no longer rebuild entirely** on every play or pause, and grouping work is cached instead of repeated on each scan progress update.
+
+            ## 🧪 Verification
+
+            - Localization parity is now enforced by tests: every English key must exist in Indonesian with the same placeholders.
+            - A regression test blocks the automatic history prune from coming back.
 
             ## 📦 Install / Update
 
@@ -261,29 +258,26 @@ jobs:
 
             # Bahasa Indonesia
 
-            **Swara v2.6.0 - List penuh, kontrol kecepatan, dan acak pintar**
-
-            ## ✨ Fitur baru
-
-            - Semua list sekarang menampilkan seluruh isi tanpa tombol Load more, dan scroll tetap halus di pustaka besar.
-            - Lompat A-Z instan lewat peta huruf di memori; shuffle dan putar selalu mencakup semua lagu.
-            - Tombol lompat ke lagu kini muncul saat lagu yang sedang diputar di luar layar.
-            - Pilih semua baris langsung dari bar multi-select.
-            - Kecepatan putar 0.5x sampai 2.0x plus kontrol nada, berlaku langsung dan bisa di reset, dari chip di player.
-            - Acak pintar yang memprioritaskan lagu jarang diputar dan lama tidak diputar.
-            - Jadwal tidur harian: sleep timer 30 menit yang berjalan otomatis pada jam pilihan.
-            - Tombol Putar semua dan Acak di layar Album, Artis, dan Genre.
-
-            ## ⚡ Performa
-
-            - SQLite mode WAL, pragma di optimasi, baca memory mapped, plus index baru untuk artis, album, judul, dan waktu putar.
-            - Riwayat pendengaran dibersihkan otomatis (12 bulan, dengan batas baris) agar database tetap kecil.
-            - Search tidak lagi berdenyut: hasil dirender lazy dengan debounce 250 ms dan penjaga hasil basi.
-            - Cover di semua list di-decode pada ukuran kecil, menghemat memori dan mengurangi lag.
+            **Swara v2.6.1 - Perbaikan audit untuk v2.6.0**
 
             ## 🐛 Perbaikan bug
 
-            - Cari lirik di Google (dan link developer) kembali bisa membuka browser. Aplikasi tidak bisa melihat browser apa pun di Android 11 ke atas tanpa deklarasi package visibility, dan sekarang tidak lagi bergantung pada pengecekan canLaunch yang selalu gagal di sana.
+            - **Riwayat pendengaran tidak lagi dihapus diam-diam.** v2.6.0 menghapus riwayat lebih dari 12 bulan secara otomatis saat upgrade database. Total di dashboard dihitung dari riwayat itu tanpa filter tanggal, jadi Total listened, Top songs, Top artists, dan grafik jam bisa menyusut tanpa jejak. Sekarang pembersihan jadi aksi yang kamu jalankan sendiri di Pengaturan, dan dialognya menyebutkan terus terang bahwa angka tersebut akan turun.
+            - **Tuning database sekarang benar-benar berlaku.** WAL dan pragma lain dijalankan dari dalam transaksi migrasi, tempat SQLite menolak pergantian journal mode, dan kegagalannya ditelan. Sekarang dijalankan sebelum transaksi dan hasilnya diverifikasi.
+            - **Upgrade tidak lagi menunda startup.** Prune jalan di dalam transaksi migrasi meski komentarnya bilang fire and forget, sehingga database ikut tertunda.
+            - **Perbandingan tanggal pada pembersihan riwayat kini benar**, jadi entri hasil restore backup dengan offset timezone tidak lagi berisiko terhapus.
+            - **Index sudah cocok dengan urutan sort.** Index artis dan album memakai collation berbeda dari query, jadi SQLite mengabaikannya dan setiap sort tetap full scan. Index juga dicoba ulang setiap buka, sehingga index yang gagal sekarang akan pulih sendiri.
+            - **Lompat A-Z dan hasil search tidak lagi basi** saat metadata berubah tanpa jumlah lagu berubah, misalnya setelah scan metadata.
+            - **Jadwal tidur kembali andal.** Ada flag sisa yang bisa menghentikan playback setelah lagu pertama, dan sheet tidak memperbarui tampilan saat sesi terjadwal dimulai selagi sheet terbuka.
+            - **Kecepatan dan nada diingat** setelah app ditutup, dan menggeser slider tidak lagi membangun ulang seluruh layar player tiap frame.
+            - **Pilih all aman di pustaka besar.** Ada batas jumlah, penulisan massal diproses bertahap, dan pesan hasil sekarang melaporkan apa yang benar-benar terjadi, bukan jumlah yang diminta.
+            - **Baris list tidak lagi meluber** saat pengaturan ukuran teks dinaikkan.
+            - **Hasil search tidak lagi dibangun ulang seluruhnya** tiap play atau pause, dan kerja pengelompokan di-cache, tidak diulang tiap update progres scan.
+
+            ## 🧪 Verifikasi
+
+            - Paritas lokalisasi dijaga test: setiap key English harus ada di Indonesian dengan placeholder yang sama.
+            - Test regresi mencegah pembersihan riwayat otomatis agar tidak kembali lagi.
 
             ## 📦 Instalasi / Update
 

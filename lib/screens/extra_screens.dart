@@ -23,6 +23,28 @@ import 'playlist_detail_screen.dart';
 // paging window: rendering stays lazy through the sliver list.
 const int _kFullListLimit = 100000;
 
+// Hoisted so the pattern is compiled once per file instead of once per row by
+// the A-Z rails and the A-Z jumps of the folder and favorites screens.
+final RegExp _leadingLetterReg = RegExp(r'^[a-zA-Z]');
+
+// Rows below sit in a fixed height box (itemExtent 72 or 64) while the app
+// allows text scales up to 2x, so the text of a row is clamped to stay inside
+// that box instead of overflowing at large scales.
+const double _kRowMaxTextScale = 1.5;
+
+/// Clamped text scale for text inside a fixed height row.
+TextScaler _rowTextScaler(BuildContext context) =>
+    MediaQuery.textScalerOf(context).clamp(maxScaleFactor: _kRowMaxTextScale);
+
+/// Clamp the text scale of a fixed height row built from a ListTile. ListTile
+/// has no textScaler parameter, so the tile subtree gets a clamped MediaQuery.
+Widget _clampRowText(BuildContext context, Widget child) {
+  final scaler = _rowTextScaler(context);
+  final mq = MediaQuery.of(context);
+  if (scaler == mq.textScaler) return child;
+  return MediaQuery(data: mq.copyWith(textScaler: scaler), child: child);
+}
+
 // ─────────────────────────────────────────────────────────────
 // SHARED WIDGET: consistent song list tile used on every screen
 // ─────────────────────────────────────────────────────────────
@@ -140,58 +162,64 @@ Widget buildSongTile(
         final cs = Theme.of(context).colorScheme;
         // Isolate each tile so the mini player animation does not repaint the list.
         return RepaintBoundary(
-          child: ListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-            tileColor:
-                isPlaying ? cs.primaryContainer.withValues(alpha: 0.25) : null,
-            leading: leading ?? _NowPlayingIcon(songId: song.id, fallback: artFallback),
-    title: Text(
-      song.title,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        fontWeight: isPlaying ? FontWeight.bold : FontWeight.normal,
-        color: isPlaying ? cs.primary : null,
-      ),
-    ),
-    subtitle: Text(
-      song.artist,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: const TextStyle(fontSize: 12),
-    ),
-    onTap: () async {
-      // setQueueAndPlay can fail (missing file/unsupported format) -
-      // catch it so playback errors do not disappear without a trace.
-      try {
-        await PlayerService.instance.setQueueAndPlay(queue, index);
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 5),
-                content: Text(AppLocalizations.of(context)!
-                    .libraryPlayFailed('$e'))),
-          );
-        }
-      }
-    },
-    trailing: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(formatDuration(song.durationMs),
-            style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-        if (showOptions)
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            constraints:
-                const BoxConstraints(minWidth: 48, minHeight: 48),
-            onPressed: () => showSongOptions(context, song),
-          ),
-      ],
-    ),
+          // Fixed extent row: clamp the text scale so the two line tile cannot
+          // overflow its box at large app text scales.
+          child: _clampRowText(
+            context,
+            ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+              tileColor:
+                  isPlaying ? cs.primaryContainer.withValues(alpha: 0.25) : null,
+              leading: leading ??
+                  _NowPlayingIcon(songId: song.id, fallback: artFallback),
+              title: Text(
+                song.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontWeight: isPlaying ? FontWeight.bold : FontWeight.normal,
+                  color: isPlaying ? cs.primary : null,
+                ),
+              ),
+              subtitle: Text(
+                song.artist,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12),
+              ),
+              onTap: () async {
+                // setQueueAndPlay can fail (missing file/unsupported format) -
+                // catch it so playback errors do not disappear without a trace.
+                try {
+                  await PlayerService.instance.setQueueAndPlay(queue, index);
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 5),
+                          content: Text(AppLocalizations.of(context)!
+                              .libraryPlayFailed('$e'))),
+                    );
+                  }
+                }
+              },
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(formatDuration(song.durationMs),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                  if (showOptions)
+                    IconButton(
+                      icon: const Icon(Icons.more_vert),
+                      constraints:
+                          const BoxConstraints(minWidth: 48, minHeight: 48),
+                      onPressed: () => showSongOptions(context, song),
+                    ),
+                ],
+              ),
+            ),
           ),
         );
       },
@@ -589,44 +617,47 @@ class _FoldersScreenState extends State<FoldersScreen> {
                   child:
                       Transform.translate(offset: Offset(0, (1 - v) * 6), child: child),
                 ),
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.folder_outlined,
-                      color: isHidden ? Colors.grey : Theme.of(context).colorScheme.primary),
-                  title: Text(folder.split('/').last,
-                      style: isHidden ? const TextStyle(color: Colors.grey) : null),
-                  subtitle: Text(
-                      AppLocalizations.of(context)!
-                          .librarySongCountDuration(songsInFolder.length,
-                              formatDurationLong(totalMs)),
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                  trailing: IconButton(
-                    constraints:
-                        const BoxConstraints(minWidth: 48, minHeight: 48),
-                    icon: Icon(
-                        isHidden ? Icons.visibility_off : Icons.visibility_outlined,
-                        size: 18),
-                    onPressed: () => _toggleHideFolder(folder),
+                child: _clampRowText(
+                  context,
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.folder_outlined,
+                        color: isHidden ? Colors.grey : Theme.of(context).colorScheme.primary),
+                    title: Text(folder.split('/').last,
+                        style: isHidden ? const TextStyle(color: Colors.grey) : null),
+                    subtitle: Text(
+                        AppLocalizations.of(context)!
+                            .librarySongCountDuration(songsInFolder.length,
+                                formatDurationLong(totalMs)),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    trailing: IconButton(
+                      constraints:
+                          const BoxConstraints(minWidth: 48, minHeight: 48),
+                      icon: Icon(
+                          isHidden ? Icons.visibility_off : Icons.visibility_outlined,
+                          size: 18),
+                      onPressed: () => _toggleHideFolder(folder),
+                    ),
+                    onTap: () async {
+                      await Navigator.push(
+                          context,
+                          PageRouteBuilder(
+                            transitionDuration: const Duration(milliseconds: 280),
+                            pageBuilder: (context, anim, _) => _FolderSongsScreen(
+                                folderName: folder.split('/').last,
+                                songs: songsInFolder),
+                            transitionsBuilder: (context, anim, _, child) =>
+                                SlideTransition(
+                              position: Tween<Offset>(
+                                      begin: const Offset(1, 0), end: Offset.zero)
+                                  .animate(CurvedAnimation(
+                                      parent: anim, curve: Curves.easeOutCubic)),
+                              child: child,
+                            ),
+                          ));
+                      _load();
+                    },
                   ),
-                  onTap: () async {
-                    await Navigator.push(
-                        context,
-                        PageRouteBuilder(
-                          transitionDuration: const Duration(milliseconds: 280),
-                          pageBuilder: (context, anim, _) => _FolderSongsScreen(
-                              folderName: folder.split('/').last,
-                              songs: songsInFolder),
-                          transitionsBuilder: (context, anim, _, child) =>
-                              SlideTransition(
-                            position: Tween<Offset>(
-                                    begin: const Offset(1, 0), end: Offset.zero)
-                                .animate(CurvedAnimation(
-                                    parent: anim, curve: Curves.easeOutCubic)),
-                            child: child,
-                          ),
-                        ));
-                    _load();
-                  },
                 ),
               );
             },
@@ -739,7 +770,7 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
 
   void _jumpToLetter(String letter, List<Song> songs) {
     final index = letter == '#'
-        ? songs.indexWhere((s) => !RegExp(r'^[a-zA-Z]').hasMatch(s.title))
+        ? songs.indexWhere((s) => !_leadingLetterReg.hasMatch(s.title))
         : songs.indexWhere((s) => s.title.toUpperCase().startsWith(letter));
     if (index == -1) return;
     _scrollController.animateTo(index * _itemHeight,
@@ -804,7 +835,7 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
     final showAzBar = _sortOption == _SongSortOption.titleAZ;
     final availableLetters = <String>{
       for (final s in displayed)
-        RegExp(r'^[a-zA-Z]').hasMatch(s.title) ? s.title[0].toUpperCase() : '#'
+        _leadingLetterReg.hasMatch(s.title) ? s.title[0].toUpperCase() : '#'
     };
 
     return Scaffold(
@@ -960,8 +991,30 @@ class _FolderSongsScreenState extends State<_FolderSongsScreen> {
 // ARTISTS SCREEN
 // ─────────────────────────────────────────────────────────────
 
-class ArtistsScreen extends StatelessWidget {
+class ArtistsScreen extends StatefulWidget {
   const ArtistsScreen({super.key});
+
+  @override
+  State<ArtistsScreen> createState() => _ArtistsScreenState();
+}
+
+class _ArtistsScreenState extends State<ArtistsScreen> {
+  // The grouping, the artist keys and the "play all" queue are all derived
+  // from the library. They are rebuilt only when LibraryProvider.songsVersion
+  // changes, so a notify that does not touch the song list (scan progress,
+  // scanning flag) no longer regroups the whole library inside build.
+  Map<String, List<Song>> _grouped = const <String, List<Song>>{};
+  List<String> _artists = const <String>[];
+  List<Song> _queue = const <Song>[];
+  int _groupedVersion = -1;
+
+  void _syncGroups(LibraryProvider lib) {
+    if (_groupedVersion == lib.songsVersion) return;
+    _groupedVersion = lib.songsVersion;
+    _grouped = lib.groupedByArtist;
+    _artists = _grouped.keys.toList()..sort();
+    _queue = buildGroupQueue(_artists, _grouped);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -980,8 +1033,9 @@ class ArtistsScreen extends StatelessWidget {
             ),
           );
         }
-        final grouped = lib.groupedByArtist;
-        final artists = grouped.keys.toList()..sort();
+        _syncGroups(lib);
+        final grouped = _grouped;
+        final artists = _artists;
         return Column(
           children: [
             Padding(
@@ -994,8 +1048,7 @@ class ArtistsScreen extends StatelessWidget {
                         style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                   ),
                   // Play all and shuffle the whole artist list.
-                  buildGroupPlayActions(
-                      context, buildGroupQueue(artists, grouped)),
+                  buildGroupPlayActions(context, _queue),
                 ],
               ),
             ),
@@ -1018,37 +1071,44 @@ class ArtistsScreen extends StatelessWidget {
                         opacity: v,
                         child: Transform.translate(
                             offset: Offset(0, (1 - v) * 6), child: child)),
-                    child: ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(
-                        backgroundColor:
-                            Theme.of(context).colorScheme.primaryContainer,
-                        child: Text(
-                          safeInitial(artist),
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onPrimaryContainer),
+                    // Fixed extent row: clamp the text scale of the tile.
+                    child: _clampRowText(
+                      context,
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primaryContainer,
+                          child: Text(
+                            safeInitial(artist),
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onPrimaryContainer),
+                          ),
                         ),
-                      ),
-                      title: Text(artist,
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text(
-                          AppLocalizations.of(context)!
-                              .librarySongCount(songs.length),
-                          style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                      onTap: () => Navigator.push(
-                        context,
-                        PageRouteBuilder(
-                          transitionDuration: const Duration(milliseconds: 280),
-                          pageBuilder: (context, anim, _) =>
-                              _ArtistSongsScreen(artist: artist, songs: songs),
-                          transitionsBuilder: (context, anim, _, child) =>
-                              SlideTransition(
-                            position: Tween<Offset>(
-                                    begin: const Offset(1, 0), end: Offset.zero)
-                                .animate(CurvedAnimation(
-                                    parent: anim, curve: Curves.easeOutCubic)),
-                            child: child,
+                        title: Text(artist,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(
+                            AppLocalizations.of(context)!
+                                .librarySongCount(songs.length),
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey[500])),
+                        onTap: () => Navigator.push(
+                          context,
+                          PageRouteBuilder(
+                            transitionDuration: const Duration(milliseconds: 280),
+                            pageBuilder: (context, anim, _) =>
+                                _ArtistSongsScreen(artist: artist, songs: songs),
+                            transitionsBuilder: (context, anim, _, child) =>
+                                SlideTransition(
+                              position: Tween<Offset>(
+                                      begin: const Offset(1, 0), end: Offset.zero)
+                                  .animate(CurvedAnimation(
+                                      parent: anim, curve: Curves.easeOutCubic)),
+                              child: child,
+                            ),
                           ),
                         ),
                       ),
@@ -1102,8 +1162,29 @@ class _ArtistSongsScreen extends StatelessWidget {
 // GENRES SCREEN
 // ─────────────────────────────────────────────────────────────
 
-class GenresScreen extends StatelessWidget {
+class GenresScreen extends StatefulWidget {
   const GenresScreen({super.key});
+
+  @override
+  State<GenresScreen> createState() => _GenresScreenState();
+}
+
+class _GenresScreenState extends State<GenresScreen> {
+  // Same memoization as ArtistsScreen: rebuild the grouping, the keys and the
+  // play all queue only when the library version changes, not on every
+  // provider notify (for example each metadata scan batch).
+  Map<String, List<Song>> _grouped = const <String, List<Song>>{};
+  List<String> _genres = const <String>[];
+  List<Song> _queue = const <Song>[];
+  int _groupedVersion = -1;
+
+  void _syncGroups(LibraryProvider lib) {
+    if (_groupedVersion == lib.songsVersion) return;
+    _groupedVersion = lib.songsVersion;
+    _grouped = lib.groupedByGenre;
+    _genres = _grouped.keys.toList()..sort();
+    _queue = buildGroupQueue(_genres, _grouped);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1123,8 +1204,9 @@ class GenresScreen extends StatelessWidget {
             ),
           );
         }
-        final grouped = lib.groupedByGenre;
-        final genres = grouped.keys.toList()..sort();
+        _syncGroups(lib);
+        final grouped = _grouped;
+        final genres = _genres;
         return Column(
           children: [
             Padding(
@@ -1137,8 +1219,7 @@ class GenresScreen extends StatelessWidget {
                         style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                   ),
                   // Play all and shuffle the whole genre list.
-                  buildGroupPlayActions(
-                      context, buildGroupQueue(genres, grouped)),
+                  buildGroupPlayActions(context, _queue),
                 ],
               ),
             ),
@@ -1161,39 +1242,46 @@ class GenresScreen extends StatelessWidget {
                         opacity: v,
                         child: Transform.translate(
                             offset: Offset(0, (1 - v) * 6), child: child)),
-                    child: ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color:
-                              Theme.of(context).colorScheme.secondaryContainer,
-                          borderRadius: BorderRadius.circular(8),
+                    // Fixed extent row: clamp the text scale of the tile.
+                    child: _clampRowText(
+                      context,
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color:
+                                Theme.of(context).colorScheme.secondaryContainer,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(Icons.music_note,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSecondaryContainer,
+                              size: 20),
                         ),
-                        child: Icon(Icons.music_note,
-                            color: Theme.of(context).colorScheme.onSecondaryContainer,
-                            size: 20),
-                      ),
-                      title: Text(genre,
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text(
-                          AppLocalizations.of(context)!
-                              .librarySongCount(songs.length),
-                          style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                      onTap: () => Navigator.push(
-                        context,
-                        PageRouteBuilder(
-                          transitionDuration: const Duration(milliseconds: 280),
-                          pageBuilder: (context, anim, _) =>
-                              _GenreSongsScreen(genre: genre, songs: songs),
-                          transitionsBuilder: (context, anim, _, child) =>
-                              SlideTransition(
-                            position: Tween<Offset>(
-                                    begin: const Offset(1, 0), end: Offset.zero)
-                                .animate(CurvedAnimation(
-                                    parent: anim, curve: Curves.easeOutCubic)),
-                            child: child,
+                        title: Text(genre,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(
+                            AppLocalizations.of(context)!
+                                .librarySongCount(songs.length),
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey[500])),
+                        onTap: () => Navigator.push(
+                          context,
+                          PageRouteBuilder(
+                            transitionDuration: const Duration(milliseconds: 280),
+                            pageBuilder: (context, anim, _) =>
+                                _GenreSongsScreen(genre: genre, songs: songs),
+                            transitionsBuilder: (context, anim, _, child) =>
+                                SlideTransition(
+                              position: Tween<Offset>(
+                                      begin: const Offset(1, 0), end: Offset.zero)
+                                  .animate(CurvedAnimation(
+                                      parent: anim, curve: Curves.easeOutCubic)),
+                              child: child,
+                            ),
                           ),
                         ),
                       ),
@@ -1267,6 +1355,30 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   // Multi-select state, mirrors library_screen pattern. Session only.
   bool _multiSelectMode = false;
   final Set<int> _selectedIds = {};
+
+  // Derived from the library: the sorted favorite rows, the total duration and
+  // the A-Z letter set. Rebuilt only when the library version or the sort
+  // changes, so a scan progress notify no longer re-sorts the whole list and
+  // rebuilds the letter set inside build.
+  List<Song> _favs = const <Song>[];
+  int _totalMs = 0;
+  Set<String> _letters = const <String>{};
+  int _favsVersion = -1;
+  _FavSortOption? _favsSort;
+
+  void _syncFavorites(LibraryProvider lib) {
+    if (_favsVersion == lib.songsVersion && _favsSort == _sortOption) return;
+    _favsVersion = lib.songsVersion;
+    _favsSort = _sortOption;
+    final allFavs = lib.favorites;
+    final sorted = _applySortAndFilter(allFavs);
+    _favs = sorted;
+    _totalMs = allFavs.fold(0, (sum, s) => sum + s.durationMs);
+    _letters = <String>{
+      for (final s in sorted)
+        _leadingLetterReg.hasMatch(s.title) ? s.title[0].toUpperCase() : '#'
+    };
+  }
 
   // Playlists are loaded lazily on first bulk action to keep startup cheap.
   bool _playlistsRequested = false;
@@ -1372,28 +1484,52 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                         leading: const Icon(Icons.queue_music),
                         title: Text('${p['name']}'),
                         onTap: () async {
-                          try {
-                            await Future.wait(songs
-                                .map((s) => provider.addSong(p['id'], s.id)));
-                          } catch (_) {
-                            // Fall through, toast below still confirms attempt.
+                          final name = '${p['name']}';
+                          // Sequential batches, one write per song in parallel
+                          // would lock the database and block the UI.
+                          var added = 0;
+                          var failed = 0;
+                          const batchSize = 20;
+                          for (var i = 0; i < songs.length; i += batchSize) {
+                            final end =
+                                (i + batchSize).clamp(0, songs.length);
+                            final batch = songs.sublist(i, end);
+                            final results =
+                                await Future.wait(batch.map((s) async {
+                              try {
+                                await provider.addSong(p['id'], s.id);
+                                return true;
+                              } catch (_) {
+                                // Counted below, the batch continues anyway.
+                                return false;
+                              }
+                            }));
+                            for (final ok in results) {
+                              if (ok) {
+                                added++;
+                              } else {
+                                failed++;
+                              }
+                            }
                           }
                           if (ctx.mounted) Navigator.pop(ctx);
                           if (!mounted) return;
                           _exitMultiSelect();
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                behavior: SnackBarBehavior.floating,
-                                duration: const Duration(seconds: 3),
-                                content: Text(
-                                    AppLocalizations.of(context)!
-                                        .libraryAddedToPlaylist(
-                                            songs.length,
-                                            '${p['name']}')),
-                              ),
-                            );
-                          }
+                          // Report the real outcome, never the request count.
+                          final partial = AppLocalizations.of(context)!
+                              .libraryPartialAddedToPlaylist(
+                                  added, songs.length, name, failed);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              behavior: SnackBarBehavior.floating,
+                              duration: const Duration(seconds: 3),
+                              backgroundColor: failed > 0 ? Colors.red : null,
+                              content: Text(failed > 0
+                                  ? partial
+                                  : AppLocalizations.of(context)!
+                                      .libraryAddedToPlaylist(added, name)),
+                            ),
+                          );
                         },
                       )),
                 ],
@@ -1447,7 +1583,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         children: [
           Text(
               AppLocalizations.of(context)!
-                  .librarySelectedCount(_selectedIds.length),
+                  .librarySelectedCount(selected.length),
               style: const TextStyle(fontWeight: FontWeight.bold)),
           const Spacer(),
           IconButton(
@@ -1504,7 +1640,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   void _jumpToLetter(String letter, List<Song> songs) {
     final index = letter == '#'
-        ? songs.indexWhere((s) => !RegExp(r'^[a-zA-Z]').hasMatch(s.title))
+        ? songs.indexWhere((s) => !_leadingLetterReg.hasMatch(s.title))
         : songs.indexWhere((s) => s.title.toUpperCase().startsWith(letter));
     if (index == -1) return;
     _scrollController.animateTo(index * _itemHeight,
@@ -1525,8 +1661,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Widget build(BuildContext context) {
     return Consumer<LibraryProvider>(
       builder: (context, lib, _) {
-        final allFavs = lib.favorites;
-        if (allFavs.isEmpty) {
+        // Recomputed only when the library or the sort changed, see
+        // _syncFavorites. No favorites means an empty list here too.
+        _syncFavorites(lib);
+        if (_favs.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1542,13 +1680,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             ),
           );
         }
-        final favs = _applySortAndFilter(allFavs);
-        final totalMs = allFavs.fold(0, (sum, s) => sum + s.durationMs);
+        final favs = _favs;
+        final totalMs = _totalMs;
         final showAzBar = _sortOption == _FavSortOption.titleAZ;
-        final availableLetters = <String>{
-          for (final s in favs)
-            RegExp(r'^[a-zA-Z]').hasMatch(s.title) ? s.title[0].toUpperCase() : '#'
-        };
+        final availableLetters = _letters;
 
         return Column(
           children: [
@@ -1565,7 +1700,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   const Spacer(),
                   Text(AppLocalizations.of(context)!
                       .librarySongCountDuration(
-                          allFavs.length, formatDurationLong(totalMs)),
+                          favs.length, formatDurationLong(totalMs)),
                       style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                 ],
               ),
@@ -1625,155 +1760,32 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 children: [
                   RefreshIndicator(
                     onRefresh: () => lib.loadFromDb(),
-                    child: AnimatedBuilder(
-                      animation: PlayerService.instance,
-                      builder: (context, _) => CustomScrollView(
-                        controller: _scrollController,
-                        slivers: [
-                          SliverFixedExtentList(
-                            itemExtent: _itemHeight,
-                            delegate: SliverChildBuilderDelegate(
-                              (context, i) {
-                                final song = favs[i];
-                                final current = PlayerService.instance.currentSong;
-                                final isPlaying = current != null && current.id == song.id;
-                                final isSelected =
-                                    _selectedIds.contains(song.id);
-                                final cs = Theme.of(context).colorScheme;
-                                // Inline tile so long-press can enter
-                                // multi-select and taps can toggle selection.
-                                return InkWell(
-                                  onTap: () async {
-                                    if (_multiSelectMode) {
-                                      _toggleSelect(song.id);
-                                      return;
-                                    }
-                                    try {
-                                      await PlayerService.instance
-                                          .setQueueAndPlay(favs, i);
-                                    } catch (e) {
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                            behavior:
-                                                SnackBarBehavior.floating,
-                                            duration: const Duration(
-                                                seconds: 5),
-                                            content: Text(
-                                                AppLocalizations.of(
-                                                        context)!
-                                                    .libraryPlayFailed(
-                                                        '$e')),
-                                          ),
-                                        );
-                                      }
-                                    }
-                                  },
-                                  onLongPress: () => setState(() {
-                                    _multiSelectMode = true;
-                                    _selectedIds.add(song.id);
-                                  }),
-                                  child: Container(
-                                    color: isSelected
-                                        ? cs.primaryContainer
-                                            .withValues(alpha: 0.5)
-                                        : isPlaying
-                                            ? cs.primaryContainer
-                                                .withValues(alpha: 0.25)
-                                            : null,
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 16),
-                                    height: _itemHeight,
-                                    child: Row(
-                                      children: [
-                                        if (_multiSelectMode)
-                                          Checkbox(
-                                            value: isSelected,
-                                            onChanged: (_) =>
-                                                _toggleSelect(song.id),
-                                          )
-                                        else if (isPlaying)
-                                          Container(
-                                            width: 40,
-                                            height: 40,
-                                            alignment: Alignment.center,
-                                            decoration: BoxDecoration(
-                                              color: cs.primary.withValues(
-                                                  alpha: 0.15),
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: PlayingIndicator(
-                                              isPlaying: PlayerService
-                                                  .instance.player.playing,
-                                              color: cs.primary,
-                                            ),
-                                          )
-                                        else
-                                          const Icon(Icons.favorite,
-                                              color: Colors.red, size: 20),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                song.title,
-                                                maxLines: 1,
-                                                overflow:
-                                                    TextOverflow.ellipsis,
-                                                style: TextStyle(
-                                                  fontWeight: isPlaying
-                                                      ? FontWeight.bold
-                                                      : FontWeight.normal,
-                                                  color: isPlaying
-                                                      ? cs.primary
-                                                      : null,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                song.artist,
-                                                maxLines: 1,
-                                                overflow:
-                                                    TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                    fontSize: 12),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Text(
-                                            formatDuration(
-                                                song.durationMs),
-                                            style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey[500])),
-                                        if (!_multiSelectMode)
-                                          IconButton(
-                                            constraints:
-                                                const BoxConstraints(
-                                                    minWidth: 48,
-                                                    minHeight: 48),
-                                            icon: const Icon(
-                                                Icons.more_vert),
-                                            onPressed: () =>
-                                                showSongOptions(
-                                                    context, song),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                              childCount: favs.length,
+                    // No AnimatedBuilder around the scroll view: every row
+                    // watches the player on its own, so a track change, a play
+                    // or pause toggle, the sleep timer or the crossfade no
+                    // longer rebuilds the whole favorites list.
+                    child: CustomScrollView(
+                      controller: _scrollController,
+                      slivers: [
+                        SliverFixedExtentList(
+                          itemExtent: _itemHeight,
+                          delegate: SliverChildBuilderDelegate(
+                            (context, i) => _FavSongTile(
+                              song: favs[i],
+                              queue: favs,
+                              index: i,
+                              isSelected: _selectedIds.contains(favs[i].id),
+                              isMultiSelect: _multiSelectMode,
+                              onToggleSelect: () => _toggleSelect(favs[i].id),
+                              onLongPress: () => setState(() {
+                                _multiSelectMode = true;
+                                _selectedIds.add(favs[i].id);
+                              }),
                             ),
+                            childCount: favs.length,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                   if (showAzBar && !_multiSelectMode)
@@ -1838,6 +1850,159 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         ),
       ),
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// FAVORITES ROW
+// ─────────────────────────────────────────────────────────────
+
+/// One favorites row. Same per row player watching as buildSongTile: only the
+/// row whose isCurrent flag flips is rebuilt, and the bars inside it rebuild
+/// only on play and pause.
+class _FavSongTile extends StatelessWidget {
+  final Song song;
+  final List<Song> queue;
+  final int index;
+  final bool isSelected, isMultiSelect;
+  final VoidCallback onToggleSelect, onLongPress;
+
+  const _FavSongTile({
+    required this.song,
+    required this.queue,
+    required this.index,
+    required this.isSelected,
+    required this.isMultiSelect,
+    required this.onToggleSelect,
+    required this.onLongPress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Provide the singleton locally so the Selector works without touching
+    // the global provider setup in main.dart.
+    return ChangeNotifierProvider.value(
+      value: PlayerService.instance,
+      child: Selector<PlayerService, bool>(
+        selector: (_, ps) => ps.currentSong?.id == song.id,
+        builder: (context, isCurrent, _) {
+          final cs = Theme.of(context).colorScheme;
+          // Row text is clamped: the row keeps a fixed 72 px extent.
+          final scaler = _rowTextScaler(context);
+          return InkWell(
+            onTap: () {
+              if (isMultiSelect) {
+                onToggleSelect();
+                return;
+              }
+              _playQueue(context, queue, index);
+            },
+            onLongPress: onLongPress,
+            child: Container(
+              color: isSelected
+                  ? cs.primaryContainer.withValues(alpha: 0.5)
+                  : isCurrent
+                      ? cs.primaryContainer.withValues(alpha: 0.25)
+                      : null,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              height: 72,
+              child: Row(
+                children: [
+                  if (isMultiSelect)
+                    Checkbox(
+                        value: isSelected, onChanged: (_) => onToggleSelect())
+                  else if (isCurrent)
+                    const _FavNowPlayingBadge()
+                  else
+                    const Icon(Icons.favorite, color: Colors.red, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          song.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textScaler: scaler,
+                          style: TextStyle(
+                            fontWeight: isCurrent
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: isCurrent ? cs.primary : null,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          song.artist,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textScaler: scaler,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(formatDuration(song.durationMs),
+                      textScaler: scaler,
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey[500])),
+                  if (!isMultiSelect)
+                    IconButton(
+                      constraints:
+                          const BoxConstraints(minWidth: 48, minHeight: 48),
+                      icon: const Icon(Icons.more_vert),
+                      onPressed: () => showSongOptions(context, song),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Circular now playing badge of a favorites row. Inner selector so play and
+/// pause only rebuild the bars.
+class _FavNowPlayingBadge extends StatelessWidget {
+  const _FavNowPlayingBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Selector<PlayerService, bool>(
+      selector: (_, ps) => ps.player.playing,
+      builder: (context, playing, _) => Container(
+        width: 40,
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: cs.primary.withValues(alpha: 0.15),
+          shape: BoxShape.circle,
+        ),
+        child: PlayingIndicator(isPlaying: playing, color: cs.primary),
+      ),
+    );
+  }
+}
+
+/// Play a queue position and surface a playback failure instead of dropping it.
+Future<void> _playQueue(BuildContext context, List<Song> queue, int index) async {
+  try {
+    await PlayerService.instance.setQueueAndPlay(queue, index);
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
+            content: Text(
+                AppLocalizations.of(context)!.libraryPlayFailed('$e'))),
+      );
+    }
   }
 }
 
@@ -1972,41 +2137,45 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                         opacity: v,
                         child: Transform.translate(
                             offset: Offset(0, (1 - v) * 6), child: child)),
-                    child: ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Container(
-                        width: 40, height: 40,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(8),
+                    // Fixed extent row: clamp the text scale of the tile.
+                    child: _clampRowText(
+                      context,
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Container(
+                          width: 40, height: 40,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(Icons.queue_music,
+                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              size: 20),
                         ),
-                        child: Icon(Icons.queue_music,
-                            color: Theme.of(context).colorScheme.onPrimaryContainer,
-                            size: 20),
-                      ),
-                      title: Text(p['name'], maxLines: 1, overflow: TextOverflow.ellipsis),
-                      onTap: () => Navigator.push(
-                        context,
-                        PageRouteBuilder(
-                          transitionDuration: const Duration(milliseconds: 280),
-                          pageBuilder: (context, anim, _) => PlaylistDetailScreen(
-                              playlistId: p['id'], playlistName: p['name']),
-                          transitionsBuilder: (context, anim, _, child) =>
-                              SlideTransition(
-                            position: Tween<Offset>(
-                                    begin: const Offset(1, 0), end: Offset.zero)
-                                .animate(CurvedAnimation(
-                                    parent: anim, curve: Curves.easeOutCubic)),
-                            child: child,
+                        title: Text(p['name'], maxLines: 1, overflow: TextOverflow.ellipsis),
+                        onTap: () => Navigator.push(
+                          context,
+                          PageRouteBuilder(
+                            transitionDuration: const Duration(milliseconds: 280),
+                            pageBuilder: (context, anim, _) => PlaylistDetailScreen(
+                                playlistId: p['id'], playlistName: p['name']),
+                            transitionsBuilder: (context, anim, _, child) =>
+                                SlideTransition(
+                              position: Tween<Offset>(
+                                      begin: const Offset(1, 0), end: Offset.zero)
+                                  .animate(CurvedAnimation(
+                                      parent: anim, curve: Curves.easeOutCubic)),
+                              child: child,
+                            ),
                           ),
                         ),
-                      ),
-                      trailing: IconButton(
-                        constraints: const BoxConstraints(
-                            minWidth: 48, minHeight: 48),
-                        icon: const Icon(Icons.delete_outline, size: 20),
-                        onPressed: () =>
-                            _confirmDelete(context, provider, p['id'], p['name']),
+                        trailing: IconButton(
+                          constraints: const BoxConstraints(
+                              minWidth: 48, minHeight: 48),
+                          icon: const Icon(Icons.delete_outline, size: 20),
+                          onPressed: () =>
+                              _confirmDelete(context, provider, p['id'], p['name']),
+                        ),
                       ),
                     ),
                   );

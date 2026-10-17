@@ -9,6 +9,7 @@ import '../providers/playlist_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/library_provider.dart';
 import '../services/backup_service.dart';
+import '../services/db_helper.dart';
 import '../services/equalizer_service.dart';
 import '../services/player_service.dart';
 
@@ -57,6 +58,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _busyData = false;
   bool _loadingArt = false;
   ArtCacheUsage? _artUsage;
+  // Busy flag while the listening history prune runs.
+  bool _busyHistory = false;
   // App version shown in About, loaded once from package info.
   String _appVersion = '';
 
@@ -304,6 +307,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() => _busyData = false);
       _showSnack(
           AppLocalizations.of(context)!.dataClearFailed(e.toString()));
+    }
+  }
+
+  // Manual, opt-in cleanup of the listening history. It never runs on its
+  // own because the dashboard totals are computed from these rows, so the
+  // dialog spells out that those numbers will go down.
+  Future<void> _cleanupHistory() async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.historyCleanupDialogTitle),
+        content: Text(l10n.historyCleanupMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.historyCleanupAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _busyHistory = true);
+    try {
+      final deleted = await DBHelper.instance.pruneListeningEntries();
+      if (!mounted) return;
+      setState(() => _busyHistory = false);
+      _showSnack(AppLocalizations.of(context)!.historyCleanupDone(deleted));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busyHistory = false);
+      _showSnack(AppLocalizations.of(context)!
+          .historyCleanupFailed(e.toString()));
     }
   }
 
@@ -756,6 +796,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: Text(
                 AppLocalizations.of(context)!.dataClearArtCacheSubtitle),
             onTap: (_busyData || _loadingArt) ? null : _clearArtCache,
+          ),
+          ListTile(
+            leading: _busyHistory
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.history_toggle_off),
+            title: Text(AppLocalizations.of(context)!.historyCleanupTitle),
+            subtitle: Text(
+                AppLocalizations.of(context)!.historyCleanupSubtitle),
+            onTap: _busyHistory ? null : _cleanupHistory,
           ),
           const Divider(),
 

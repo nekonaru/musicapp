@@ -17,6 +17,10 @@ import '../widgets/mini_player.dart';
 
 enum _SearchFilter { lagu, album, artis, folder, genre }
 
+// Result rows keep a fixed 72 px extent while the app allows text scales up to
+// 2x, so the text of a row is clamped to stay inside that box.
+const double _kRowMaxTextScale = 1.5;
+
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -44,9 +48,10 @@ class _SearchScreenState extends State<SearchScreen> {
   // after the generation check above passes.
   List<Song> _results = const <Song>[];
 
-  // Length of the library list used for the last published search, used to
-  // detect library changes that invalidate the current result set.
-  int _resultsLibLen = -1;
+  // LibraryProvider.songsVersion used for the last published search. The
+  // version changes on content edits too (a metadata scan that renames rows
+  // without changing the count), so the results cannot go stale silently.
+  int _resultsLibVersion = -1;
 
   // True while a post frame re-search is already queued, avoids queueing
   // several redundant searches when build runs again first.
@@ -199,7 +204,10 @@ class _SearchScreenState extends State<SearchScreen> {
   // Filter the library and publish the result, but only when this run still
   // owns the active generation. Guards against stale async writes.
   Future<void> _runSearch(int gen) async {
-    final source = context.read<LibraryProvider>().songs;
+    final lib = context.read<LibraryProvider>();
+    final source = lib.songs;
+    // Same source and version, so the published result is always in sync.
+    final version = lib.songsVersion;
     final query = _pendingQuery;
     // Yield one turn so the guard below is meaningful even for small
     // libraries where the filter would otherwise finish synchronously.
@@ -208,7 +216,7 @@ class _SearchScreenState extends State<SearchScreen> {
     if (!mounted || gen != _queryGen) return;
     setState(() {
       _results = found;
-      _resultsLibLen = source.length;
+      _resultsLibVersion = version;
     });
   }
 
@@ -296,28 +304,53 @@ class _SearchScreenState extends State<SearchScreen> {
                         leading: const Icon(Icons.queue_music),
                         title: Text('${p['name']}'),
                         onTap: () async {
-                          try {
-                            await Future.wait(songs
-                                .map((s) => provider.addSong(p['id'], s.id)));
-                          } catch (e) {
-                            // Fall through to close the sheet, toast below.
+                          final name = '${p['name']}';
+                          // Sequential batches: one write per song in parallel
+                          // locks the database and blocks the UI thread.
+                          var added = 0;
+                          var failed = 0;
+                          const batchSize = 20;
+                          for (var i = 0; i < songs.length; i += batchSize) {
+                            final end =
+                                (i + batchSize).clamp(0, songs.length);
+                            final batch = songs.sublist(i, end);
+                            final results =
+                                await Future.wait(batch.map((s) async {
+                              try {
+                                await provider.addSong(p['id'], s.id);
+                                return true;
+                              } catch (_) {
+                                // Counted below, the batch continues anyway.
+                                return false;
+                              }
+                            }));
+                            for (final ok in results) {
+                              if (ok) {
+                                added++;
+                              } else {
+                                failed++;
+                              }
+                            }
                           }
                           if (ctx.mounted) Navigator.pop(ctx);
                           if (!mounted) return;
                           _exitMultiSelect();
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                behavior: SnackBarBehavior.floating,
-                                duration: const Duration(seconds: 3),
-                                content: Text(
-                                    AppLocalizations.of(context)!
-                                        .libraryAddedToPlaylist(
-                                            songs.length,
-                                            '${p['name']}')),
-                              ),
-                            );
-                          }
+                          // Report the real outcome, never the request count.
+                          final partial =
+                              AppLocalizations.of(context)!
+                                  .libraryPartialAddedToPlaylist(
+                                      added, songs.length, name, failed);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              behavior: SnackBarBehavior.floating,
+                              duration: const Duration(seconds: 3),
+                              backgroundColor: failed > 0 ? Colors.red : null,
+                              content: Text(failed > 0
+                                  ? partial
+                                  : AppLocalizations.of(context)!
+                                      .libraryAddedToPlaylist(added, name)),
+                            ),
+                          );
                         },
                       )),
                 ],
@@ -341,16 +374,34 @@ class _SearchScreenState extends State<SearchScreen> {
 
   // Bulk mark the selected songs as favorites.
   Future<void> _bulkAddToFavorites(List<Song> songs) async {
+    final lib = context.read<LibraryProvider>();
+    // setFavoritesBulk reports a failure through scanError instead of
+    // throwing, so keep the previous value to tell success from failure.
+    final previousError = lib.scanError;
     try {
-      await context.read<LibraryProvider>().setFavoritesBulk(songs, true);
+      await lib.setFavoritesBulk(songs, true);
       if (!mounted) return;
+      final error = lib.scanError != previousError ? lib.scanError : null;
       _exitMultiSelect();
+      final done =
+          AppLocalizations.of(context)!.libraryFavoritesAdded(songs.length);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          backgroundColor: error != null ? Colors.red : null,
+          content: Text(error != null
+              ? AppLocalizations.of(context)!.bulkFavoriteFailed(error)
+              : done),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 3),
+          backgroundColor: Colors.red,
           content: Text(AppLocalizations.of(context)!
               .bulkFavoriteFailed(e.toString())),
         ),
@@ -370,7 +421,7 @@ class _SearchScreenState extends State<SearchScreen> {
         children: [
           Text(
               AppLocalizations.of(context)!
-                  .librarySelectedCount(_selectedIds.length),
+                  .librarySelectedCount(selected.length),
               style: const TextStyle(fontWeight: FontWeight.bold)),
           const Spacer(),
           IconButton(
@@ -562,107 +613,132 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
+  // Clamp the text scale of a fixed height row. ListTile has no textScaler
+  // parameter, so the whole tile subtree gets a clamped MediaQuery instead.
+  Widget _clampRowText(BuildContext context, Widget child) {
+    final scaler =
+        MediaQuery.textScalerOf(context).clamp(maxScaleFactor: _kRowMaxTextScale);
+    final mq = MediaQuery.of(context);
+    if (scaler == mq.textScaler) return child;
+    return MediaQuery(data: mq.copyWith(textScaler: scaler), child: child);
+  }
+
+  // One result row. Mirrors the library_screen tile: the row is wrapped in a
+  // per row Selector, so a track change, a play or pause toggle rebuilds only
+  // the affected rows instead of the whole result list on every notify.
   Widget _buildSongTile(Song song, List<Song> queue, int index) {
-    final current = PlayerService.instance.currentSong;
-    final isPlaying = current != null && current.id == song.id;
     final isSelected = _selectedIds.contains(song.id);
-    final cs = Theme.of(context).colorScheme;
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-      tileColor: isSelected
-          ? cs.primaryContainer.withValues(alpha: 0.5)
-          : isPlaying
-              ? cs.primaryContainer.withValues(alpha: 0.25)
-              : null,
-      leading: _multiSelectMode
-          ? Checkbox(
-              value: isSelected,
-              onChanged: (_) => _toggleSelect(song.id),
-            )
-          : isPlaying
-          ? Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: PlayingIndicator(
-                isPlaying: PlayerService.instance.player.playing,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            )
-          : song.albumArtUrl != null
-              // Disk cached artwork with network fallback.
-              ? ClipOval(
-                  child: CachedArtImage(
-                    url: song.albumArtUrl!,
-                    width: 40,
-                    height: 40,
-                    fit: BoxFit.cover,
-                    // Decode thumbnail size only to save image memory.
-                    cacheWidth: 88,
-                    fallback: const CircleAvatar(
-                      child: Icon(Icons.music_note, size: 20),
-                    ),
-                  ),
-                )
-              : const CircleAvatar(
-                  child: Icon(Icons.music_note, size: 20),
-                ),
-      title: Text(song.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-              fontWeight: isPlaying ? FontWeight.bold : FontWeight.normal)),
-      subtitle: Text('${song.artist} \u00B7 ${song.album}',
-          maxLines: 1, overflow: TextOverflow.ellipsis),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(formatDuration(song.durationMs),
-              style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-          if (!_multiSelectMode)
-            IconButton(
-              constraints:
-                  const BoxConstraints(minWidth: 48, minHeight: 48),
-              icon: const Icon(Icons.more_vert),
-              onPressed: () => showSongOptions(context, song),
-            ),
-        ],
+    return ChangeNotifierProvider.value(
+      value: PlayerService.instance,
+      child: Selector<PlayerService, bool>(
+        selector: (_, ps) => ps.currentSong?.id == song.id,
+        builder: (context, isCurrent, _) => _songTileBody(
+          song: song,
+          queue: queue,
+          index: index,
+          isCurrent: isCurrent,
+          isSelected: isSelected,
+        ),
       ),
-      onTap: () async {
-        // In multi-select mode a tap toggles the checkbox, no playback.
-        if (_multiSelectMode) {
-          _toggleSelect(song.id);
-          return;
-        }
-        try {
-          await PlayerService.instance.setQueueAndPlay(queue, index);
-        } catch (e) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                  behavior: SnackBarBehavior.floating,
-                  duration: const Duration(seconds: 5),
-                  content: Text(AppLocalizations.of(context)!
-                      .libraryPlayFailed('$e'))),
-            );
-          }
-        }
-      },
-      // Long-press enters multi-select, mirrors library_screen pattern.
-      // Only the flat song list uses this; grouped views keep normal taps.
-      onLongPress: () {
-        if (_filter != _SearchFilter.lagu) return;
-        setState(() {
-          _multiSelectMode = true;
-          _selectedIds.add(song.id);
-        });
-      },
     );
   }
+
+  Widget _songTileBody({
+    required Song song,
+    required List<Song> queue,
+    required int index,
+    required bool isCurrent,
+    required bool isSelected,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    return _clampRowText(
+      context,
+      ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+        tileColor: isSelected
+            ? cs.primaryContainer.withValues(alpha: 0.5)
+            : isCurrent
+                ? cs.primaryContainer.withValues(alpha: 0.25)
+                : null,
+        leading: _multiSelectMode
+            ? Checkbox(
+                value: isSelected,
+                onChanged: (_) => _toggleSelect(song.id),
+              )
+            : _SearchNowPlayingIcon(songId: song.id, fallback: _artFallback(song)),
+        title: Text(song.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+                fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal)),
+        subtitle: Text('${song.artist} \u00B7 ${song.album}',
+            maxLines: 1, overflow: TextOverflow.ellipsis),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(formatDuration(song.durationMs),
+                style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+            if (!_multiSelectMode)
+              IconButton(
+                constraints:
+                    const BoxConstraints(minWidth: 48, minHeight: 48),
+                icon: const Icon(Icons.more_vert),
+                onPressed: () => showSongOptions(context, song),
+              ),
+          ],
+        ),
+        onTap: () async {
+          // In multi-select mode a tap toggles the checkbox, no playback.
+          if (_multiSelectMode) {
+            _toggleSelect(song.id);
+            return;
+          }
+          try {
+            await PlayerService.instance.setQueueAndPlay(queue, index);
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                    behavior: SnackBarBehavior.floating,
+                    duration: const Duration(seconds: 5),
+                    content: Text(AppLocalizations.of(context)!
+                        .libraryPlayFailed('$e'))),
+              );
+            }
+          }
+        },
+        // Long-press enters multi-select, mirrors library_screen pattern.
+        // Only the flat song list uses this; grouped views keep normal taps.
+        onLongPress: () {
+          if (_filter != _SearchFilter.lagu) return;
+          setState(() {
+            _multiSelectMode = true;
+            _selectedIds.add(song.id);
+          });
+        },
+      ),
+    );
+  }
+
+  // Artwork used when this row is not the current song.
+  Widget _artFallback(Song song) => song.albumArtUrl != null
+      // Disk cached artwork with network fallback.
+      ? ClipOval(
+          child: CachedArtImage(
+            url: song.albumArtUrl!,
+            width: 40,
+            height: 40,
+            fit: BoxFit.cover,
+            // Decode thumbnail size only to save image memory.
+            cacheWidth: 88,
+            fallback: const CircleAvatar(
+              child: Icon(Icons.music_note, size: 20),
+            ),
+          ),
+        )
+      : const CircleAvatar(
+          child: Icon(Icons.music_note, size: 20),
+        );
 
   Widget _buildResults(List<Song> results) {
     final l = AppLocalizations.of(context)!;
@@ -716,14 +792,13 @@ class _SearchScreenState extends State<SearchScreen> {
 
     if (_filter == _SearchFilter.lagu) {
       // Full flat result set, still built one row at a time by the builder.
-      return AnimatedBuilder(
-        animation: PlayerService.instance,
-        builder: (context, _) => ListView.builder(
-          itemCount: results.length,
-          itemExtent: 72,
-          itemBuilder: (context, i) =>
-              SizedBox(height: 72, child: _buildSongTile(results[i], results, i)),
-        ),
+      // No AnimatedBuilder here: each row watches the player by itself, so a
+      // track change or a play and pause toggle no longer rebuilds the list.
+      return ListView.builder(
+        itemCount: results.length,
+        itemExtent: 72,
+        itemBuilder: (context, i) => SizedBox(
+            height: 72, child: _buildSongTile(results[i], results, i)),
       );
     }
 
@@ -742,38 +817,35 @@ class _SearchScreenState extends State<SearchScreen> {
       }
     }
 
-    return AnimatedBuilder(
-      animation: PlayerService.instance,
-      builder: (context, _) => ListView.builder(
-        itemCount: rows.length,
-        itemBuilder: (context, gi) {
-          final row = rows[gi];
-          if (row.headerKey != null) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(row.headerKey!,
-                            style: const TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.bold)),
-                      ),
-                      Text(l.librarySongCount(row.headerCount!),
-                          style:
-                              TextStyle(fontSize: 12, color: Colors.grey[500])),
-                    ],
-                  ),
+    return ListView.builder(
+      itemCount: rows.length,
+      itemBuilder: (context, gi) {
+        final row = rows[gi];
+        if (row.headerKey != null) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(row.headerKey!,
+                          style: const TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.bold)),
+                    ),
+                    Text(l.librarySongCount(row.headerCount!),
+                        style:
+                            TextStyle(fontSize: 12, color: Colors.grey[500])),
+                  ],
                 ),
-                const Divider(height: 1),
-              ],
-            );
-          }
-          return _buildSongTile(row.song!, row.queue!, row.index);
-        },
-      ),
+              ),
+              const Divider(height: 1),
+            ],
+          );
+        }
+        return _buildSongTile(row.song!, row.queue!, row.index);
+      },
     );
   }
 
@@ -782,7 +854,9 @@ class _SearchScreenState extends State<SearchScreen> {
     final l = AppLocalizations.of(context)!;
     final lib = context.watch<LibraryProvider>();
     // A library change invalidates the published results, re-run the search.
-    if (!_searchScheduled && lib.songs.length != _resultsLibLen) {
+    // Compared on the version token, not the length: a metadata scan can
+    // change every title while the song count stays the same.
+    if (!_searchScheduled && lib.songsVersion != _resultsLibVersion) {
       _scheduleSearch();
     }
     // Results live in state, published only by a generation checked search.
@@ -868,6 +942,44 @@ class _SearchScreenState extends State<SearchScreen> {
         ],
       ),
       bottomNavigationBar: const MiniPlayer(),
+    );
+  }
+}
+
+/// Leading icon of a search result row. Provides the player singleton locally
+/// so the two Selectors work without touching main.dart: the outer one rebuilds
+/// only when this row becomes the current song, the inner one only on play and
+/// pause.
+class _SearchNowPlayingIcon extends StatelessWidget {
+  final int songId;
+  final Widget fallback;
+  const _SearchNowPlayingIcon({required this.songId, required this.fallback});
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider.value(
+      value: PlayerService.instance,
+      child: Selector<PlayerService, bool>(
+        selector: (_, ps) => ps.currentSong?.id == songId,
+        builder: (context, isCurrent, _) {
+          if (!isCurrent) return fallback;
+          final cs = Theme.of(context).colorScheme;
+          return Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: cs.primary.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Selector<PlayerService, bool>(
+              selector: (_, ps) => ps.player.playing,
+              builder: (context, playing, _) =>
+                  PlayingIndicator(isPlaying: playing, color: cs.primary),
+            ),
+          );
+        },
+      ),
     );
   }
 }

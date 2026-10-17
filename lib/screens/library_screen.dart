@@ -16,6 +16,18 @@ import 'missing_art_screen.dart';
 import 'missing_lyrics_screen.dart';
 import 'bulk_edit_screen.dart';
 
+// Hoisted so the pattern is compiled once per file instead of once per row
+// (and once per build) by the A-Z index and the A-Z jumps.
+final RegExp _leadingLetterReg = RegExp(r'^[a-zA-Z]');
+
+// Rows sit in a fixed 72 px box while the app allows text scales up to 2x, so
+// the text inside a row is clamped to keep the two lines inside that box.
+const double _kRowMaxTextScale = 1.5;
+
+/// Clamped text scale for the text of a fixed height list row.
+TextScaler _rowTextScaler(BuildContext context) => MediaQuery.textScalerOf(context)
+    .clamp(maxScaleFactor: _kRowMaxTextScale);
+
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
   @override
@@ -89,6 +101,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
   final ScrollController _scrollController = ScrollController();
   static const double _itemHeight = 72.0;
 
+  // Above this row count "select all" is refused: every bulk action writes one
+  // row at a time, so a huge selection freezes the UI and locks the database.
+  static const int _selectAllLimit = 500;
+
+  // How many playlist writes run in parallel inside one bulk add. Small enough
+  // to avoid a write storm, large enough to keep 500 rows reasonably fast.
+  static const int _bulkWriteBatch = 20;
+
   bool _multiSelectMode = false;
   final Set<int> _selectedIds = {};
 
@@ -99,9 +119,20 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   // Letter to row index map, rebuilt only when the visible list changes.
   // A-Z jumps are therefore a scroll offset lookup instead of a DB query.
+  // The key includes LibraryProvider.songsVersion so a content change with an
+  // unchanged length (metadata edit, one file gone and one new) also rebuilds
+  // it, otherwise the jump lands on the wrong row and the rail shows letters
+  // the list no longer has.
   Map<String, int>? _azIndex;
   int _azIndexLength = -1;
+  int _azIndexVersion = -1;
   SortOption? _azIndexSort;
+
+  // Song id to row index map for the rendered list, rebuilt only when the
+  // library version changes. The scroll listener resolves the playing row with
+  // one lookup instead of a linear scan of the whole list per scroll event.
+  Map<int, int> _rowIndexById = const <int, int>{};
+  int _rowIndexVersion = -1;
 
   // Show the "jump to playing song" affordance while scrolled away.
   bool _playingRowHidden = false;
@@ -162,16 +193,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
+  // Rebuild the id to row index map only when the library version changed, so
+  // it is never rebuilt on an unrelated rebuild of this screen.
+  void _syncRowIndex(List<Song> songs, int version) {
+    if (_rowIndexVersion == version && _rowIndexById.length == songs.length) {
+      return;
+    }
+    _rowIndexVersion = version;
+    _rowIndexById = {for (var i = 0; i < songs.length; i++) songs[i].id: i};
+  }
+
   // Index of a song inside the last rendered list. Kept in a field so the
   // scroll listener does not rebuild the list just to look the id up.
-  List<Song> _lastVisibleList = const [];
-  int _visibleIndexOfSongId(int id) {
-    final list = _lastVisibleList;
-    for (var i = 0; i < list.length; i++) {
-      if (list[i].id == id) return i;
-    }
-    return -1;
-  }
+  int _visibleIndexOfSongId(int id) => _rowIndexById[id] ?? -1;
 
   // Load playlists once when first needed. Guarded by mounted.
   Future<void> _ensurePlaylistsLoaded() async {
@@ -204,15 +238,18 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   /// Build (or reuse) the letter to row index map for the visible list. One
   /// linear pass, no DB access, so an A-Z jump is a single scroll.
-  Map<String, int> _buildAzIndex(List<Song> songs, SortOption sort) {
+  Map<String, int> _buildAzIndex(List<Song> songs, SortOption sort, int version) {
     final cached = _azIndex;
-    if (cached != null && _azIndexLength == songs.length && _azIndexSort == sort) {
+    if (cached != null &&
+        _azIndexLength == songs.length &&
+        _azIndexVersion == version &&
+        _azIndexSort == sort) {
       return cached;
     }
     final map = <String, int>{};
     for (var i = 0; i < songs.length; i++) {
       final title = songs[i].title;
-      final letter = title.isNotEmpty && RegExp(r'^[a-zA-Z]').hasMatch(title)
+      final letter = title.isNotEmpty && _leadingLetterReg.hasMatch(title)
           ? safeInitial(title)
           : '#';
       // Keep the first row of each letter so the jump lands on the group head.
@@ -220,6 +257,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
     _azIndex = map;
     _azIndexLength = songs.length;
+    _azIndexVersion = version;
     _azIndexSort = sort;
     return map;
   }
@@ -237,11 +275,28 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
+  // Single source of truth for the selection: the selected ids intersected
+  // with the rows that are actually rendered.
+  List<Song> _selectedOf(List<Song> visible) =>
+      visible.where((s) => _selectedIds.contains(s.id)).toList();
+
   // Select every song of the currently visible list, or clear the selection
-  // when everything is already selected.
+  // when every visible row is already selected. Membership decides, never a
+  // length compare, so a stale id cannot flip the action into "clear".
   void _toggleSelectAll(List<Song> visible) {
+    // Too many rows: one write per song would freeze the UI.
+    if (visible.length > _selectAllLimit) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(AppLocalizations.of(context)!
+              .librarySelectAllTooMany(_selectAllLimit)),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4)));
+      return;
+    }
+    final allSelected =
+        visible.isNotEmpty && _selectedIds.containsAll(visible.map((s) => s.id));
     setState(() {
-      if (_selectedIds.length >= visible.length) {
+      if (allSelected) {
         _selectedIds.clear();
         _multiSelectMode = false;
       } else {
@@ -388,18 +443,47 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   leading: const Icon(Icons.queue_music),
                   title: Text(p['name']),
                   onTap: () async {
-                    await Future.wait(
-                        songs.map((s) => provider.addSong(p['id'], s.id)));
+                    final name = '${p['name']}';
+                    // Sequential batches: one parallel write per song locks
+                    // the database and blocks the UI thread.
+                    var added = 0;
+                    var failed = 0;
+                    for (var i = 0; i < songs.length; i += _bulkWriteBatch) {
+                      final end =
+                          (i + _bulkWriteBatch).clamp(0, songs.length);
+                      final batch = songs.sublist(i, end);
+                      final results = await Future.wait(batch.map((s) async {
+                        try {
+                          await provider.addSong(p['id'], s.id);
+                          return true;
+                        } catch (_) {
+                          // Counted below, the batch continues either way.
+                          return false;
+                        }
+                      }));
+                      for (final ok in results) {
+                        if (ok) {
+                          added++;
+                        } else {
+                          failed++;
+                        }
+                      }
+                    }
                     if (ctx.mounted) Navigator.pop(ctx);
                     if (!mounted) return;
                     _exitMultiSelect();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          behavior: SnackBarBehavior.floating,
-                          duration: const Duration(seconds: 3),
-                          content: Text(l.libraryAddedToPlaylist(
-                              songs.length, p['name']))));
-                    }
+                    // Report what really happened, never the requested count.
+                    final partial = failed > 0
+                        ? l.libraryPartialAddedToPlaylist(
+                            added, songs.length, name, failed)
+                        : '';
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 3),
+                        backgroundColor: failed > 0 ? Colors.red : null,
+                        content: Text(failed > 0
+                            ? partial
+                            : l.libraryAddedToPlaylist(added, name))));
                   },
                 )),
               ],
@@ -413,16 +497,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget _buildMultiSelectBar(LibraryProvider lib, List<Song> visible) {
     final l = AppLocalizations.of(context)!;
     if (!_multiSelectMode) return const SizedBox.shrink();
-    final selected =
-        visible.where((s) => _selectedIds.contains(s.id)).toList();
-    final allSelected =
-        visible.isNotEmpty && _selectedIds.length >= visible.length;
+    // Drop ids that vanished from the library (file deleted during a scan) so
+    // the count, the icon and the actions all read the same set.
+    _selectedIds.removeWhere((id) => !_rowIndexById.containsKey(id));
+    final selected = _selectedOf(visible);
+    final allSelected = visible.isNotEmpty && selected.length == visible.length;
     return Container(
       color: Theme.of(context).colorScheme.surfaceContainerHigh,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         children: [
-          Text(l.librarySelectedCount(_selectedIds.length),
+          Text(l.librarySelectedCount(selected.length),
               style: const TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(width: 4),
           IconButton(
@@ -452,13 +537,23 @@ class _LibraryScreenState extends State<LibraryScreen> {
               onPressed: selected.isEmpty
                   ? null
                   : () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              BulkEditScreen(songs: selected),
-                        ),
-                      );
+                      try {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                BulkEditScreen(songs: selected),
+                          ),
+                        );
+                      } catch (e) {
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(seconds: 3),
+                            backgroundColor: Colors.red,
+                            content: Text(l.bulkActionFailed('$e'))));
+                        return;
+                      }
                       if (!mounted) return;
                       _exitMultiSelect();
                     }),
@@ -470,9 +565,35 @@ class _LibraryScreenState extends State<LibraryScreen> {
               onPressed: selected.isEmpty
                   ? null
                   : () async {
-                      await lib.setFavoritesBulk(selected, true);
-                      if (!mounted) return;
-                      _exitMultiSelect();
+                      // setFavoritesBulk writes one batch and reports a
+                      // failure through scanError instead of throwing, so
+                      // compare it against the value from before the call.
+                      final previousError = lib.scanError;
+                      try {
+                        await lib.setFavoritesBulk(selected, true);
+                        if (!mounted) return;
+                        final error = lib.scanError != previousError
+                            ? lib.scanError
+                            : null;
+                        _exitMultiSelect();
+                        final done =
+                            l.libraryFavoritesAdded(selected.length);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(seconds: 3),
+                            backgroundColor:
+                                error != null ? Colors.red : null,
+                            content: Text(error != null
+                                ? l.bulkFavoriteFailed(error)
+                                : done)));
+                      } catch (e) {
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(seconds: 3),
+                            backgroundColor: Colors.red,
+                            content: Text(l.bulkFavoriteFailed('$e'))));
+                      }
                     }),
           IconButton(
               constraints:
@@ -597,10 +718,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
       // One list, no paging. The sliver below has a fixed item extent so
       // only the visible rows are built even with tens of thousands of songs.
       final songs = lib.filteredSongs('');
-      _lastVisibleList = songs;
+      // Content and order token, it also invalidates the A-Z cache below.
+      final version = lib.songsVersion;
+      _syncRowIndex(songs, version);
       final showAz = lib.sortOption == SortOption.titleAZ;
-      final azIndex =
-          showAz ? _buildAzIndex(songs, lib.sortOption) : <String, int>{};
+      final azIndex = showAz
+          ? _buildAzIndex(songs, lib.sortOption, version)
+          : <String, int>{};
       final available = azIndex.keys.toSet();
 
       return Column(
@@ -701,104 +825,108 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   void _showScanMenu(BuildContext context, LibraryProvider lib) {
     final l = AppLocalizations.of(context)!;
-    // Count of songs with neither local art nor remote art URL.
-    final missingCount = lib.songs.where((s) {
-      final path = (s.albumArtPath ?? '').trim();
-      final url = (s.albumArtUrl ?? '').trim();
-      return path.isEmpty && url.isEmpty;
-    }).length;
-    // Count of songs with null or blank lyrics.
-    final missingLyricsCount = lib.songs.where((s) {
-      return (s.lyrics ?? '').trim().isEmpty;
-    }).length;
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => SafeArea(
-        child: Wrap(children: [
-          ListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16),
-            leading: const Icon(Icons.cloud_sync_outlined),
-            title: Text(l.libraryScanMissing),
-            onTap: () {
-              Navigator.pop(ctx);
-              lib.bulkScanMetadata(onlyMissing: true);
-            },
-          ),
-          ListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16),
-            leading: const Icon(Icons.refresh),
-            title: Text(l.libraryRescanAll),
-            onTap: () async {
-              Navigator.pop(ctx);
-              final ok = await showDialog<bool>(
-                  context: context,
-                  builder: (c) => AlertDialog(
-                        title: Text(l.libraryRescanAll),
-                        content: Text(
-                            l.libraryRescanConfirm(lib.totalCount)),
-                        actions: [
-                          TextButton(
-                              onPressed: () => Navigator.pop(c, false),
-                              child: Text(l.cancel)),
-                          FilledButton(
-                              onPressed: () => Navigator.pop(c, true),
-                              child: Text(l.libraryStart)),
-                        ],
-                      ));
-              if (ok == true) lib.bulkScanMetadata(onlyMissing: false);
-            },
-          ),
-          // Entry to the screen listing songs without cover art.
-          ListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16),
-            leading: const Icon(Icons.image_not_supported_outlined),
-            title: Text(AppLocalizations.of(context)!.artMissingEntry),
-            trailing: missingCount > 0
-                ? CircleAvatar(
-                    radius: 12,
-                    child: Text('$missingCount',
-                        style: const TextStyle(fontSize: 12)),
-                  )
-                : null,
-            onTap: () {
-              Navigator.pop(ctx);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const MissingArtScreen()),
-              );
-            },
-          ),
-          // Entry to the screen listing songs without lyrics.
-          ListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16),
-            leading: const Icon(Icons.lyrics_outlined),
-            title: Text(AppLocalizations.of(context)!.missLyricsEntry),
-            trailing: missingLyricsCount > 0
-                ? CircleAvatar(
-                    radius: 12,
-                    child: Text('$missingLyricsCount',
-                        style: const TextStyle(fontSize: 12)),
-                  )
-                : null,
-            onTap: () {
-              Navigator.pop(ctx);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const MissingLyricsScreen()),
-              );
-            },
-          ),
-        ]),
-      ),
+      // Both counters walk the whole library, so compute them only while the
+      // sheet is actually built instead of on every tap that opens the menu.
+      builder: (ctx) {
+        // Count of songs with neither local art nor remote art URL.
+        final missingCount = lib.songs.where((s) {
+          final path = (s.albumArtPath ?? '').trim();
+          final url = (s.albumArtUrl ?? '').trim();
+          return path.isEmpty && url.isEmpty;
+        }).length;
+        // Count of songs with null or blank lyrics.
+        final missingLyricsCount = lib.songs.where((s) {
+          return (s.lyrics ?? '').trim().isEmpty;
+        }).length;
+        return SafeArea(
+          child: Wrap(children: [
+            ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16),
+              leading: const Icon(Icons.cloud_sync_outlined),
+              title: Text(l.libraryScanMissing),
+              onTap: () {
+                Navigator.pop(ctx);
+                lib.bulkScanMetadata(onlyMissing: true);
+              },
+            ),
+            ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16),
+              leading: const Icon(Icons.refresh),
+              title: Text(l.libraryRescanAll),
+              onTap: () async {
+                Navigator.pop(ctx);
+                final ok = await showDialog<bool>(
+                    context: context,
+                    builder: (c) => AlertDialog(
+                          title: Text(l.libraryRescanAll),
+                          content: Text(
+                              l.libraryRescanConfirm(lib.totalCount)),
+                          actions: [
+                            TextButton(
+                                onPressed: () => Navigator.pop(c, false),
+                                child: Text(l.cancel)),
+                            FilledButton(
+                                onPressed: () => Navigator.pop(c, true),
+                                child: Text(l.libraryStart)),
+                          ],
+                        ));
+                if (ok == true) lib.bulkScanMetadata(onlyMissing: false);
+              },
+            ),
+            // Entry to the screen listing songs without cover art.
+            ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16),
+              leading: const Icon(Icons.image_not_supported_outlined),
+              title: Text(AppLocalizations.of(context)!.artMissingEntry),
+              trailing: missingCount > 0
+                  ? CircleAvatar(
+                      radius: 12,
+                      child: Text('$missingCount',
+                          style: const TextStyle(fontSize: 12)),
+                    )
+                  : null,
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const MissingArtScreen()),
+                );
+              },
+            ),
+            // Entry to the screen listing songs without lyrics.
+            ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16),
+              leading: const Icon(Icons.lyrics_outlined),
+              title: Text(AppLocalizations.of(context)!.missLyricsEntry),
+              trailing: missingLyricsCount > 0
+                  ? CircleAvatar(
+                      radius: 12,
+                      child: Text('$missingLyricsCount',
+                          style: const TextStyle(fontSize: 12)),
+                    )
+                  : null,
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const MissingLyricsScreen()),
+                );
+              },
+            ),
+          ]),
+        );
+      },
     );
   }
 }
@@ -927,6 +1055,9 @@ class _SongTile extends StatelessWidget {
                   Text(song.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      // Clamped: the row has a fixed 72 px extent, so the two
+                      // line text must not grow past it at large app scales.
+                      textScaler: _rowTextScaler(context),
                       style: TextStyle(
                           fontSize: 14,
                           fontWeight: isPlaying
@@ -938,12 +1069,14 @@ class _SongTile extends StatelessWidget {
                       '${song.artist} \u00B7 ${song.genre ?? ""}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      textScaler: _rowTextScaler(context),
                       style: TextStyle(
                           fontSize: 12, color: Colors.grey[500])),
                 ],
               ),
             ),
             Text(formatDuration(song.durationMs),
+                textScaler: _rowTextScaler(context),
                 style: TextStyle(fontSize: 12, color: Colors.grey[500])),
             if (!isMultiSelect)
               IconButton(

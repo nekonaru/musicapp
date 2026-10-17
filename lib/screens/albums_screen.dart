@@ -11,6 +11,10 @@ import 'extra_screens.dart';
 // Sort mode for the album grid. Session only, no persistence needed.
 enum _AlbumSortOption { titleAZ, titleZA, countDesc, countAsc }
 
+// Grid cell has a fixed aspect ratio while the app allows text scales up to
+// 2x, so the info text of a card is clamped to stay inside the cell.
+const double _kAlbumCardMaxTextScale = 1.5;
+
 class AlbumsScreen extends StatefulWidget {
   const AlbumsScreen({super.key});
 
@@ -20,6 +24,31 @@ class AlbumsScreen extends StatefulWidget {
 
 class _AlbumsScreenState extends State<AlbumsScreen> {
   _AlbumSortOption _sortOption = _AlbumSortOption.titleAZ;
+
+  // Grouping, sorted album keys and the "play all" queue are derived from the
+  // library. Rebuilt only when LibraryProvider.songsVersion or the sort
+  // changes, so a provider notify that does not touch the song list (scan
+  // progress, scanning flag) no longer regroups the whole library in build.
+  Map<String, List<Song>> _grouped = const <String, List<Song>>{};
+  List<String> _albums = const <String>[];
+  List<Song> _queue = const <Song>[];
+  int _groupedVersion = -1;
+  _AlbumSortOption? _groupedSort;
+
+  void _syncAlbums(LibraryProvider lib) {
+    if (_groupedVersion == lib.songsVersion && _groupedSort == _sortOption) {
+      return;
+    }
+    _groupedVersion = lib.songsVersion;
+    _groupedSort = _sortOption;
+    final grouped = <String, List<Song>>{};
+    for (final s in lib.songs) {
+      grouped.putIfAbsent(s.album, () => []).add(s);
+    }
+    _grouped = grouped;
+    _albums = _sortedAlbums(grouped.keys.toList(), grouped);
+    _queue = buildGroupQueue(_albums, grouped);
+  }
 
   // Short label shown inside the sort chip.
   String _sortChipLabel(AppLocalizations l) {
@@ -132,12 +161,10 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
         );
       }
 
-      // Group by album
-      final Map<String, List<Song>> grouped = {};
-      for (final s in lib.songs) {
-        grouped.putIfAbsent(s.album, () => []).add(s);
-      }
-      final albums = _sortedAlbums(grouped.keys.toList(), grouped);
+      // Grouped by album, memoized per library version and sort option.
+      _syncAlbums(lib);
+      final Map<String, List<Song>> grouped = _grouped;
+      final albums = _albums;
 
       return Column(
         children: [
@@ -151,8 +178,7 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
                           TextStyle(fontSize: 12, color: Colors.grey[500])),
                 ),
                 // Play all and shuffle the whole album list.
-                buildGroupPlayActions(
-                    context, buildGroupQueue(albums, grouped)),
+                buildGroupPlayActions(context, _queue),
                 const SizedBox(width: 4),
                 // Shared ripple chip, same label as before.
                 SortChip(
@@ -215,6 +241,10 @@ class _AlbumCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
+    // Grid cell has a fixed aspect ratio, so clamp the text scale of the two
+    // info lines to keep them inside the card at large app text scales.
+    final scaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: _kAlbumCardMaxTextScale);
     return Material(
       color: cs.surfaceContainerHigh,
       borderRadius: BorderRadius.circular(12),
@@ -264,10 +294,12 @@ class _AlbumCard extends StatelessWidget {
                   Text(album,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      textScaler: scaler,
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 2),
                   Text(l.librarySongCount(songs.length),
+                      textScaler: scaler,
                       style: TextStyle(
                           fontSize: 11, color: Colors.grey[500])),
                 ],

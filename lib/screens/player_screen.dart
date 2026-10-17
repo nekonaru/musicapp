@@ -105,11 +105,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
                               max: PlayerService.speedMax,
                               divisions: 15,
                               label: '${speed.toStringAsFixed(2)}x',
+                              // While dragging only the local readout
+                              // changes, so a drag never rebuilds the whole
+                              // player screen (art, lyrics, buttons) per frame.
                               onChanged: (v) {
                                 speed = v;
                                 setSheetState(() {});
-                                _player.setPlaybackSpeed(v);
                               },
+                              // The final value is committed once, when the
+                              // finger is released.
+                              onChangeEnd: (v) => _player.setPlaybackSpeed(v),
                             ),
                           ),
                           SizedBox(
@@ -141,11 +146,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
                               max: PlayerService.pitchMax,
                               divisions: 15,
                               label: pitch.toStringAsFixed(2),
+                              // Same as the speed slider: local readout while
+                              // dragging, one commit on release.
                               onChanged: (v) {
                                 pitch = v;
                                 setSheetState(() {});
-                                _player.setPlaybackPitch(v);
                               },
+                              onChangeEnd: (v) => _player.setPlaybackPitch(v),
                             ),
                           ),
                           SizedBox(

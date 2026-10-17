@@ -3163,6 +3163,67 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not open the browser'**
   String get editLyricsSearchOpenFailed;
+
+  /// Select all limit message
+  ///
+  /// In en, this message translates to:
+  /// **'Too many songs to select all at once. Select up to {limit} songs.'**
+  String librarySelectAllTooMany(int limit);
+
+  /// Partial playlist add message
+  ///
+  /// In en, this message translates to:
+  /// **'Added {added} of {total} songs to {name}, {failed} failed.'**
+  String libraryPartialAddedToPlaylist(
+      int added, int total, String name, int failed);
+
+  /// Bulk favorites added message
+  ///
+  /// In en, this message translates to:
+  /// **'{count} songs added to favorites'**
+  String libraryFavoritesAdded(int count);
+
+  /// History cleanup option title
+  ///
+  /// In en, this message translates to:
+  /// **'Clean up listening history'**
+  String get historyCleanupTitle;
+
+  /// History cleanup subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Delete old listening history older than 12 months and cap the total rows'**
+  String get historyCleanupSubtitle;
+
+  /// History cleanup dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Delete old listening history?'**
+  String get historyCleanupDialogTitle;
+
+  /// History cleanup dialog message
+  ///
+  /// In en, this message translates to:
+  /// **'Listening history older than 12 months will be deleted, and the oldest rows will be removed until at most 200,000 rows remain. Dashboard totals such as Total listened and Top songs are based on this history, so those numbers will go down.'**
+  String get historyCleanupMessage;
+
+  /// History cleanup confirm button
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get historyCleanupAction;
+
+  /// History cleanup result
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted {count} history rows'**
+  String historyCleanupDone(int count);
+
+  /// History cleanup failure
+  ///
+  /// In en, this message translates to:
+  /// **'History cleanup failed: {error}'**
+  String historyCleanupFailed(String error);
 }
 
 class _AppLocalizationsDelegate
