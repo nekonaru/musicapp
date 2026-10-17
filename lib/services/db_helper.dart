@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:swara/l10n/gen/app_localizations.dart';
 import 'package:swara/providers/language_provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -23,8 +25,9 @@ class DBHelper {
     final path = p.join(dbPath, 'music_app.db');
     return openDatabase(
       path,
-      version: 8,
+      version: 9,
       onCreate: (db, version) async {
+        await _applyPragmas(db);
         await db.execute('''
           CREATE TABLE songs(
             id INTEGER PRIMARY KEY,
@@ -83,6 +86,14 @@ class DBHelper {
             'CREATE INDEX idx_listening_song_ts ON listening_entries(songId, timestamp)');
         await db.execute(
             'CREATE INDEX idx_playlist_songs_pid_pos ON playlist_songs(playlistId, position)');
+        // Covering indexes for the artist / album / case insensitive title
+        // sorts and for the timestamp range scan done by the prune job.
+        await db.execute('CREATE INDEX idx_songs_artist ON songs(artist)');
+        await db.execute('CREATE INDEX idx_songs_album ON songs(album)');
+        await db.execute(
+            'CREATE INDEX idx_songs_title_nocase ON songs(title COLLATE NOCASE)');
+        await db.execute(
+            'CREATE INDEX idx_listening_ts ON listening_entries(timestamp)');
         // Disk cache for iTunes search responses so reinstalls do not
         // refetch songs that were already looked up (hits and misses).
         await db.execute('''
@@ -100,8 +111,12 @@ class DBHelper {
             fetchedAt TEXT
           )
         ''');
+        // Fire and forget, never awaited: history pruning must not delay the
+        // first load. A brand new DB has no rows, so this is a no-op here.
+        unawaited(_pruneSafely(db));
       },
       onUpgrade: (db, oldVersion, newVersion) async {
+        await _applyPragmas(db);
         if (oldVersion < 2) {
           // Add the position column for the playlist reorder feature
           try {
@@ -216,7 +231,122 @@ class DBHelper {
             // Best effort only, unscanned songs are retried on next scan.
           }
         }
+        if (oldVersion < 9) {
+          // Extra indexes for the library sorts (artist, album, case
+          // insensitive title) and for the timestamp range scan that the
+          // listening history prune relies on. IF NOT EXISTS keeps this safe
+          // for DBs that already got them.
+          try {
+            await db.execute(
+                'CREATE INDEX IF NOT EXISTS idx_songs_artist ON songs(artist)');
+            await db.execute(
+                'CREATE INDEX IF NOT EXISTS idx_songs_album ON songs(album)');
+            await db.execute(
+                'CREATE INDEX IF NOT EXISTS idx_songs_title_nocase ON songs(title COLLATE NOCASE)');
+            await db.execute(
+                'CREATE INDEX IF NOT EXISTS idx_listening_ts ON listening_entries(timestamp)');
+          } catch (_) {
+            // Index creation is best effort, queries still work without it.
+          }
+        }
+        // Fire and forget, never awaited: the prune must not block the open.
+        // The dashboard only reads 12 months back, so nothing it needs is
+        // touched here.
+        unawaited(_pruneSafely(db));
       },
+    );
+  }
+
+  // ---------- SQLite tuning ----------
+  /// Best effort performance pragmas, applied on create and on every upgrade.
+  /// Each pragma runs in its own try/catch: some are unsupported on some
+  /// platforms (for example pragma balancing is not available on Android),
+  /// and one failing pragma must never abort the rest or the whole open.
+  static Future<void> _applyPragmas(Database db) async {
+    const pragmas = <String>[
+      'PRAGMA journal_mode=WAL',
+      'PRAGMA synchronous=NORMAL',
+      'PRAGMA cache_size=-8000', // 8 MB page cache
+      'PRAGMA temp_store=MEMORY',
+      'PRAGMA mmap_size=134217728', // 128 MB memory mapped reads
+    ];
+    for (final sql in pragmas) {
+      try {
+        await db.execute(sql);
+      } catch (_) {
+        // Unsupported on this build, ignore and keep the other pragmas.
+      }
+    }
+  }
+
+  /// Fire and forget wrapper for the history prune, used from onCreate and
+  /// onUpgrade. [db] is the handle passed to the callback: going through the
+  /// lazy `db` getter there would re-enter _init while the database is still
+  /// opening. Errors are swallowed on purpose.
+  static Future<void> _pruneSafely(Database db) async {
+    try {
+      await _pruneListeningEntriesOn(db);
+    } catch (_) {
+      // Best effort only, older rows simply stay.
+    }
+  }
+
+  /// Drop listening history rows that are no longer needed.
+  ///
+  /// Two passes: first every row older than [keepDays], then, when the table
+  /// is still bigger than [keepMaxRows], the oldest rows until the row count
+  /// fits. Returns the total number of deleted rows.
+  ///
+  /// listening_entries columns are id / songId / timestamp / listenedMs, and
+  /// timestamp is stored as an ISO8601 TEXT value (see ListeningEntry.toMap),
+  /// so the cutoff is compared as an ISO string. For that format the
+  /// lexicographic order equals the chronological order, which also lets
+  /// idx_listening_ts serve both the range delete and the ORDER BY.
+  static Future<int> _pruneListeningEntriesOn(
+    Database database, {
+    int keepDays = 365,
+    int keepMaxRows = 200000,
+  }) async {
+    final safeDays = keepDays < 0 ? 0 : keepDays;
+    final safeMaxRows = keepMaxRows < 1 ? 1 : keepMaxRows;
+    final cutoffMs = DateTime.now()
+        .millisecondsSinceEpoch -
+        safeDays * Duration.millisecondsPerDay;
+    final cutoff = DateTime.fromMillisecondsSinceEpoch(cutoffMs).toIso8601String();
+
+    var deleted = await database.delete(
+      'listening_entries',
+      where: 'timestamp < ?',
+      whereArgs: [cutoff],
+    );
+
+    final count = Sqflite.firstIntValue(await database
+            .rawQuery('SELECT COUNT(*) FROM listening_entries')) ??
+        0;
+    final overflow = count - safeMaxRows;
+    if (overflow <= 0) return deleted;
+
+    final trimmed = await database.rawDelete(
+      'DELETE FROM listening_entries WHERE id IN ('
+      'SELECT id FROM listening_entries ORDER BY timestamp ASC LIMIT ?)',
+      [overflow],
+    );
+    deleted += trimmed;
+    return deleted;
+  }
+
+  /// Public entry point: prune [listening_entries] to [keepDays] of history
+  /// and at most [keepMaxRows] rows. Returns the number of deleted rows.
+  /// The dashboard only needs 12 months back, so the defaults keep it intact.
+  Future<int> pruneListeningEntries({
+    int keepDays = 365,
+    int keepMaxRows = 200000,
+  }) async {
+    final database = await db;
+    return _pruneListeningEntriesOn(
+      database,
+      keepDays: keepDays,
+      keepMaxRows: keepMaxRows,
     );
   }
 

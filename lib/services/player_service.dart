@@ -49,6 +49,27 @@ class PlayerService extends ChangeNotifier {
   static const String _prefsCrossfadeSecondsKey = 'crossfadeSeconds';
   Duration crossfadeDuration = const Duration(seconds: 3);
 
+  // Smart shuffle preference, persisted with the same pattern as the
+  // crossfade seconds key.
+  static const String _prefsSmartShuffleKey = 'smartShuffle';
+  bool _smartShuffle = false;
+
+  // Playback speed and pitch. Both are clamped to 0.5..2.0 and re-applied on
+  // every track change, so the values survive song switches and crossfades.
+  static const double speedMin = 0.5;
+  static const double speedMax = 2.0;
+  static const double pitchMin = 0.5;
+  static const double pitchMax = 2.0;
+  double _speed = 1.0;
+  double _pitch = 1.0;
+
+  // In-memory smart shuffle statistics. Play counts come from the listening
+  // history table and the last played stamp is kept locally, updated whenever
+  // a song starts. They are only read while the queue order is built, so no
+  // database call is ever added to the playback path.
+  Map<int, int> _playCounts = const {};
+  final Map<int, DateTime> _lastPlayTimes = {};
+
   // Overlap length in whole seconds, clamped to the allowed range.
   int get crossfadeSeconds => crossfadeDuration.inSeconds;
 
@@ -56,10 +77,28 @@ class PlayerService extends ChangeNotifier {
   // queue or order change so UI can detect stale snapshots.
   int queueVersion = 0;
   int _playGeneration = 0;
-  double _lastSpeed = 1.0;
 
   Timer? _sleepTimer;
   DateTime? sleepTimerEndTime;
+
+  // Daily sleep schedule. Persisted separately from a running sleep timer, so
+  // the schedule survives a restart while the countdown stays in memory only.
+  static const String _prefsSleepScheduleEnabledKey = 'sleepScheduleEnabled';
+  static const String _prefsSleepScheduleHourKey = 'sleepScheduleHour';
+  static const String _prefsSleepScheduleMinuteKey = 'sleepScheduleMinute';
+  static const int sleepScheduleDefaultHour = 22;
+  static const int sleepScheduleDefaultMinute = 0;
+  // How often the schedule clock is polled, and how long the automatic
+  // session lasts once it fires.
+  static const Duration sleepScheduleTickInterval = Duration(seconds: 30);
+  static const Duration sleepScheduleDuration = Duration(minutes: 30);
+  bool _sleepScheduleEnabled = false;
+  int _sleepScheduleHour = sleepScheduleDefaultHour;
+  int _sleepScheduleMinute = sleepScheduleDefaultMinute;
+  Timer? _sleepScheduleTicker;
+  // Day stamp (yyyy-mm-dd) of the last day the schedule already fired, so a
+  // schedule never triggers twice on the same day.
+  String? _sleepScheduleFiredDay;
   int? sleepSongsRemaining;
   bool _finishCurrentSongOnSleep = false;
   bool _pendingSleepStop = false;
@@ -145,14 +184,15 @@ class PlayerService extends ChangeNotifier {
   }
 
   /// Create the crossfade player on demand and attach its completion
-  /// listener. Copies the current speed so the fade in starts in sync.
+  /// listener. Copies the current speed and pitch so the fade in starts in
+  /// sync with the audible player.
   AudioPlayer _ensureCrossfadePlayer() {
     final existing = _crossfadePlayer;
     if (existing != null) return existing;
     final created = AudioPlayer();
     _crossfadePlayer = created;
-    created.setSpeed(_lastSpeed).catchError((Object e) {
-      debugPrint('Crossfade speed sync failed: $e');
+    _syncSpeedPitch(created).catchError((Object e) {
+      debugPrint('Crossfade speed/pitch sync failed: $e');
     });
     _crossfadeStateSub?.cancel();
     _crossfadeStateSub = created.playerStateStream.listen((state) {
@@ -177,6 +217,13 @@ class PlayerService extends ChangeNotifier {
     standby?.dispose().catchError((Object e) {
       debugPrint('Crossfade dispose failed: $e');
     });
+  }
+
+  /// Copy the current speed and pitch onto [target]. Used on every track load
+  /// so a song never starts at the default rate while another one is fast.
+  Future<void> _syncSpeedPitch(AudioPlayer target) async {
+    await target.setSpeed(_speed);
+    await target.setPitch(_pitch);
   }
 
   AudioPlayer get player => _activePlayer;
@@ -205,9 +252,30 @@ class PlayerService extends ChangeNotifier {
             saved.clamp(crossfadeMinSeconds, crossfadeMaxSeconds);
         crossfadeDuration = Duration(seconds: clamped);
       }
+      // Smart shuffle is a plain bool flag, same persistence pattern.
+      _smartShuffle = prefs.getBool(_prefsSmartShuffleKey) ?? false;
+      // Daily sleep schedule: enabled flag plus a 24h hour/minute pair.
+      _sleepScheduleEnabled =
+          prefs.getBool(_prefsSleepScheduleEnabledKey) ?? false;
+      final hour = prefs.getInt(_prefsSleepScheduleHourKey);
+      final minute = prefs.getInt(_prefsSleepScheduleMinuteKey);
+      if (hour != null && hour >= 0 && hour <= 23) _sleepScheduleHour = hour;
+      if (minute != null && minute >= 0 && minute <= 59) {
+        _sleepScheduleMinute = minute;
+      }
     } catch (e) {
       debugPrint('Crossfade duration load failed: $e');
     }
+    // The schedule ticker only runs while the schedule is enabled.
+    if (_sleepScheduleEnabled) {
+      // App start counts as arming time: do not fire retroactively when the
+      // configured time already passed today, wait for tomorrow instead.
+      _skipTodayIfAlreadyPast();
+      _startSleepScheduleTicker();
+    }
+    // Warm the smart shuffle statistics in the background when the feature
+    // was already enabled from a previous session.
+    if (_smartShuffle) unawaited(refreshSmartShuffleStats());
     await _playerStateSub?.cancel();
     await _unsubscribePosition();
     _playerStateSub = _player.playerStateStream.listen((state) {
@@ -288,7 +356,7 @@ class PlayerService extends ChangeNotifier {
     try {
       await incoming.setFilePath(nextSong.filePath);
       if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
-      await incoming.setSpeed(_lastSpeed);
+      await _syncSpeedPitch(incoming);
       if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
       await _vol(() => incoming.setVolume(0));
       if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
@@ -337,6 +405,7 @@ class PlayerService extends ChangeNotifier {
       _playStartedAt = DateTime.now();
       _accumulatedListenedMs = 0;
       _crossfadeActiveGeneration = -1;
+      _markSongPlayed(nextSong);
       await DBHelper.instance.markPlayed(nextSong.id);
       if (playGen != _playGeneration || fadeGen != _crossfadeGeneration || _disposed) return;
 
@@ -408,8 +477,53 @@ class PlayerService extends ChangeNotifier {
   List<int> _buildShuffledOrder(int length, int startIndex) {
     final indices = List.generate(length, (i) => i);
     indices.remove(startIndex);
+    return [startIndex, ..._shuffleRest(indices)];
+  }
+
+  /// Order the songs after the current one. With smart shuffle on, the song
+  /// that was played least often and longest ago comes first, so the queue
+  /// naturally favors forgotten tracks. Falls back to a plain shuffle when no
+  /// statistics are available.
+  List<int> _shuffleRest(List<int> indices) {
+    if (_smartShuffle && _playCounts.isNotEmpty) {
+      final weighted = _smartShuffleOrder(indices);
+      if (weighted != null) return weighted;
+    }
     indices.shuffle(Random());
-    return [startIndex, ...indices];
+    return indices;
+  }
+
+  /// Weighted random order: the lower the weight, the earlier the song plays.
+  /// Weight combines a rarity score from the play count and a staleness score
+  /// from the last played stamp, then a random jitter keeps equal songs from
+  /// always landing in the same spot. Returns null when the queue has no song
+  /// with known statistics, which lets the caller fall back to plain shuffle.
+  List<int>? _smartShuffleOrder(List<int> indices) {
+    final now = DateTime.now();
+    final maxCount = _playCounts.values.fold<int>(0, (a, b) => a > b ? a : b);
+    if (maxCount <= 0) return null;
+    final weights = <int, double>{};
+    for (final i in indices) {
+      if (i < 0 || i >= _queue.length) continue;
+      final id = _queue[i].id;
+      final count = (_playCounts[id] ?? 0).toDouble();
+      final last = _lastPlayTimes[id];
+      // Rarity: 0 for the most played song, close to 1 for a never played one.
+      final rarity = 1.0 - (count / maxCount);
+      // Staleness: 0 when just played, grows with the idle time.
+      final staleness = last == null
+          ? 1.0
+          : (now.difference(last).inHours / (24.0 * 30))
+              .clamp(0.0, 1.0)
+              .toDouble();
+      weights[i] = rarity * 0.6 + staleness * 0.4 + Random().nextDouble() * 0.05;
+    }
+    if (weights.isEmpty) return null;
+    final ordered = List<int>.of(indices)
+      ..sort((a, b) =>
+          (weights[a] ?? double.maxFinite)
+              .compareTo(weights[b] ?? double.maxFinite));
+    return ordered;
   }
 
   Future<void> _playCurrent() async {
@@ -420,7 +534,7 @@ class PlayerService extends ChangeNotifier {
     try {
       await _player.setFilePath(song.filePath);
       if (playGen != _playGeneration || _disposed) return;
-      await _player.setSpeed(_lastSpeed);
+      await _syncSpeedPitch(_player);
       if (playGen != _playGeneration || _disposed) return;
       await _vol(() => _player.setVolume(1));
     } catch (e) {
@@ -443,6 +557,7 @@ class PlayerService extends ChangeNotifier {
     if (playGen != _playGeneration || _disposed) return;
     _playStartedAt = DateTime.now();
     _accumulatedListenedMs = 0;
+    _markSongPlayed(song);
     await DBHelper.instance.markPlayed(song.id);
     if (playGen != _playGeneration || _disposed) return;
     lastError = null;
@@ -743,21 +858,59 @@ class PlayerService extends ChangeNotifier {
     notifyListeners();
   }
 
-  double get playbackSpeed => _activePlayer.speed;
+  double get playbackSpeed => _speed;
 
+  /// Current pitch multiplier (1.0 = untouched).
+  double get playbackPitch => _pitch;
+
+  /// Current playback speed as a display string, for example "1.0x".
+  String get playbackSpeedLabel => '${_speed.toStringAsFixed(1)}x';
+
+  /// Set the playback speed, clamped to speedMin..speedMax and applied to
+  /// every player that exists right now (the standby player is only touched
+  /// when it already exists, it is never created just for this).
+  // TODO L10N: no user facing string added here, English only.
   Future<void> setPlaybackSpeed(double speed) async {
     if (_disposed) return;
-    _lastSpeed = speed;
-    try {
-      await _activePlayer.setSpeed(speed);
-      // Mirror the speed on the standby player only when it already
-      // exists, so this call never creates it just for a speed update.
-      // A player created later copies the speed in _ensureCrossfadePlayer.
-      await _crossfadePlayer?.setSpeed(speed);
-    } catch (e) {
-      debugPrint('Failed to set speed: $e');
-    }
+    _speed = speed.clamp(speedMin, speedMax).toDouble();
+    await _applySpeedPitch();
     notifyListeners();
+  }
+
+  /// Set the pitch, clamped to pitchMin..pitchMax. Pitch is independent from
+  /// speed: the tempo stays the same, only the tone height changes.
+  // TODO L10N: no user facing string added here, English only.
+  Future<void> setPlaybackPitch(double pitch) async {
+    if (_disposed) return;
+    _pitch = pitch.clamp(pitchMin, pitchMax).toDouble();
+    await _applySpeedPitch();
+    notifyListeners();
+  }
+
+  /// Restore both speed and pitch to 1.0 in one call.
+  // TODO L10N: no user facing string added here, English only.
+  Future<void> resetSpeedAndPitch() async {
+    if (_disposed) return;
+    _speed = 1.0;
+    _pitch = 1.0;
+    await _applySpeedPitch();
+    notifyListeners();
+  }
+
+  /// Push the current speed and pitch to every player in the service.
+  /// Errors are logged only, so a change can never break playback.
+  Future<void> _applySpeedPitch() async {
+    try {
+      await _activePlayer.setSpeed(_speed);
+      await _activePlayer.setPitch(_pitch);
+      // Mirror on the standby player only when it already exists, so this
+      // call never creates it. A player created later copies the values in
+      // _ensureCrossfadePlayer.
+      await _crossfadePlayer?.setSpeed(_speed);
+      await _crossfadePlayer?.setPitch(_pitch);
+    } catch (e) {
+      debugPrint('Failed to set speed/pitch: $e');
+    }
   }
 
   /// Toggle shuffle WITHOUT changing the currently playing song, only
@@ -780,8 +933,7 @@ class PlayerService extends ChangeNotifier {
 
     if (_shuffle) {
       final rest = List.generate(_queue.length, (i) => i)..remove(currentQueueIndex);
-      rest.shuffle(Random());
-      _playOrder = [currentQueueIndex, ...rest];
+      _playOrder = [currentQueueIndex, ..._shuffleRest(rest)];
       _posInOrder = 0;
     } else {
       _playOrder = List.generate(_queue.length, (i) => i);
@@ -790,6 +942,62 @@ class PlayerService extends ChangeNotifier {
     // Order changed, so any cached preload is stale.
     _preloadedFilePath = null;
     notifyListeners();
+  }
+
+  /// True when shuffle uses the weighted order (rare and long unplayed first).
+  bool get smartShuffle => _smartShuffle;
+
+  /// Enable or disable smart shuffle and persist the choice. Turning it on
+  /// refreshes the play statistics, then reorders the songs after the current
+  /// one so the change is visible right away.
+  // TODO L10N: no user facing string added here, English only.
+  Future<void> setSmartShuffle(bool value) async {
+    if (_smartShuffle == value) return;
+    _smartShuffle = value;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_prefsSmartShuffleKey, value);
+    } catch (e) {
+      debugPrint('Smart shuffle save failed: $e');
+    }
+    if (!value) return;
+    await refreshSmartShuffleStats();
+    // Reorder the tail only when shuffle is active and something is playing,
+    // so the current song is never interrupted.
+    if (_shuffle && currentSong != null) {
+      final currentQueueIndex = _playOrder[_posInOrder];
+      final rest = List.generate(_queue.length, (i) => i)
+        ..remove(currentQueueIndex);
+      _playOrder = [currentQueueIndex, ..._shuffleRest(rest)];
+      _posInOrder = 0;
+      _preloadedFilePath = null;
+      notifyListeners();
+    }
+  }
+
+  /// Load the play counts used by smart shuffle from the listening history.
+  /// The Song model carries no play count or last played field, so the counts
+  /// come from DBHelper.getTopSongIdsSince. Fire and forget: on failure the
+  /// previous (or empty) map stays in place and smart shuffle falls back to a
+  /// plain shuffle.
+  // TODO L10N: no user facing string added here, English only.
+  Future<void> refreshSmartShuffleStats() async {
+    try {
+      final rows = await DBHelper.instance.getTopSongIdsSince(
+        DateTime(2000).toIso8601String(),
+        limit: 500,
+      );
+      _playCounts = {for (final e in rows) e.key: e.value};
+    } catch (e) {
+      debugPrint('Smart shuffle stats load failed: $e');
+    }
+  }
+
+  /// Remember that a song just started, so the next smart shuffle order can
+  /// rank it lower. Called from every play path (normal load and crossfade).
+  void _markSongPlayed(Song song) {
+    _lastPlayTimes[song.id] = DateTime.now();
   }
 
   void cycleRepeatMode() {
@@ -999,7 +1207,7 @@ class PlayerService extends ChangeNotifier {
     idle.setFilePath(path).then((_) {
       if (_disposed) return null;
       if (crossfadeEnabled) return null;
-      return idle.setSpeed(_lastSpeed);
+      return _syncSpeedPitch(idle);
     }).then((_) {
       if (_disposed) return;
       if (crossfadeEnabled) return;
@@ -1017,6 +1225,120 @@ class PlayerService extends ChangeNotifier {
     _pendingSleepStop = false;
     _cancelSleepFadeOut();
     notifyListeners();
+  }
+
+  // ---------- Daily sleep schedule ----------
+
+  /// Today target time for the configured hour and minute.
+  DateTime _sleepScheduleTargetToday([DateTime? now]) {
+    final n = now ?? DateTime.now();
+    return DateTime(n.year, n.month, n.day, _sleepScheduleHour, _sleepScheduleMinute);
+  }
+
+  /// When a schedule is armed (or changed) at a moment when today's target
+  /// time has already passed, today is marked as already served so the
+  /// automatic session waits for tomorrow instead of firing retroactively.
+  void _skipTodayIfAlreadyPast() {
+    final now = DateTime.now();
+    if (now.isAfter(_sleepScheduleTargetToday(now))) {
+      _sleepScheduleFiredDay = _dayStamp(now);
+    } else {
+      _sleepScheduleFiredDay = null;
+    }
+  }
+
+  /// True when a daily sleep schedule is armed.
+  bool get sleepScheduleEnabled => _sleepScheduleEnabled;
+
+  /// Scheduled hour in 24h format (0..23).
+  int get sleepScheduleHour => _sleepScheduleHour;
+
+  /// Scheduled minute (0..59).
+  int get sleepScheduleMinute => _sleepScheduleMinute;
+
+  /// Arm or disarm the daily sleep schedule and persist the flag. Enabling
+  /// starts the single ticker, disabling cancels it, so no timer ever leaks.
+  // TODO L10N: no user facing string added here, English only.
+  Future<void> setSleepScheduleEnabled(bool value) async {
+    if (_sleepScheduleEnabled == value) return;
+    _sleepScheduleEnabled = value;
+    if (!value) {
+      _stopSleepScheduleTicker();
+    } else {
+      // A freshly enabled schedule may still fire today, but only when the
+      // configured time has not passed yet.
+      _skipTodayIfAlreadyPast();
+      _startSleepScheduleTicker();
+      _checkSleepSchedule();
+    }
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_prefsSleepScheduleEnabledKey, value);
+    } catch (e) {
+      debugPrint('Sleep schedule save failed: $e');
+    }
+  }
+
+  /// Change the scheduled time. Values outside the valid range are clamped.
+  // TODO L10N: no user facing string added here, English only.
+  Future<void> setSleepScheduleTime(int hour, int minute) async {
+    final h = hour.clamp(0, 23).toInt();
+    final m = minute.clamp(0, 59).toInt();
+    if (h == _sleepScheduleHour && m == _sleepScheduleMinute) return;
+    _sleepScheduleHour = h;
+    _sleepScheduleMinute = m;
+    // A new time deserves a fresh chance today, unless it already passed.
+    _skipTodayIfAlreadyPast();
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_prefsSleepScheduleHourKey, h);
+      await prefs.setInt(_prefsSleepScheduleMinuteKey, m);
+    } catch (e) {
+      debugPrint('Sleep schedule time save failed: $e');
+    }
+    if (_sleepScheduleEnabled) _checkSleepSchedule();
+  }
+
+  /// (Re)start the schedule ticker. Cancels first, so only one timer ever
+  /// exists no matter how often this is called.
+  void _startSleepScheduleTicker() {
+    _stopSleepScheduleTicker();
+    if (_disposed || !_sleepScheduleEnabled) return;
+    _sleepScheduleTicker =
+        Timer.periodic(sleepScheduleTickInterval, (_) => _checkSleepSchedule());
+  }
+
+  void _stopSleepScheduleTicker() {
+    _sleepScheduleTicker?.cancel();
+    _sleepScheduleTicker = null;
+  }
+
+  /// Day stamp used to make sure the schedule fires at most once per day.
+  static String _dayStamp(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  /// True while a sleep timer, song countdown or fade out is already running.
+  bool get _sleepSessionActive =>
+      sleepTimerEndTime != null ||
+      sleepSongsRemaining != null ||
+      _sleepFadeActive;
+
+  /// Poll callback for the daily schedule. Fires the automatic 30 minute
+  /// session only when the configured time has been reached today, nothing is
+  /// already scheduled, and the schedule has not run yet on this day.
+  void _checkSleepSchedule() {
+    if (_disposed || !_sleepScheduleEnabled) return;
+    if (_sleepSessionActive) return;
+    final now = DateTime.now();
+    final today = _dayStamp(now);
+    if (_sleepScheduleFiredDay == today) return;
+    // Only trigger once the configured time has been reached, so a schedule
+    // set for a later hour today never fires early.
+    if (now.isBefore(_sleepScheduleTargetToday(now))) return;
+    _sleepScheduleFiredDay = today;
+    setSleepTimer(sleepScheduleDuration);
   }
 
   /// Shared natural track end completion used by both the normal completion
@@ -1125,6 +1447,8 @@ class PlayerService extends ChangeNotifier {
     _unsubscribePosition();
     _playerStateSub?.cancel();
     _crossfadeStateSub?.cancel();
+    _sleepScheduleTicker?.cancel();
+    _sleepScheduleTicker = null;
     // ChangeNotifier.dispose() is sync void, never turn it into a Future.
     // Players are disposed fire and forget because the singleton lives for the whole app run.
     _player.dispose().catchError((e) {

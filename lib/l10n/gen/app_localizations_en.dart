@@ -1744,4 +1744,46 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get missLyricsEntry => 'Missing lyrics';
+
+  @override
+  String get librarySelectAll => 'Select all';
+
+  @override
+  String get libraryClearSelection => 'Clear selection';
+
+  @override
+  String get libraryJumpPlaying => 'Jump to playing song';
+
+  @override
+  String get playerSpeed => 'Speed';
+
+  @override
+  String get playerPitch => 'Pitch';
+
+  @override
+  String get playerSpeedPitchReset => 'Reset';
+
+  @override
+  String get settingsSmartShuffle => 'Smart shuffle';
+
+  @override
+  String get settingsSmartShuffleSubtitle =>
+      'Play rarely played and long unplayed songs first';
+
+  @override
+  String get sleepDailySchedule => 'Daily schedule';
+
+  @override
+  String get sleepDailyScheduleSubtitle =>
+      'Auto start a 30 minute sleep timer every day';
+
+  @override
+  String get sleepDailyScheduleSetTime => 'Set time';
+
+  @override
+  String get sleepDailyScheduleHint =>
+      'Starts the timer only when the app is open';
+
+  @override
+  String get editLyricsSearchOpenFailed => 'Could not open the browser';
 }

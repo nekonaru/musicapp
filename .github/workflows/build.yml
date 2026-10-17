@@ -49,6 +49,15 @@ jobs:
           sed -i 's/android:label="offline_music_player"/android:label="Swara"/' "$MANIFEST"
           cat "$MANIFEST"
 
+      # Package visibility (Android 11+): without this block the app cannot
+      # see any browser, so url_launcher can neither resolve nor open an
+      # https link such as the Google lyrics search.
+      - name: Declare package visibility for web links
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i 's#<application#<queries>\n        <intent>\n            <action android:name="android.intent.action.VIEW" />\n            <data android:scheme="https" />\n        </intent>\n        <intent>\n            <action android:name="android.intent.action.VIEW" />\n            <data android:scheme="http" />\n        </intent>\n    </queries>\n    <application#' "$MANIFEST"
+          cat "$MANIFEST"
+
       - name: Declare audio_service service explicitly (required on Android 14+/API 34+)
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
@@ -216,15 +225,29 @@ jobs:
           body: |
             # English
 
-            **Swara v2.5.0 - Merge, custom EQ, and AMOLED**
+            **Swara v2.6.0 - Full lists, speed control, and smart shuffle**
 
             ## ✨ New features
 
-            - Merge one playlist into another, skipping duplicates.
-            - Missing-lyrics list with batch refetch.
-            - Adjustable crossfade duration (0-12s) and custom 5-band equalizer.
-            - AMOLED pitch-black theme option.
-            - Launcher shortcuts and text-size setting.
+            - Every list now shows all items at once with no Load more button, while scrolling stays smooth on huge libraries.
+            - A-Z jump is instant via an in-memory letter index, and shuffle or play always covers every song.
+            - Jump-to-playing-song button appears when the current track is off screen.
+            - Select all rows from the multi-select bar.
+            - Playback speed 0.5x to 2.0x and pitch control with live apply and reset, from a chip in the player.
+            - Smart shuffle that favors rarely played and long unplayed songs.
+            - Daily sleep schedule: a 30 minute sleep timer that starts by itself at your chosen time.
+            - Play all and Shuffle buttons on the Albums, Artists, and Genres screens.
+
+            ## ⚡ Performance
+
+            - SQLite WAL mode, tuned pragmas, memory mapped reads, and new indexes on artist, album, title, and play timestamp.
+            - Listening history is pruned automatically (12 months, with a row cap) so the database stays small.
+            - Search no longer pages: results render lazily with a 250 ms debounce and a stale-result guard.
+            - Cover thumbnails are decoded at a small size in every list, which cuts memory and jank.
+
+            ## 🐛 Bug fixes
+
+            - Search lyrics on Google (and the developer link) now open the browser again. The app could not see any browser on Android 11 or newer without a package visibility declaration, and it no longer relies on a canLaunch check that always failed there.
 
             ## 📦 Install / Update
 
@@ -238,15 +261,29 @@ jobs:
 
             # Bahasa Indonesia
 
-            **Swara v2.5.0 - Gabung, EQ custom, dan AMOLED**
+            **Swara v2.6.0 - List penuh, kontrol kecepatan, dan acak pintar**
 
             ## ✨ Fitur baru
 
-            - Gabungkan satu playlist ke playlist lain, lewati yang duplikat.
-            - Daftar lirik hilang dengan fetch ulang massal.
-            - Durasi crossfade bisa diatur (0-12 dtk) dan equalizer custom 5-band.
-            - Opsi tema hitam pekat AMOLED.
-            - Shortcut launcher dan pengaturan ukuran teks.
+            - Semua list sekarang menampilkan seluruh isi tanpa tombol Load more, dan scroll tetap halus di pustaka besar.
+            - Lompat A-Z instan lewat peta huruf di memori; shuffle dan putar selalu mencakup semua lagu.
+            - Tombol lompat ke lagu kini muncul saat lagu yang sedang diputar di luar layar.
+            - Pilih semua baris langsung dari bar multi-select.
+            - Kecepatan putar 0.5x sampai 2.0x plus kontrol nada, berlaku langsung dan bisa di reset, dari chip di player.
+            - Acak pintar yang memprioritaskan lagu jarang diputar dan lama tidak diputar.
+            - Jadwal tidur harian: sleep timer 30 menit yang berjalan otomatis pada jam pilihan.
+            - Tombol Putar semua dan Acak di layar Album, Artis, dan Genre.
+
+            ## ⚡ Performa
+
+            - SQLite mode WAL, pragma di optimasi, baca memory mapped, plus index baru untuk artis, album, judul, dan waktu putar.
+            - Riwayat pendengaran dibersihkan otomatis (12 bulan, dengan batas baris) agar database tetap kecil.
+            - Search tidak lagi berdenyut: hasil dirender lazy dengan debounce 250 ms dan penjaga hasil basi.
+            - Cover di semua list di-decode pada ukuran kecil, menghemat memori dan mengurangi lag.
+
+            ## 🐛 Perbaikan bug
+
+            - Cari lirik di Google (dan link developer) kembali bisa membuka browser. Aplikasi tidak bisa melihat browser apa pun di Android 11 ke atas tanpa deklarasi package visibility, dan sekarang tidak lagi bergantung pada pengecekan canLaunch yang selalu gagal di sana.
 
             ## 📦 Instalasi / Update
 

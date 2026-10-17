@@ -30,10 +30,32 @@ class _SearchScreenState extends State<SearchScreen> {
   _SearchFilter _filter = _SearchFilter.lagu;
   Timer? _debounce;
 
-  // Render only a prefix of the full search results to keep scrolling cheap.
-  // Filtering and grouping still use the full result list.
-  static const int _pageSize = 200;
-  int _visibleCount = _pageSize;
+  // Search runs without any manual paging: the whole filtered result set is
+  // rendered, but every row is still built lazily by ListView.builder.
+  // Upper bound for one query run. Purely a safety net against a pathological
+  // library, it is never reached in normal use.
+  static const int _resultsLimit = 500;
+
+  // Monotonic query token. Bumped for every query text or filter change so a
+  // slow lookup started for an older query can never publish over a newer one.
+  int _queryGen = 0;
+
+  // Filtered songs for the active query, published from the async search only
+  // after the generation check above passes.
+  List<Song> _results = const <Song>[];
+
+  // Length of the library list used for the last published search, used to
+  // detect library changes that invalidate the current result set.
+  int _resultsLibLen = -1;
+
+  // True while a post frame re-search is already queued, avoids queueing
+  // several redundant searches when build runs again first.
+  bool _searchScheduled = false;
+
+  // Latest raw text field content. The committed _query lags behind by the
+  // debounce delay, filter changes re-filter this pending text so switching
+  // tabs never drops what the user typed.
+  String _pendingQuery = '';
 
   // Multi-select state for song results, mirrors library_screen pattern.
   // Session only, cleared when the query or filter changes.
@@ -123,11 +145,12 @@ class _SearchScreenState extends State<SearchScreen> {
     if (!mounted) return;
     setState(() {
       _query = trimmed;
-      _visibleCount = _pageSize;
+      _pendingQuery = trimmed;
       _multiSelectMode = false;
       _selectedIds.clear();
     });
     _addToHistory(trimmed);
+    _startSearch();
   }
 
   // Fill the field from a history chip and run the search.
@@ -136,17 +159,56 @@ class _SearchScreenState extends State<SearchScreen> {
   // Playlists are loaded lazily on first bulk action to keep startup cheap.
   bool _playlistsRequested = false;
 
+  // Debounce the search itself, the text field stays instant.
   void _onQueryChanged(String v) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () {
+    // Invalidate any in flight search for the previous text right away.
+    _pendingQuery = v;
+    ++_queryGen;
+    _debounce = Timer(const Duration(milliseconds: 250), () {
       if (!mounted) return;
       setState(() {
         _query = v;
-        _visibleCount = _pageSize;
         // New query invalidates the old selection.
         _multiSelectMode = false;
         _selectedIds.clear();
       });
+      // Take a fresh generation so this run always owns the latest token.
+      _startSearch();
+    });
+  }
+
+  // Bump the generation and kick off a search for the current pending text.
+  void _startSearch() {
+    final gen = ++_queryGen;
+    _runSearch(gen);
+  }
+
+  // Bump the generation and re-run the search after the current frame, used
+  // when the library list changed and the published results went stale.
+  void _scheduleSearch() {
+    final gen = ++_queryGen;
+    _searchScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _searchScheduled = false;
+      if (!mounted) return;
+      _runSearch(gen);
+    });
+  }
+
+  // Filter the library and publish the result, but only when this run still
+  // owns the active generation. Guards against stale async writes.
+  Future<void> _runSearch(int gen) async {
+    final source = context.read<LibraryProvider>().songs;
+    final query = _pendingQuery;
+    // Yield one turn so the guard below is meaningful even for small
+    // libraries where the filter would otherwise finish synchronously.
+    await Future<void>.delayed(Duration.zero);
+    final found = _filterSongs(source, query);
+    if (!mounted || gen != _queryGen) return;
+    setState(() {
+      _results = found;
+      _resultsLibLen = source.length;
     });
   }
 
@@ -338,31 +400,42 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  List<Song> _getResults(List<Song> songs) {
-    if (_query.trim().isEmpty) return [];
+  // Filter the library with the given query text and the active filter tab.
+  // Returns the full match set, the caller renders it lazily.
+  List<Song> _filterSongs(List<Song> songs, String query) {
+    if (query.trim().isEmpty) return const <Song>[];
+    final List<Song> matched;
     // Use tolerant matching so separators and token order do not matter.
     // Each filter builds one haystack per song from its own fields.
     switch (_filter) {
       case _SearchFilter.lagu:
-        return songs
-            .where((s) => fuzzyMatch('${s.title} ${s.artist}', _query))
+        matched = songs
+            .where((s) => fuzzyMatch('${s.title} ${s.artist}', query))
             .toList();
+        break;
       case _SearchFilter.album:
-        return songs.where((s) => fuzzyMatch(s.album, _query)).toList();
+        matched = songs.where((s) => fuzzyMatch(s.album, query)).toList();
+        break;
       case _SearchFilter.artis:
-        return songs.where((s) => fuzzyMatch(s.artist, _query)).toList();
+        matched = songs.where((s) => fuzzyMatch(s.artist, query)).toList();
+        break;
       case _SearchFilter.folder:
-        return songs.where((s) {
+        matched = songs.where((s) {
           final parts = s.filePath.split('/');
           final folderName =
               parts.length > 1 ? parts[parts.length - 2] : '';
-          return fuzzyMatch(folderName, _query);
+          return fuzzyMatch(folderName, query);
         }).toList();
+        break;
       case _SearchFilter.genre:
-        return songs
-            .where((s) => fuzzyMatch(s.genre ?? '', _query))
-            .toList();
+        matched =
+            songs.where((s) => fuzzyMatch(s.genre ?? '', query)).toList();
+        break;
     }
+    // Safety cap only, never a paging window.
+    return matched.length > _resultsLimit
+        ? matched.take(_resultsLimit).toList(growable: false)
+        : matched;
   }
 
   // Group results by album/artist/folder/genre for the grouped view
@@ -415,13 +488,16 @@ class _SearchScreenState extends State<SearchScreen> {
           return FilterChip(
             label: Text(label),
             selected: isSelected,
-            onSelected: (_) => setState(() {
-              _filter = filter;
-              _visibleCount = _pageSize;
-              // Switching filter invalidates the old selection.
-              _multiSelectMode = false;
-              _selectedIds.clear();
-            }),
+            onSelected: (_) {
+              setState(() {
+                _filter = filter;
+                // Switching filter invalidates the old selection.
+                _multiSelectMode = false;
+                _selectedIds.clear();
+              });
+              // Re-run the search for the same text under the new filter.
+              _startSearch();
+            },
             showCheckmark: false,
           );
         },
@@ -639,33 +715,14 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     if (_filter == _SearchFilter.lagu) {
-      // Render a prefix of the flat results plus a pager row at the end.
-      final visibleCount =
-          results.length < _visibleCount ? results.length : _visibleCount;
-      final hasMore = visibleCount < results.length;
+      // Full flat result set, still built one row at a time by the builder.
       return AnimatedBuilder(
         animation: PlayerService.instance,
         builder: (context, _) => ListView.builder(
-          itemCount: visibleCount + (hasMore ? 1 : 0),
-          itemExtent: hasMore ? null : 72,
-          itemBuilder: (context, i) {
-            if (i >= visibleCount) {
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                child: OutlinedButton(
-                  onPressed: () => setState(() {
-                    _visibleCount = visibleCount + _pageSize;
-                  }),
-                  child: Text(AppLocalizations.of(context)!
-                      .loadMore(visibleCount, results.length)),
-                ),
-              );
-            }
-            return SizedBox(
-              height: 72,
-              child: _buildSongTile(results[i], results, i),
-            );
-          },
+          itemCount: results.length,
+          itemExtent: 72,
+          itemBuilder: (context, i) =>
+              SizedBox(height: 72, child: _buildSongTile(results[i], results, i)),
         ),
       );
     }
@@ -674,66 +731,47 @@ class _SearchScreenState extends State<SearchScreen> {
     final grouped = _groupResults(results);
     final groups = grouped.keys.toList()..sort();
 
-    // Allocate the visible tile budget across groups in display order.
-    final visibleCount =
-        results.length < _visibleCount ? results.length : _visibleCount;
-    final hasMore = visibleCount < results.length;
-    final alloc = <int>[];
-    var remaining = visibleCount;
+    // Flatten the groups into a single row list so every header and every
+    // song stays lazily built, without a per group eager Column.
+    final rows = <_GroupRow>[];
     for (final groupKey in groups) {
-      final take = grouped[groupKey]!.length <= remaining
-          ? grouped[groupKey]!.length
-          : remaining;
-      alloc.add(take);
-      remaining -= take;
+      final groupSongs = grouped[groupKey]!;
+      rows.add(_GroupRow.header(groupKey, groupSongs.length));
+      for (var k = 0; k < groupSongs.length; k++) {
+        rows.add(_GroupRow.song(groupSongs[k], groupSongs, k));
+      }
     }
 
     return AnimatedBuilder(
       animation: PlayerService.instance,
       builder: (context, _) => ListView.builder(
-        itemCount: groups.length + (hasMore ? 1 : 0),
+        itemCount: rows.length,
         itemBuilder: (context, gi) {
-          if (gi >= groups.length) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              child: OutlinedButton(
-                onPressed: () => setState(() {
-                  _visibleCount = visibleCount + _pageSize;
-                }),
-                child: Text(
-                    AppLocalizations.of(context)!
-                        .loadMore(visibleCount, results.length)),
-              ),
+          final row = rows[gi];
+          if (row.headerKey != null) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(row.headerKey!,
+                            style: const TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.bold)),
+                      ),
+                      Text(l.librarySongCount(row.headerCount!),
+                          style:
+                              TextStyle(fontSize: 12, color: Colors.grey[500])),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+              ],
             );
           }
-          final groupKey = groups[gi];
-          final groupSongs = grouped[groupKey]!;
-          final shown = groupSongs.take(alloc[gi]).toList();
-          if (shown.isEmpty) return const SizedBox.shrink();
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(groupKey,
-                          style: const TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.bold)),
-                    ),
-                    Text(l.librarySongCount(groupSongs.length),
-                        style:
-                            TextStyle(fontSize: 12, color: Colors.grey[500])),
-                  ],
-                ),
-              ),
-              // Shown rows are a prefix, so index k matches the full group queue.
-              for (var k = 0; k < shown.length; k++)
-                _buildSongTile(shown[k], groupSongs, k),
-              const Divider(height: 1),
-            ],
-          );
+          return _buildSongTile(row.song!, row.queue!, row.index);
         },
       ),
     );
@@ -743,8 +781,12 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final lib = context.watch<LibraryProvider>();
-    // Compute once per build, reuse for the count + list.
-    final results = _getResults(lib.songs);
+    // A library change invalidates the published results, re-run the search.
+    if (!_searchScheduled && lib.songs.length != _resultsLibLen) {
+      _scheduleSearch();
+    }
+    // Results live in state, published only by a generation checked search.
+    final results = _results;
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
@@ -771,10 +813,11 @@ class _SearchScreenState extends State<SearchScreen> {
                             _controller.clear();
                             setState(() {
                               _query = '';
-                              _visibleCount = _pageSize;
+                              _pendingQuery = '';
                               _multiSelectMode = false;
                               _selectedIds.clear();
                             });
+                            _startSearch();
                           },
                         )
                       : null,
@@ -827,4 +870,33 @@ class _SearchScreenState extends State<SearchScreen> {
       bottomNavigationBar: const MiniPlayer(),
     );
   }
+}
+
+/// One row of the grouped search result list. Either a group header or a
+/// single song. Flattening the groups into rows keeps every element lazily
+/// built by ListView.builder instead of building a whole group eagerly.
+class _GroupRow {
+  /// Group name when this row is a header, otherwise null.
+  final String? headerKey;
+
+  /// Song count shown next to the header, otherwise null.
+  final int? headerCount;
+
+  /// Song shown when this row is a song, otherwise null.
+  final Song? song;
+
+  /// Full group queue so playback covers the whole group.
+  final List<Song>? queue;
+
+  /// Position of [song] inside [queue].
+  final int index;
+
+  const _GroupRow.header(this.headerKey, this.headerCount)
+      : song = null,
+        queue = null,
+        index = 0;
+
+  const _GroupRow.song(this.song, this.queue, this.index)
+      : headerKey = null,
+        headerCount = null;
 }

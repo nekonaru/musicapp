@@ -1745,4 +1745,46 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get missLyricsEntry => 'Lirik hilang';
+
+  @override
+  String get librarySelectAll => 'Pilih semua';
+
+  @override
+  String get libraryClearSelection => 'Hapus pilihan';
+
+  @override
+  String get libraryJumpPlaying => 'Lompat ke lagu kini';
+
+  @override
+  String get playerSpeed => 'Kecepatan';
+
+  @override
+  String get playerPitch => 'Nada';
+
+  @override
+  String get playerSpeedPitchReset => 'Atur ulang';
+
+  @override
+  String get settingsSmartShuffle => 'Acak pintar';
+
+  @override
+  String get settingsSmartShuffleSubtitle =>
+      'Putar lagu yang jarang diputar dan lama tidak diputar lebih dulu';
+
+  @override
+  String get sleepDailySchedule => 'Jadwal harian';
+
+  @override
+  String get sleepDailyScheduleSubtitle =>
+      'Otomatis mulai sleep timer 30 menit tiap hari';
+
+  @override
+  String get sleepDailyScheduleSetTime => 'Atur waktu';
+
+  @override
+  String get sleepDailyScheduleHint =>
+      'Timer hanya berjalan saat aplikasi terbuka';
+
+  @override
+  String get editLyricsSearchOpenFailed => 'Tidak bisa membuka browser';
 }

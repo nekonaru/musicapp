@@ -56,6 +56,11 @@
 | 🖼️ **Missing lyrics** | List songs without lyrics with one-tap refetch |
 | 🎚️ **Crossfade control** | Adjustable 0-12s transition plus custom 5-band EQ |
 | 🌑 **AMOLED black** | Pure-black dark theme option |
+| 🚀 **Full lists, no Load more** | Every list renders in full while staying smooth, A-Z jump is instant, shuffle covers every song |
+| 🎚️ **Speed and pitch** | Playback speed 0.5x to 2.0x plus pitch control with live apply and reset |
+| 🧠 **Smart shuffle** | Biases playback toward rarely played and long unplayed songs |
+| 🛏️ **Daily sleep schedule** | Auto start a 30 minute sleep timer at a chosen time every day |
+| ⚡ **Faster database** | WAL mode, tuned pragmas, new indexes, and history pruning to keep the library snappy |
 | 📥 **M3U import/export** | Import playlists from .m3u files, export them back out |
 | 🔁 **A-B repeat** | Loop any song segment for practice |
 | ✏️ **Bulk edit** | Edit genre and artist across many songs at once |

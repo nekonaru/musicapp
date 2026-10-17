@@ -469,6 +469,11 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
           ),
         const SizedBox(height: 20),
 
+        // Daily schedule: an always available switch next to the one shot
+        // timer above, so a bedtime can be armed without starting it now.
+        const _DailyScheduleSection(),
+        const SizedBox(height: 20),
+
         // Close | Start
         Row(
           children: [
@@ -688,6 +693,80 @@ class _WheelPickerState extends State<_WheelPicker> {
         childCount: widget.itemCount,
       ),
     );
+  }
+}
+
+// -------------------------------------------------------------
+// Daily schedule section
+// -------------------------------------------------------------
+
+class _DailyScheduleSection extends StatelessWidget {
+  const _DailyScheduleSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final ps = PlayerService.instance;
+    // Rebuild whenever the service notifies so the switch and the time
+    // follow changes made from anywhere else in the app.
+    return AnimatedBuilder(
+      animation: ps,
+      builder: (context, _) {
+        final enabled = ps.sleepScheduleEnabled;
+        final time = '${ps.sleepScheduleHour.toString().padLeft(2, '0')}:'
+            '${ps.sleepScheduleMinute.toString().padLeft(2, '0')}';
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.6)),
+            const SizedBox(height: 12),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(l10n.sleepDailySchedule),
+              subtitle: Text(l10n.sleepDailyScheduleSubtitle),
+              secondary: const Icon(Icons.schedule),
+              value: enabled,
+              onChanged: (v) => ps.setSleepScheduleEnabled(v),
+            ),
+            // The time button stays disabled until the schedule is armed.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed:
+                    enabled ? () => _pickScheduleTime(context) : null,
+                icon: const Icon(Icons.access_time, size: 18),
+                label: Text(enabled ? time : l10n.sleepDailyScheduleSetTime),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              l10n.sleepDailyScheduleHint,
+              style: TextStyle(
+                fontSize: 12,
+                color: cs.onSurface.withValues(alpha: 0.5),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  static Future<void> _pickScheduleTime(BuildContext context) async {
+    final ps = PlayerService.instance;
+    final picked = await showTimePicker(
+      context: context,
+      // 24 hour picker, matching the bedtime mode above.
+      initialTime: TimeOfDay(
+        hour: ps.sleepScheduleHour,
+        minute: ps.sleepScheduleMinute,
+      ),
+    );
+    if (picked == null) return;
+    // PlayerService persists the new hour and minute.
+    await ps.setSleepScheduleTime(picked.hour, picked.minute);
   }
 }
 

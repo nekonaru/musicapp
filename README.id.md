@@ -56,6 +56,11 @@
 | 🖼️ **Lirik hilang** | Daftar lagu tanpa lirik dengan fetch ulang sekali ketuk |
 | 🎚️ **Kontrol crossfade** | Transisi 0-12 dtk + EQ custom 5-band |
 | 🌑 **Hitam AMOLED** | Opsi tema gelap hitam pekat |
+| 🚀 **List penuh, tanpa Load more** | Semua list tampil utuh tetap ringan, A-Z instan, shuffle mencakup semua lagu |
+| 🎚️ **Kecepatan dan nada** | kecepatan putar 0.5x sampai 2.0x plus kontrol nada, langsung aktif dan bisa di reset |
+| 🧠 **Acak pintar** | Memprioritaskan lagu yang jarang dan lama tidak diputar |
+| 🛏️ **Jadwal tidur harian** | Sleep timer 30 menit otomatis tiap hari pada jam pilihan |
+| ⚡ **Database lebih cepat** | Mode WAL, pragma di optimasi, index baru, dan riwayat dibersihkan berkala |
 | 📥 **Import M3U** | Import playlist dari file .m3u, dicocokkan ke library |
 | 📤 **Export M3U** | Export playlist ke file .m3u untuk pemutar lain |
 | 🔁 **Ulangi A-B** | Ulangi segmen lagu untuk latihan |

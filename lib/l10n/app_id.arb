@@ -1926,5 +1926,57 @@
     "bulkEditAction":  "Edit massal",
     "@bulkEditAction":  {
                              "description":  "Tooltip bulk edit"
-                         }
+                         },
+    "librarySelectAll":  "Pilih semua",
+    "@librarySelectAll":  {
+                            "description":  "Tooltip pilih semua baris"
+                        },
+    "libraryClearSelection":  "Hapus pilihan",
+    "@libraryClearSelection":  {
+                                "description":  "Tooltip hapus pilihan"
+                            },
+    "libraryJumpPlaying":  "Lompat ke lagu kini",
+    "@libraryJumpPlaying":  {
+                             "description":  "Tombol lompat ke lagu kini"
+                         },
+    "playerSpeed":  "Kecepatan",
+    "@playerSpeed":  {
+                        "description":  "Label kecepatan pemutaran"
+                    },
+    "playerPitch":  "Nada",
+    "@playerPitch":  {
+                       "description":  "Label nada pemutaran"
+                   },
+    "playerSpeedPitchReset":  "Atur ulang",
+    "@playerSpeedPitchReset":  {
+                                  "description":  "Atur ulang kecepatan dan nada"
+                              },
+    "settingsSmartShuffle":  "Acak pintar",
+    "@settingsSmartShuffle":  {
+                                "description":  "Judul opsi acak pintar"
+                            },
+    "settingsSmartShuffleSubtitle":  "Putar lagu yang jarang diputar dan lama tidak diputar lebih dulu",
+    "@settingsSmartShuffleSubtitle":  {
+                                       "description":  "Subjudul acak pintar"
+                                   },
+    "sleepDailySchedule":  "Jadwal harian",
+    "@sleepDailySchedule":  {
+                              "description":  "Judul jadwal tidur harian"
+                          },
+    "sleepDailyScheduleSubtitle":  "Otomatis mulai sleep timer 30 menit tiap hari",
+    "@sleepDailyScheduleSubtitle":  {
+                                     "description":  "Subjudul jadwal tidur harian"
+                                 },
+    "sleepDailyScheduleSetTime":  "Atur waktu",
+    "@sleepDailyScheduleSetTime":  {
+                                   "description":  "Tombol atur waktu jadwal"
+                               },
+    "sleepDailyScheduleHint":  "Timer hanya berjalan saat aplikasi terbuka",
+    "@sleepDailyScheduleHint":  {
+                                  "description":  "Catatan jadwal tidur harian"
+                              },
+    "editLyricsSearchOpenFailed":  "Tidak bisa membuka browser",
+    "@editLyricsSearchOpenFailed":  {
+                                       "description":  "Pesan gagal buka pencarian web"
+                                   }
 }

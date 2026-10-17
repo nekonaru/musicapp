@@ -59,42 +59,124 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<void> _pickPlaybackSpeed() async {
-    final options = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
-    final speed = await showModalBottomSheet<double>(
+    final l10n = AppLocalizations.of(context)!;
+    // Mutable locals so the StatefulBuilder readouts follow the sliders.
+    var speed = _player.playbackSpeed
+        .clamp(PlayerService.speedMin, PlayerService.speedMax)
+        .toDouble();
+    var pitch = _player.playbackPitch
+        .clamp(PlayerService.pitchMin, PlayerService.pitchMax)
+        .toDouble();
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => SafeArea(
-        // Cap height at 90 percent of the screen and scroll on small phones.
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(ctx).size.height * 0.9,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Text(AppLocalizations.of(ctx)!.playerPlaybackSpeed,
-                style: const TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          for (final s in options)
-            ListTile(
-              title: Text('${s}x'),
-              trailing: _player.playbackSpeed == s ? const Icon(Icons.check) : null,
-              onTap: () => Navigator.pop(ctx, s),
-            ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      builder: (ctx) {
+        // StatefulBuilder keeps the numeric readouts live while dragging.
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return SafeArea(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        l10n.playerPlaybackSpeed,
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: 56,
+                            child: Text(l10n.playerSpeed,
+                                style: const TextStyle(fontSize: 13)),
+                          ),
+                          Expanded(
+                            child: Slider(
+                              value: speed,
+                              min: PlayerService.speedMin,
+                              max: PlayerService.speedMax,
+                              divisions: 15,
+                              label: '${speed.toStringAsFixed(2)}x',
+                              onChanged: (v) {
+                                speed = v;
+                                setSheetState(() {});
+                                _player.setPlaybackSpeed(v);
+                              },
+                            ),
+                          ),
+                          SizedBox(
+                            width: 56,
+                            child: Text(
+                              '${speed.toStringAsFixed(2)}x',
+                              textAlign: TextAlign.end,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(l10n.playerPitch,
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: 56,
+                            child: Text(l10n.playerPitch,
+                                style: const TextStyle(fontSize: 13)),
+                          ),
+                          Expanded(
+                            child: Slider(
+                              value: pitch,
+                              min: PlayerService.pitchMin,
+                              max: PlayerService.pitchMax,
+                              divisions: 15,
+                              label: pitch.toStringAsFixed(2),
+                              onChanged: (v) {
+                                pitch = v;
+                                setSheetState(() {});
+                                _player.setPlaybackPitch(v);
+                              },
+                            ),
+                          ),
+                          SizedBox(
+                            width: 56,
+                            child: Text(
+                              pitch.toStringAsFixed(2),
+                              textAlign: TextAlign.end,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton.tonal(
+                        onPressed: () {
+                          speed = 1.0;
+                          pitch = 1.0;
+                          _player.resetSpeedAndPitch();
+                          Navigator.pop(ctx);
+                        },
+                        child: Text(l10n.playerSpeedPitchReset),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
-    if (speed != null) await _player.setPlaybackSpeed(speed);
   }
 
   /// Small A-B repeat dialog: capture A and B from the current position,
@@ -203,10 +285,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _searchLyricsOnGoogle(Song song) async {
     final query = Uri.encodeComponent('${song.artist} ${song.title} lirik lyrics');
     final url = Uri.parse('https://www.google.com/search?q=$query');
+    // No canLaunchUrl gate here: on Android 11+ the http/https check is always
+    // false without a <queries> manifest entry, which blocked the browser
+    // completely. Launching directly works, failures are reported by the
+    // thrown exception or the false return value instead.
     try {
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-      } else if (mounted) {
+      final launched =
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (!launched && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppLocalizations.of(context)!.playerCannotOpenBrowser)),
         );
@@ -807,13 +893,39 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   );
                 },
               ),
-              IconButton(
-                icon: Icon(
-                  Icons.speed_outlined,
-                  color: _player.playbackSpeed != 1.0 ? Theme.of(context).colorScheme.primary : Colors.grey,
-                ),
-                tooltip: AppLocalizations.of(context)!.playerPlaybackSpeed,
-                onPressed: _pickPlaybackSpeed,
+              // Speed and pitch chip. Shows the current speed (for example "1.0x") and
+              // opens the speed/pitch sheet. Disabled while nothing is loaded.
+              ListenableBuilder(
+                listenable: _player,
+                builder: (context, _) {
+                  final hasSong = _player.currentSong != null;
+                  final isAdjusted = _player.playbackSpeed != 1.0 ||
+                      _player.playbackPitch != 1.0;
+                  final color = Theme.of(context).colorScheme.primary;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: ActionChip(
+                      avatar: Icon(Icons.speed,
+                          size: 14, color: isAdjusted ? color : Colors.grey),
+                      label: Text(
+                        _player.playbackSpeedLabel,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isAdjusted ? color : Colors.grey,
+                        ),
+                      ),
+                      // Keep the chip small, it shares one row with six
+                      // icon buttons.
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      tooltip: AppLocalizations.of(context)!.playerPlaybackSpeed,
+                      onPressed: hasSong ? _pickPlaybackSpeed : null,
+                    ),
+                  );
+                },
               ),
               // Small A-B repeat button. Active (looping) state uses the
               // primary color, idle uses grey.

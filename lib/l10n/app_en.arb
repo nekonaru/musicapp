@@ -1926,5 +1926,57 @@
     "bulkEditAction":  "Bulk edit",
     "@bulkEditAction":  {
                              "description":  "Bulk edit tooltip"
-                         }
+                         },
+    "librarySelectAll":  "Select all",
+    "@librarySelectAll":  {
+                            "description":  "Select all rows tooltip"
+                        },
+    "libraryClearSelection":  "Clear selection",
+    "@libraryClearSelection":  {
+                                "description":  "Clear selection tooltip"
+                            },
+    "libraryJumpPlaying":  "Jump to playing song",
+    "@libraryJumpPlaying":  {
+                             "description":  "Jump to playing song button"
+                         },
+    "playerSpeed":  "Speed",
+    "@playerSpeed":  {
+                        "description":  "Playback speed label"
+                    },
+    "playerPitch":  "Pitch",
+    "@playerPitch":  {
+                       "description":  "Playback pitch label"
+                   },
+    "playerSpeedPitchReset":  "Reset",
+    "@playerSpeedPitchReset":  {
+                                  "description":  "Reset speed and pitch"
+                              },
+    "settingsSmartShuffle":  "Smart shuffle",
+    "@settingsSmartShuffle":  {
+                                "description":  "Smart shuffle option title"
+                            },
+    "settingsSmartShuffleSubtitle":  "Play rarely played and long unplayed songs first",
+    "@settingsSmartShuffleSubtitle":  {
+                                       "description":  "Smart shuffle subtitle"
+                                   },
+    "sleepDailySchedule":  "Daily schedule",
+    "@sleepDailySchedule":  {
+                              "description":  "Daily sleep schedule title"
+                          },
+    "sleepDailyScheduleSubtitle":  "Auto start a 30 minute sleep timer every day",
+    "@sleepDailyScheduleSubtitle":  {
+                                     "description":  "Daily sleep schedule subtitle"
+                                 },
+    "sleepDailyScheduleSetTime":  "Set time",
+    "@sleepDailyScheduleSetTime":  {
+                                   "description":  "Set daily schedule time button"
+                               },
+    "sleepDailyScheduleHint":  "Starts the timer only when the app is open",
+    "@sleepDailyScheduleHint":  {
+                                  "description":  "Daily sleep schedule hint"
+                              },
+    "editLyricsSearchOpenFailed":  "Could not open the browser",
+    "@editLyricsSearchOpenFailed":  {
+                                       "description":  "Web search failure message"
+                                   }
 }

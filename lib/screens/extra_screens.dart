@@ -18,6 +18,11 @@ import '../widgets/az_scrollbar.dart';
 import '../widgets/playing_indicator.dart';
 import 'playlist_detail_screen.dart';
 
+// Upper bound for the standalone "full list" screens (Recently Added, Most
+// Played). They must show every row, so this is a safety ceiling rather than a
+// paging window: rendering stays lazy through the sliver list.
+const int _kFullListLimit = 100000;
+
 // ─────────────────────────────────────────────────────────────
 // SHARED WIDGET: consistent song list tile used on every screen
 // ─────────────────────────────────────────────────────────────
@@ -306,6 +311,71 @@ Widget buildCollectionHeader({
       ),
     ],
   );
+}
+
+// ─────────────────────────────────────────────────────────────
+// SHARED WIDGET: compact play all + shuffle for the group screens
+// (Artists, Genres, Albums). Reuses the same flow as buildCollectionHeader:
+// build the whole queue, then PlayerService.setQueueAndPlay / setShuffle.
+// ─────────────────────────────────────────────────────────────
+
+Widget buildGroupPlayActions(BuildContext context, List<Song> queue) {
+  final l = AppLocalizations.of(context)!;
+  return Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      IconButton.filled(
+        icon: const Icon(Icons.play_arrow, size: 18),
+        tooltip: l.libraryStartPlaying,
+        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+        onPressed: queue.isEmpty
+            ? null
+            : () async {
+                try {
+                  await PlayerService.instance.setQueueAndPlay(queue, 0);
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 5),
+                          content: Text(AppLocalizations.of(context)!
+                              .libraryPlayFailed('$e'))),
+                    );
+                  }
+                }
+              },
+      ),
+      const SizedBox(width: 4),
+      IconButton.outlined(
+        icon: const Icon(Icons.shuffle, size: 18),
+        tooltip: l.libraryShuffle,
+        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+        onPressed: queue.isEmpty
+            ? null
+            : () async {
+                // Same order as the other screens: random start then shuffle.
+                final r = Random().nextInt(queue.length);
+                await PlayerService.instance.setQueueAndPlay(queue, r);
+                PlayerService.instance.setShuffle(true);
+              },
+      ),
+    ],
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// SHARED WIDGET: flatten a grouped map into a full song queue,
+// preserving the on screen group order. Used by the group screens
+// so "play all" walks the library exactly like the list does.
+// ─────────────────────────────────────────────────────────────
+
+List<Song> buildGroupQueue(List<String> keys, Map<String, List<Song>> grouped) {
+  final queue = <Song>[];
+  for (final key in keys) {
+    queue.addAll(grouped[key] ?? const <Song>[]);
+  }
+  return queue;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -915,12 +985,18 @@ class ArtistsScreen extends StatelessWidget {
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(AppLocalizations.of(context)!
-                    .artistsCount(artists.length),
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+              padding: const EdgeInsets.fromLTRB(16, 10, 8, 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(AppLocalizations.of(context)!
+                        .artistsCount(artists.length),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                  ),
+                  // Play all and shuffle the whole artist list.
+                  buildGroupPlayActions(
+                      context, buildGroupQueue(artists, grouped)),
+                ],
               ),
             ),
             const Divider(height: 1),
@@ -1052,12 +1128,18 @@ class GenresScreen extends StatelessWidget {
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(AppLocalizations.of(context)!
-                    .genresCount(genres.length),
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+              padding: const EdgeInsets.fromLTRB(16, 10, 8, 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(AppLocalizations.of(context)!
+                        .genresCount(genres.length),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                  ),
+                  // Play all and shuffle the whole genre list.
+                  buildGroupPlayActions(
+                      context, buildGroupQueue(genres, grouped)),
+                ],
               ),
             ),
             const Divider(height: 1),
@@ -1961,7 +2043,8 @@ class _RecentlyAddedScreenState extends State<RecentlyAddedScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final lib = context.read<LibraryProvider>();
-    final songs = await lib.getRecentlyAdded(limit: 100);
+    // Full list, no artificial cap: the sliver list builds rows lazily.
+    final songs = await lib.getRecentlyAdded(limit: _kFullListLimit);
     if (mounted) setState(() { _songs = songs; _loading = false; });
   }
 
@@ -2053,7 +2136,8 @@ class _MostPlayedScreenState extends State<MostPlayedScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final lib = context.read<LibraryProvider>();
-    final songs = await lib.getMostPlayed(limit: 100);
+    // Full list, no artificial cap: the sliver list builds rows lazily.
+    final songs = await lib.getMostPlayed(limit: _kFullListLimit);
     if (mounted) setState(() { _songs = songs; _loading = false; });
   }
 

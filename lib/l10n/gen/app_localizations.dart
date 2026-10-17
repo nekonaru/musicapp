@@ -3085,6 +3085,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Missing lyrics'**
   String get missLyricsEntry;
+
+  /// Select all rows tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Select all'**
+  String get librarySelectAll;
+
+  /// Clear selection tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Clear selection'**
+  String get libraryClearSelection;
+
+  /// Jump to playing song button
+  ///
+  /// In en, this message translates to:
+  /// **'Jump to playing song'**
+  String get libraryJumpPlaying;
+
+  /// Playback speed label
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get playerSpeed;
+
+  /// Playback pitch label
+  ///
+  /// In en, this message translates to:
+  /// **'Pitch'**
+  String get playerPitch;
+
+  /// Reset speed and pitch
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get playerSpeedPitchReset;
+
+  /// Smart shuffle option title
+  ///
+  /// In en, this message translates to:
+  /// **'Smart shuffle'**
+  String get settingsSmartShuffle;
+
+  /// Smart shuffle subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Play rarely played and long unplayed songs first'**
+  String get settingsSmartShuffleSubtitle;
+
+  /// Daily sleep schedule title
+  ///
+  /// In en, this message translates to:
+  /// **'Daily schedule'**
+  String get sleepDailySchedule;
+
+  /// Daily sleep schedule subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Auto start a 30 minute sleep timer every day'**
+  String get sleepDailyScheduleSubtitle;
+
+  /// Set daily schedule time button
+  ///
+  /// In en, this message translates to:
+  /// **'Set time'**
+  String get sleepDailyScheduleSetTime;
+
+  /// Daily sleep schedule hint
+  ///
+  /// In en, this message translates to:
+  /// **'Starts the timer only when the app is open'**
+  String get sleepDailyScheduleHint;
+
+  /// Web search failure message
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the browser'**
+  String get editLyricsSearchOpenFailed;
 }
 
 class _AppLocalizationsDelegate

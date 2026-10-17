@@ -78,7 +78,26 @@ class _EditLyricsScreenState extends State<EditLyricsScreen> {
   Future<void> _searchOnWeb() async {
     final query = Uri.encodeComponent('${widget.song.artist} ${widget.song.title} lirik lyrics');
     final url = Uri.parse('https://www.google.com/search?q=$query');
-    await launchUrl(url, mode: LaunchMode.externalApplication);
+    // No canLaunchUrl gate: on Android 11+ the http/https check always returns
+    // false without a <queries> manifest entry, which blocked the browser.
+    try {
+      final launched =
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (launched || !mounted) return;
+      _showSearchFailed();
+    } catch (_) {
+      if (!mounted) return;
+      _showSearchFailed();
+    }
+  }
+
+  void _showSearchFailed() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            AppLocalizations.of(context)!.editLyricsSearchOpenFailed),
+      ),
+    );
   }
 
   void _clear() {

@@ -142,7 +142,7 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
       return Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+            padding: const EdgeInsets.fromLTRB(16, 10, 8, 6),
             child: Row(
               children: [
                 Expanded(
@@ -150,6 +150,10 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
                       style:
                           TextStyle(fontSize: 12, color: Colors.grey[500])),
                 ),
+                // Play all and shuffle the whole album list.
+                buildGroupPlayActions(
+                    context, buildGroupQueue(albums, grouped)),
+                const SizedBox(width: 4),
                 // Shared ripple chip, same label as before.
                 SortChip(
                   label: _sortChipLabel(l),

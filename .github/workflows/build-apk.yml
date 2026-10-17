@@ -46,6 +46,14 @@ jobs:
           sed -i 's/android:label="offline_music_player"/android:label="Swara"/' "$MANIFEST"
           cat "$MANIFEST"
 
+      # Package visibility (Android 11+): needed so url_launcher can resolve
+      # and open https links such as the Google lyrics search.
+      - name: Declare package visibility for web links
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i 's#<application#<queries>\n        <intent>\n            <action android:name="android.intent.action.VIEW" />\n            <data android:scheme="https" />\n        </intent>\n        <intent>\n            <action android:name="android.intent.action.VIEW" />\n            <data android:scheme="http" />\n        </intent>\n    </queries>\n    <application#' "$MANIFEST"
+          cat "$MANIFEST"
+
       - name: Declare audio_service service explicitly (required on Android 14+/API 34+)
         # Without foregroundServiceType="mediaPlayback" declared explicitly here,
         # the audio_service service silently fails to start on Android 14 and above -

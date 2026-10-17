@@ -92,27 +92,85 @@ class _LibraryScreenState extends State<LibraryScreen> {
   bool _multiSelectMode = false;
   final Set<int> _selectedIds = {};
 
-  // Render only a prefix of the full sorted list to keep first paint cheap.
-  // The full filter and sort results are untouched, only the row count grows.
-  static const int _pageSize = 200;
-  int _visibleCount = _pageSize;
-  SortOption? _lastSortOption;
+  // The whole filtered and sorted list is rendered. Rendering stays lazy
+  // because the sliver uses a fixed item extent, so a list of 20k rows
+  // costs the same per frame as a list of 200 rows.
+  static const double _azStickyThreshold = 400.0;
 
-  // DB paged window via LibraryProvider.fetchSongsPage (querySongsPage).
-  // When the paged query fails, [_paged] stays null and the screen falls
-  // back to the full in memory list with the old prefix rendering.
-  List<Song>? _paged;
-  bool _pagedLoading = false;
-  bool _pagedHasMore = false;
-  SortOption? _pagedSort;
+  // Letter to row index map, rebuilt only when the visible list changes.
+  // A-Z jumps are therefore a scroll offset lookup instead of a DB query.
+  Map<String, int>? _azIndex;
+  int _azIndexLength = -1;
+  SortOption? _azIndexSort;
+
+  // Show the "jump to playing song" affordance while scrolled away.
+  bool _playingRowHidden = false;
 
   // Playlists are loaded lazily on first use to keep startup cheap.
   bool _playlistsRequested = false;
 
   @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // Track whether the currently playing row is far outside the viewport so
+  // the jump button can appear. Only a boolean flips, never a setState per
+  // pixel, because the state changes are compared before rebuilding.
+  void _onScroll() {
+    if (!mounted || !_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final song = PlayerService.instance.currentSong;
+    if (song == null) {
+      if (_playingRowHidden) setState(() => _playingRowHidden = false);
+      return;
+    }
+    final hidden = _playingRowHidden;
+    var next = hidden;
+    final extent = position.viewportDimension;
+    if (extent > 0) {
+      final row = _visibleIndexOfSongId(song.id);
+      if (row >= 0) {
+        // Distance of the row top from the current viewport top.
+        final distance = (row * _itemHeight) - position.pixels;
+        next = distance > _azStickyThreshold + extent ||
+            distance < -_azStickyThreshold;
+      }
+    }
+    if (next != hidden) setState(() => _playingRowHidden = next);
+  }
+
+  void _jumpToPlayingRow() {
+    final song = PlayerService.instance.currentSong;
+    if (song == null || !_scrollController.hasClients) return;
+    final row = _visibleIndexOfSongId(song.id);
+    if (row < 0) return;
+    final offset = (row * _itemHeight - 24)
+        .clamp(0.0, _scrollController.position.maxScrollExtent);
+    _scrollController.animateTo(
+      offset,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  // Index of a song inside the last rendered list. Kept in a field so the
+  // scroll listener does not rebuild the list just to look the id up.
+  List<Song> _lastVisibleList = const [];
+  int _visibleIndexOfSongId(int id) {
+    final list = _lastVisibleList;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id == id) return i;
+    }
+    return -1;
   }
 
   // Load playlists once when first needed. Guarded by mounted.
@@ -130,45 +188,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
     showSongOptions(context, song);
   }
 
-  /// First DB page (200 rows) with the current sort. Null means the paged
-  /// query failed and the caller must use the full list fallback.
-  Future<void> _loadFirstPage(LibraryProvider lib) async {
-    if (_pagedLoading) return;
-    _pagedLoading = true;
-    final page = await lib.fetchSongsPage(limit: _pageSize, offset: 0);
-    if (!mounted) return;
-    setState(() {
-      _pagedLoading = false;
-      if (page == null) {
-        _paged = null;
-        _pagedHasMore = false;
-      } else {
-        _paged = page;
-        _pagedHasMore = page.length >= _pageSize;
-      }
-      _pagedSort = lib.sortOption;
-    });
-  }
-
-  /// Next DB page appended to the current window. Keeps the old rows when
-  /// the query fails so scrolling never loses data.
-  Future<void> _loadNextPage(LibraryProvider lib) async {
-    if (_pagedLoading || _paged == null || !_pagedHasMore) return;
-    _pagedLoading = true;
-    final page =
-        await lib.fetchSongsPage(limit: _pageSize, offset: _paged!.length);
-    if (!mounted) return;
-    setState(() {
-      _pagedLoading = false;
-      if (page == null || page.isEmpty) {
-        _pagedHasMore = false;
-      } else {
-        _paged!.addAll(page);
-        _pagedHasMore = page.length >= _pageSize;
-      }
-    });
-  }
-
   void _exitMultiSelect() => setState(() {
         _multiSelectMode = false;
         _selectedIds.clear();
@@ -183,47 +202,54 @@ class _LibraryScreenState extends State<LibraryScreen> {
         }
       });
 
-  Future<void> _jumpToLetter(
-      String letter, List<Song> songs, LibraryProvider lib, bool usePaged) async {
+  /// Build (or reuse) the letter to row index map for the visible list. One
+  /// linear pass, no DB access, so an A-Z jump is a single scroll.
+  Map<String, int> _buildAzIndex(List<Song> songs, SortOption sort) {
+    final cached = _azIndex;
+    if (cached != null && _azIndexLength == songs.length && _azIndexSort == sort) {
+      return cached;
+    }
+    final map = <String, int>{};
+    for (var i = 0; i < songs.length; i++) {
+      final title = songs[i].title;
+      final letter = title.isNotEmpty && RegExp(r'^[a-zA-Z]').hasMatch(title)
+          ? safeInitial(title)
+          : '#';
+      // Keep the first row of each letter so the jump lands on the group head.
+      map.putIfAbsent(letter, () => i);
+    }
+    _azIndex = map;
+    _azIndexLength = songs.length;
+    _azIndexSort = sort;
+    return map;
+  }
+
+  void _jumpToLetter(String letter, Map<String, int> azIndex) {
     if (!_scrollController.hasClients) return;
-    int indexOf(List<Song> list) => letter == '#'
-        ? list.indexWhere((s) =>
-            s.title.isEmpty || !RegExp(r'^[a-zA-Z]').hasMatch(s.title))
-        : list.indexWhere((s) =>
-            s.title.isNotEmpty &&
-            s.title.toUpperCase().startsWith(letter));
-    var index = indexOf(songs);
-    // In paged mode the target may live beyond the loaded window:
-    // load DB pages until it is covered, then scroll to it.
-    if (index == -1 && usePaged) {
-      final all = lib.filteredSongs('');
-      index = indexOf(all);
-      if (index == -1) return;
-      while (_paged != null &&
-          _paged!.length <= index &&
-          _pagedHasMore &&
-          !_pagedLoading) {
-        await _loadNextPage(lib);
-      }
-      if (!mounted || !_scrollController.hasClients) return;
-      index = indexOf(_paged ?? songs);
-      if (index == -1) return;
-    } else if (index == -1) {
-      return;
-    }
-    // Expand the rendered prefix so the jump target exists before scrolling.
-    if (index >= _visibleCount) {
-      setState(() {
-        _visibleCount = ((index ~/ _pageSize) + 1) * _pageSize;
-      });
-    }
-    final offset =
-        (index * _itemHeight).clamp(0.0, _scrollController.position.maxScrollExtent);
+    final index = azIndex[letter];
+    if (index == null) return;
+    final offset = (index * _itemHeight)
+        .clamp(0.0, _scrollController.position.maxScrollExtent);
     _scrollController.animateTo(
       offset,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
     );
+  }
+
+  // Select every song of the currently visible list, or clear the selection
+  // when everything is already selected.
+  void _toggleSelectAll(List<Song> visible) {
+    setState(() {
+      if (_selectedIds.length >= visible.length) {
+        _selectedIds.clear();
+        _multiSelectMode = false;
+      } else {
+        for (final s in visible) {
+          _selectedIds.add(s.id);
+        }
+      }
+    });
   }
 
   Future<void> _playSong(List<Song> queue, int index) async {
@@ -239,8 +265,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
-  // Play a song from the FULL list by id (rendering may show only a
-  // paged window, but the queue must contain every song).
+  // Play a song from the visible list by id so the queue matches what the
+  // user sees, including every row of a long list.
   Future<void> _playSongInFullList(List<Song> allSongs, int songId) async {
     var index = allSongs.indexWhere((s) => s.id == songId);
     if (index < 0) index = 0;
@@ -285,7 +311,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   onTap: () {
                     lib.setSortOption(opt);
                     Navigator.pop(ctx);
-                    _loadFirstPage(lib);
                   },
                 )),
             const SizedBox(height: 8),
@@ -385,11 +410,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  Widget _buildMultiSelectBar(LibraryProvider lib) {
+  Widget _buildMultiSelectBar(LibraryProvider lib, List<Song> visible) {
     final l = AppLocalizations.of(context)!;
     if (!_multiSelectMode) return const SizedBox.shrink();
     final selected =
-        lib.songs.where((s) => _selectedIds.contains(s.id)).toList();
+        visible.where((s) => _selectedIds.contains(s.id)).toList();
+    final allSelected =
+        visible.isNotEmpty && _selectedIds.length >= visible.length;
     return Container(
       color: Theme.of(context).colorScheme.surfaceContainerHigh,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -397,6 +424,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
         children: [
           Text(l.librarySelectedCount(_selectedIds.length),
               style: const TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(width: 4),
+          IconButton(
+              constraints:
+                  const BoxConstraints(minWidth: 40, minHeight: 40),
+              icon: Icon(allSelected
+                  ? Icons.deselect
+                  : Icons.select_all),
+              tooltip: allSelected
+                  ? AppLocalizations.of(context)!.libraryClearSelection
+                  : AppLocalizations.of(context)!.librarySelectAll,
+              onPressed: () => _toggleSelectAll(visible)),
           const Spacer(),
           IconButton(
               constraints:
@@ -556,45 +594,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ]));
       }
 
-      // Paged DB window first, full list fallback when paging failed.
-      // Kick off the first page once the full list is ready. The post frame
-      // schedule keeps setState out of the build phase.
-      if (_paged == null && !_pagedLoading && _pagedSort == null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _loadFirstPage(lib);
-        });
-      }
-      // Sort changed outside the sort menu (prefs restore): reload page.
-      if (_pagedSort != null && _pagedSort != lib.sortOption) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _loadFirstPage(lib);
-        });
-      }
-      final usePaged = _paged != null;
-      final songs = usePaged ? _paged! : lib.filteredSongs('');
-      // Queue actions (start, shuffle, tap to play) always use the FULL
-      // filtered list so every song is reachable. Only rendering stays
-      // paged for a fast first paint.
-      final allSongs = usePaged ? lib.filteredSongs('') : songs;
-      // Reset the rendered prefix when sort changes. Direct assignment here
-      // is safe because it runs before the rows below are built.
-      if (_lastSortOption != lib.sortOption) {
-        _lastSortOption = lib.sortOption;
-        _visibleCount = _pageSize;
-      }
-      final visibleCount = usePaged
-          ? songs.length
-          : (songs.length < _visibleCount ? songs.length : _visibleCount);
-      final hasMore = usePaged
-          ? _pagedHasMore
-          : visibleCount < songs.length;
+      // One list, no paging. The sliver below has a fixed item extent so
+      // only the visible rows are built even with tens of thousands of songs.
+      final songs = lib.filteredSongs('');
+      _lastVisibleList = songs;
       final showAz = lib.sortOption == SortOption.titleAZ;
-      final available = <String>{
-        for (final s in allSongs)
-          RegExp(r'^[a-zA-Z]').hasMatch(s.title)
-              ? safeInitial(s.title)
-              : '#'
-      };
+      final azIndex =
+          showAz ? _buildAzIndex(songs, lib.sortOption) : <String, int>{};
+      final available = azIndex.keys.toSet();
 
       return Column(
         children: [
@@ -604,23 +611,22 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 value: lib.bulkScanTotal == 0
                     ? null
                     : lib.bulkScanProgress / lib.bulkScanTotal),
-          _buildMultiSelectBar(lib),
+          _buildMultiSelectBar(lib, songs),
           Expanded(
             child: Stack(
               children: [
                 RefreshIndicator(
-                  onRefresh: () async {
-                    await lib.forceScanDevice();
-                    await _loadFirstPage(lib);
-                  },
+                  onRefresh: () => lib.forceScanDevice(),
                   child: CustomScrollView(
                       controller: _scrollController,
                       slivers: [
                         // Header: sort + play buttons (hidden on scroll)
                         SliverToBoxAdapter(
-                            child: _buildSortHeader(lib, allSongs)),
+                            child: _buildSortHeader(lib, songs)),
 
-                        // Song list (rendered prefix only)
+                        // Full list with a fixed row height. Rows outside the
+                        // viewport are never built, so the cost per frame is
+                        // the same regardless of the library size.
                         SliverFixedExtentList(
                           itemExtent: _itemHeight,
                           delegate: SliverChildBuilderDelegate(
@@ -635,8 +641,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                 isMultiSelect: _multiSelectMode,
                                 onTap: () => _multiSelectMode
                                     ? _toggleSelect(song.id)
-                                    : _playSongInFullList(
-                                        allSongs, song.id),
+                                    : _playSongInFullList(songs, song.id),
                                 onLongPress: () => setState(() {
                                   _multiSelectMode = true;
                                   _selectedIds.add(song.id);
@@ -644,38 +649,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                 onOptions: _openSongOptions,
                               );
                             },
-                            childCount: visibleCount,
+                            childCount: songs.length,
                           ),
                         ),
+                        // Bottom padding so the last row is not flush against
+                        // the mini player.
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 24),
+                        ),
 
-                        // Load more button fetches the next DB page, or grows
-                        // the rendered prefix in full list fallback mode.
-                        if (hasMore)
-                          SliverToBoxAdapter(
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                              child: OutlinedButton(
-                                onPressed: _pagedLoading
-                                    ? null
-                                    : () {
-                                        if (usePaged) {
-                                          _loadNextPage(lib);
-                                        } else {
-                                          setState(() {
-                                            _visibleCount =
-                                                visibleCount + _pageSize;
-                                          });
-                                        }
-                                      },
-                                child: Text(usePaged
-                                    ? AppLocalizations.of(context)!.loadMore(
-                                        visibleCount, lib.totalCount)
-                                    : AppLocalizations.of(context)!.loadMore(
-                                        visibleCount, songs.length)),
-                              ),
-                            ),
-                          ),
-                      ],
+                        ],
                     ),
                   ),
                 if (showAz && !_multiSelectMode)
@@ -685,8 +668,27 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     bottom: 0,
                     child: AzScrollbar(
                       availableLetters: available,
-                      onLetterSelected: (l) =>
-                          _jumpToLetter(l, songs, lib, usePaged),
+                      onLetterSelected: (letter) =>
+                          _jumpToLetter(letter, azIndex),
+                    ),
+                  ),
+                // Jump back to the playing song when it is off screen.
+                if (_playingRowHidden && !_multiSelectMode)
+                  Positioned(
+                    right: showAz ? 34 : 16,
+                    bottom: 16,
+                    child: Selector<PlayerService, int?>(
+                      selector: (_, ps) => ps.currentSong?.id,
+                      builder: (context, id, _) {
+                        if (id == null) return const SizedBox.shrink();
+                        return FloatingActionButton.small(
+                          heroTag: 'jumpToPlaying',
+                          onPressed: _jumpToPlayingRow,
+                          tooltip:
+                              AppLocalizations.of(context)!.libraryJumpPlaying,
+                          child: const Icon(Icons.graphic_eq),
+                        );
+                      },
                     ),
                   ),
               ],

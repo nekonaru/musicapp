@@ -79,14 +79,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // Open the developer GitHub profile in an external browser.
+  // No canLaunchUrl gate: on Android 11+ the http/https check always returns
+  // false without a <queries> manifest entry, so the link never opened.
   Future<void> _openDeveloperPage() async {
     final url = Uri.parse('https://github.com/nekonaru');
     try {
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
+      final launched =
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (!launched && mounted) {
+        _showSnack(AppLocalizations.of(context)!.playerCannotOpenBrowser);
       }
     } catch (_) {
       // Best effort link, never block settings.
+      if (!mounted) return;
+      _showSnack(AppLocalizations.of(context)!.playerCannotOpenBrowser);
     }
   }
 
@@ -516,6 +522,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // -- PLAYBACK --
           _SectionHeader(l10n.settingsPlayback),
+          // Smart shuffle switch. Reads the persisted flag straight from the service,
+          // the same way the crossfade switch below does.
+          AnimatedBuilder(
+            animation: PlayerService.instance,
+            builder: (context, _) => SwitchListTile(
+              title: Text(l10n.settingsSmartShuffle),
+              subtitle: Text(l10n.settingsSmartShuffleSubtitle),
+              secondary: const Icon(Icons.auto_awesome_outlined),
+              value: PlayerService.instance.smartShuffle,
+              onChanged: (v) =>
+                  setState(() => PlayerService.instance.setSmartShuffle(v)),
+            ),
+          ),
           SwitchListTile(
             title: Text(l10n.settingsCrossfade),
             subtitle: Text(l10n.settingsCrossfadeSubtitle),
